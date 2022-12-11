@@ -7,6 +7,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Jupyter Notebook
+.ipynb_checkpoints
+src/.ipynb_checkpoints
+
 # C extensions
 *.so
 
@@ -77,10 +81,6 @@ docs/_build/
 
 # PyBuilder
 target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-src/.ipynb_checkpoints
 
 # IPython
 profile_default/
