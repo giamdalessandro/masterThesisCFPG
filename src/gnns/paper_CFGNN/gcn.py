@@ -34,10 +34,6 @@ class GraphConvolution(nn.Module):
     def forward(self, input, adj):
         support = torch.mm(input, self.weight)
         output = torch.spmm(adj, support)
-        #adj = torch.sparse_coo_tensor(adj, torch.ones(adj.size(1)), (700,700)).to_dense()
-        #print("adj:", adj.size())
-        #print("support", support.size())
-        #output = torch.sparse.mm(adj, support)
         if self.bias is not None:
             return output + self.bias
         else:
