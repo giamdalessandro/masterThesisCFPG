@@ -2,7 +2,7 @@ import torch
 from torch_geometric.datasets import BAShapes
 from torch_geometric.utils import k_hop_subgraph
 
-from gnns.paper_GNN.GNN import GraphGCN
+from gnns.paper_GNN.GNN import GraphGCN, NodeGCN
 from gnns.paper_CFGNN.gcn import GCNSynthetic
 
 
@@ -35,7 +35,14 @@ print("\tnode neighborhood:", sub_index.size())
 x = graph.node_stores[0]["x"]
 print("\tnode features    :", x.size())
 
-## instantiate a GNN model
-model = GraphGCN(num_features=10, num_classes=4, device="cpu")
-#model = GCNSynthetic(nfeat=10,nhid=20,nout=20,nclass=4,dropout=0.0)
-output = model(x, sub_index)
+
+## instantiate GNNs model
+model = NodeGCN(num_features=10, num_classes=4, device="cpu")
+output = model(x, sub_index)[node_idx]
+print("\nGNN output  :", output)
+
+model = GCNSynthetic(nfeat=10,nhid=20,nout=20,nclass=4,dropout=0.0)
+sub_index = torch.sparse_coo_tensor(sub_index, torch.ones(sub_index.size(1)), (700,700)).to_dense()
+output = model(x, sub_index)[node_idx]
+print("CF-GNN output:", output)
+
