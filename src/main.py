@@ -14,14 +14,16 @@ from gnns.paper_CFGNN.gcn import GCNSynthetic
 
 
 dataset_name = "syn1"
-GNN_MODEL    = "GNN"
 LR             = 0.003
-EPOCHS         = 1000
+EPOCHS         = 1500
 EARLY_STOP     = 100
 ## GNNExpl model
+GNN_MODEL    = "GNN"
 CLIP_MAX       = 2.0
 EVAL_ENABLED   = True
-
+## CF-GNNExpl model
+#GNN_MODEL    = "CF-GNN"
+N_HIDDEN       = 20
 
 ## load a BAshapes dataset
 dataset, test_indices = load_dataset(dataset=dataset_name)
@@ -53,20 +55,14 @@ edge_index = graph.edge_index #.indices()
 #print("\tnode features    :", x.size())
 
 
-### instantiate GNNs model
-#print(Fore.BLUE + "\n[testing]> Testing on GNN models...")
+### instantiate GNN model
 model = NodeGCN(num_features=num_node_features, num_classes=num_classes, device="cpu")
-#output = model(x, sub_index)[node_idx]
-#print("\tGNN    ->", output)
-#
+
 ### need dense adjacency matrix for GCNSynthetic model
-#v = torch.ones(sub_index.size(1))
+#v = torch.ones(edge_index.size(1))
 #s = (graph.num_nodes,graph.num_nodes)
-#sub_index = torch.sparse_coo_tensor(indices=sub_index, values=v, size=s).to_dense()
-#
-#model = GCNSynthetic(nfeat=num_node_features,nhid=20,nout=20,nclass=num_classes,dropout=0.0)
-#output = model(x, sub_index)[node_idx]
-#print("\tCF-GNN ->", output)
+#edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
+#model = GCNSynthetic(nfeat=num_node_features,nhid=N_HIDDEN,nout=N_HIDDEN,nclass=num_classes,dropout=0.0)
 
 # Define graph
 print(Fore.BLUE + "[training]> loading model...\n", model)
