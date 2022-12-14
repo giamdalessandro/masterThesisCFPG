@@ -11,7 +11,8 @@ DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
 
 
 class BAGraphDataset(InMemoryDataset):
-    r"""PyG dataset class to wrap the stored BA-Shapes datasets from the 
+    r"""
+    PyG dataset class to wrap the stored BA-Shapes datasets from the 
     `"GNNExplainer: Generating Explanations for Graph Neural Networks" 
     <https://arxiv.org/pdf/1903.03894.pdf>` paper.
     """
@@ -117,7 +118,8 @@ def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, s
         A couple (`BAGraphdataset()`,list). 
     """
     print(Fore.GREEN + f"[dataset]> loading {dataset} dataset...")
-    if dataset[:3] == "syn": # Load node_dataset
+    if dataset[:3] == "syn": 
+        # Load node-classification datasets
         if dataset == "syn1" or dataset == "syn2":
             test_indices = range(400, 700, 5)
         elif dataset == "syn3":
@@ -127,5 +129,7 @@ def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, s
 
         return _load_node_dataset(dataset), test_indices
         
-    #else: # Load graph dataset
-    #    return load_graph_dataset(dataset, shuffle)
+    else: 
+        # TODO Load graph-classification datasets
+        #return load_graph_dataset(dataset, shuffle)
+        return NotImplementedError("Graph classification datasets not yet implemented.")
