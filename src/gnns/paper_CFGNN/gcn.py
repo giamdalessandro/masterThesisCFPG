@@ -13,7 +13,6 @@ class GraphConvolution(nn.Module):
     """
     Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
     """
-
     def __init__(self, in_features, out_features, bias=True):
         super(GraphConvolution, self).__init__()
         self.in_features = in_features
@@ -59,12 +58,8 @@ class GCNSynthetic(nn.Module):
         self.dropout = dropout
 
     def forward(self, x, adj):
-        x1 = relu(self.gc1(x, adj))
-        x1 = dropout(x1, self.dropout, training=self.training)
-        x2 = relu(self.gc2(x1, adj))
-        x2 = dropout(x2, self.dropout, training=self.training)
-        x3 = self.gc3(x2, adj)
-        x = self.lin(torch.cat((x1, x2, x3), dim=1))
+        input_lin = self.embedding(x, adj)
+        x = self.lin(input_lin)
         return log_softmax(x, dim=1)
 
     def embedding(self, x, adj):
