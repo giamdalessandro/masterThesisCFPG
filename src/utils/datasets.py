@@ -31,6 +31,10 @@ class BAGraphDataset(InMemoryDataset):
         - `edge_label`:
         """
         super().__init__(None, transform, pre_transform)
+        self.train_mask = train_mask
+        self.val_mask   = val_mask
+        self.test_mask  = test_mask
+
 
         x = torch.tensor(x, dtype=torch.float)
         num_nodes = x.size(0)
@@ -54,9 +58,6 @@ class BAGraphDataset(InMemoryDataset):
             edge_index=edge_index.indices(), 
             edge_label=edge_label.indices(),  
             y=labels, 
-            train_mask=train_mask, 
-            val_mask=val_mask, 
-            test_mask=test_mask, 
             expl_mask=expl_mask)
 
         self.data, self.slices = self.collate([data])
