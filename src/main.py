@@ -1,10 +1,9 @@
+import numpy as np
 from tqdm import tqdm
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
-import numpy as np
 
 import torch
-#from torch_geometric.datasets import BAShapes
 from torch_geometric.utils import k_hop_subgraph
 
 from utils.datasets import load_dataset
@@ -15,12 +14,13 @@ from gnns.paper_CFGNN.gcn import GCNSynthetic
 
 
 dataset_name = "syn1"
-gnn_model    = "GNN"
-lr             = 0.003
-epochs         = 100
-early_stopping = 10
-clip_max       = 2.0
-eval_enabled   = True
+GNN_MODEL    = "GNN"
+LR             = 0.003
+EPOCHS         = 1000
+EARLY_STOP     = 100
+## GNNExpl model
+CLIP_MAX       = 2.0
+EVAL_ENABLED   = True
 
 
 ## load a BAshapes dataset
@@ -41,16 +41,16 @@ labels = np.argmax(labels, axis=1)
 #print("\t#edges:", graph.num_edges)args
 
 ## extract a random node to train on
-idx = torch.randint(0, len(test_indices), (1,))
-node_idx = torch.tensor([test_indices[idx]]) 
-print(Fore.BLUE + f"\n[testing]> Chosing node {node_idx.item()}...")
+#idx = torch.randint(0, len(test_indices), (1,))
+#node_idx = torch.tensor([test_indices[idx]]) 
+#print(Fore.BLUE + f"\n[testing]> Chosing node {node_idx.item()}...")
 
 x = graph.x
 edge_index = graph.edge_index #.indices()
-_, sub_index, _, _ = k_hop_subgraph(node_idx, 3, edge_index)
-print("\tedge_index       :", edge_index.size())
-print("\tnode neighborhood:", sub_index.size())
-print("\tnode features    :", x.size())
+#_, sub_index, _, _ = k_hop_subgraph(node_idx, 3, edge_index)
+#print("\tedge_index       :", edge_index.size())
+#print("\tnode neighborhood:", sub_index.size())
+#print("\tnode features    :", x.size())
 
 
 ### instantiate GNNs model
@@ -68,26 +68,16 @@ model = NodeGCN(num_features=num_node_features, num_classes=num_classes, device=
 #output = model(x, sub_index)[node_idx]
 #print("\tCF-GNN ->", output)
 
-
-## load gcn model for chosen task and dataset
-#model = model_selector(
-#    paper=_paper, 
-#    dataset=_dataset, 
-#    pretrained=False, 
-#    return_checkpoint=False, 
-#    device=device, 
-#    config=args).to(device)
-
 # Define graph
-print(Fore.BLUE + "\n[training]> loading model...\n", model)
+print(Fore.BLUE + "[training]> loading model...\n", model)
 print("-----------------------------\n")
-optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 criterion = torch.nn.CrossEntropyLoss()
 
 
 best_val_acc = 0.0
 best_epoch = 0
-with tqdm(range(0, epochs), desc="[train]> Epoch") as epochs_bar:
+with tqdm(range(0, EPOCHS), desc="[training]> Epoch") as epochs_bar:
     for epoch in epochs_bar:
         model.train()
         optimizer.zero_grad()
@@ -98,7 +88,7 @@ with tqdm(range(0, epochs), desc="[train]> Epoch") as epochs_bar:
 
         loss = criterion(out[idx_train], labels[idx_train])
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), clip_max)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), CLIP_MAX)
         optimizer.step()
 
         #if args.eval_enabled: model.eval()
@@ -113,17 +103,15 @@ with tqdm(range(0, epochs), desc="[train]> Epoch") as epochs_bar:
         test_acc  = evaluate(out[idx_test], labels[idx_test])
         val_acc   = evaluate(out[idx_eval], labels[idx_eval])
 
-        #print(f"Epoch: {epoch}, train_acc: {train_acc:.4f}, val_acc: {val_acc:.4f}, train_loss: {loss:.4f}")
         epochs_bar.set_postfix(loss=f"{loss:.4f}", train_acc=f"{train_acc:.4f}", 
                             val_acc=f"{val_acc:.4f}", best_val_acc=f"{best_val_acc:.4f}")
 
         if val_acc > best_val_acc: # New best results
-            #print("Val improved")
             best_val_acc = val_acc
             best_epoch = epoch
             store_checkpoint(
                 model=model, 
-                gnn=gnn_model, 
+                gnn=GNN_MODEL, 
                 paper="", 
                 dataset=dataset_name,
                 train_acc=train_acc, 
@@ -131,10 +119,10 @@ with tqdm(range(0, epochs), desc="[train]> Epoch") as epochs_bar:
                 test_acc=test_acc, 
                 epoch=epoch)
 
-        if epoch - best_epoch > early_stopping and best_val_acc > 0.99:
+        if epoch - best_epoch > EARLY_STOP and best_val_acc > 0.99:
             break
 
-model = load_best_model(model, best_epoch, gnn_model, "", dataset_name, eval_enabled)
+model = load_best_model(model, best_epoch, GNN_MODEL, "", dataset_name, EVAL_ENABLED)
 #if args.paper[:3] == "GCN":
 #    out = model(x, norm_adj)
 #elif args.paper[:3] == "GNN":
@@ -151,7 +139,7 @@ print(Fore.MAGENTA + "[results]> training final results",
 
 store_checkpoint(
     model=model, 
-    gnn=gnn_model, 
+    gnn=GNN_MODEL, 
     paper="", 
     dataset=dataset_name,
     train_acc=train_acc, 
