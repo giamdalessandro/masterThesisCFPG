@@ -1,5 +1,7 @@
 import os
 import pickle as pkl
+from colorama import init, Fore 
+init(autoreset=True) # initializes Colorama
 
 import torch
 from torch_geometric.data import Data, InMemoryDataset
@@ -49,8 +51,8 @@ class BAGraphDataset(InMemoryDataset):
 
         data = Data(
             x=x, 
-            edge_index=edge_index, 
-            edge_label=edge_label,  
+            edge_index=edge_index.indices(), 
+            edge_label=edge_label.indices(),  
             y=labels, 
             train_mask=train_mask, 
             val_mask=val_mask, 
@@ -73,7 +75,7 @@ def _load_node_dataset(dataset: str):
     """
     filename = dataset + ".pkl"
     path = DATA_DIR + "pkls/" + filename
-    print(f"\n[dataset]> node dataset from file '{filename}'...")
+    print(Fore.GREEN + f"[dataset]> node dataset from file '{filename}'...")
 
     # load raw data
     with open(path, 'rb') as fin:
@@ -113,7 +115,7 @@ def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, s
     Returns:    
         A couple (`BAGraphdataset()`,list). 
     """
-    print(f"[dataset]> ...loading {dataset} dataset")
+    print(Fore.GREEN + f"[dataset]> loading {dataset} dataset...")
     if dataset[:3] == "syn": # Load node_dataset
         if dataset == "syn1" or dataset == "syn2":
             test_indices = range(400, 700, 5)
