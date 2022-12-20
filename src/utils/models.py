@@ -48,12 +48,16 @@ def string_to_model(paper: str, dataset: str, device: str, config):
         raise NotImplementedError
 
 def get_pretrained_checkpoint(model, paper: str, explainer: str, dataset: str):
-    """ TODO -> modify into get_pretrained_model
+    """
     Given a paper and dataset loads the pre-trained model.
 
     Args
-    - `paper`: the paper who's classification model we want to use.
-    - `dataset`: the dataset on which we wish to train. This ensures that the model in- and output are correct.
+    - `model`     : model instance on which the pretrained checkpoint will be loaded.
+    - `paper`     : the paper who's classification model we want to use.
+    - `explainer` : the explainer model on which the gnn-model has been meta-trained 
+            (if you want to load the model weights after meta-training).
+    - `dataset` : the dataset on which we wish to train. This ensures that the model 
+            input and output are correct.
     
     Returns 
         The path (`str`) to the pre-trined model parameters.
@@ -68,7 +72,7 @@ def get_pretrained_checkpoint(model, paper: str, explainer: str, dataset: str):
     if explainer == "":
         path = f"./checkpoints/{paper}/{dataset}/{model_name}"
     else:
-        path = f"./checkpoints/{paper}/{explainer}/{dataset}/{model_name}"
+        path = f"./checkpoints/meta/{paper}/{explainer}/{dataset}/{model_name}"
 
     print(f"\n[models]> ...loading checkpoint from '{path}'")
 
@@ -78,7 +82,9 @@ def get_pretrained_checkpoint(model, paper: str, explainer: str, dataset: str):
         print(f"[models]> Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
     else:
         model.load_state_dict(checkpoint['model_state_dict'])
-        print(f"[models]> This model obtained: Train Acc: {checkpoint['train_acc']:.4f}, Val Acc: {checkpoint['val_acc']:.4f}, Test Acc: {checkpoint['test_acc']:.4f}.")
+        print(f"[models]> This model obtained: train_acc: {checkpoint['train_acc']:.4f}",
+                f"val_acc: {checkpoint['val_acc']:.4f}",
+                f"test_acc: {checkpoint['test_acc']:.4f}.")
 
     return model, checkpoint
 
@@ -88,12 +94,12 @@ def model_selector(paper: str, dataset: str, explainer: str="",  pretrained: boo
     Given a paper and dataset loads accociated model.
 
     Args
-    - `paper`: the paper who's classification model we want to use.
-    - `dataset`: the dataset on which we wish to train. This ensures that the model
+    - `paper`   : the paper who's classification model we want to use.
+    - `dataset` : the dataset on which we wish to train. This ensures that the model
             input and output are correct.
-    - `explainer`: the explainer model on which the gnn-model has been meta-trained 
+    - `explainer` : the explainer model on which the gnn-model has been meta-trained 
             (if you want to load the model weights after meta-training).
-    - `pretrained`: whether to return a pre-trained model or not.
+    - `pretrained` : whether to return a pre-trained model or not.
     - `return_checkpoint`: whether to return the dict contining the models parameters or not.
 
     Returns 
