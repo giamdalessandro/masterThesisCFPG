@@ -1,8 +1,10 @@
-import torch
 import os
+import torch
+from colorama import init, Fore 
+init(autoreset=True) # initializes Colorama
 
-from src.gnns.paper_GNN.GNN import NodeGCN
-from src.gnns.paper_CFGNN.gcn import GCNSynthetic
+from gnns.paper_GNN.GNN import NodeGCN
+from gnns.paper_CFGNN.gcn import GCNSynthetic
 
 
 
@@ -45,7 +47,7 @@ def string_to_model(paper: str, dataset: str, device: str, config):
     else:
         raise NotImplementedError
 
-def get_pretrained_path(paper, dataset):
+def get_pretrained_checkpoint(model, paper: str, explainer: str, dataset: str):
     """ TODO -> modify into get_pretrained_model
     Given a paper and dataset loads the pre-trained model.
 
@@ -57,22 +59,40 @@ def get_pretrained_path(paper, dataset):
         The path (`str`) to the pre-trined model parameters.
     """
     # maybe wirte get_pretrained_model function
-    if paper == "GCN_old":
+    if paper == "CF-GNN_old":
         # to load CFExpl paper pretrained models
         model_name = f"gcn_3layer_{dataset}.pt"
     else:
         model_name = "best_model"
 
-    path = f"./checkpoints/{paper}/{dataset}/{model_name}"
-    return path
+    if explainer == "":
+        path = f"./checkpoints/{paper}/{dataset}/{model_name}"
+    else:
+        path = f"./checkpoints/{paper}/{explainer}/{dataset}/{model_name}"
 
-def model_selector(paper: str, dataset: str, pretrained=True, return_checkpoint=False, device: str="cpu", config=None):
+    print(f"\n[models]> ...loading checkpoint from '{path}'")
+
+    checkpoint = torch.load(path)
+    if paper == "CF-GNN_old":
+        model.load_state_dict(checkpoint)
+        print(f"[models]> Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
+    else:
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"[models]> This model obtained: Train Acc: {checkpoint['train_acc']:.4f}, Val Acc: {checkpoint['val_acc']:.4f}, Test Acc: {checkpoint['test_acc']:.4f}.")
+
+    return model, checkpoint
+
+def model_selector(paper: str, dataset: str, explainer: str="",  pretrained: bool=True, 
+                    return_checkpoint: bool=False, device: str="cpu", config=None): 
     """
     Given a paper and dataset loads accociated model.
 
     Args
     - `paper`: the paper who's classification model we want to use.
-    - `dataset`: the dataset on which we wish to train. This ensures that the model in- and output are correct.
+    - `dataset`: the dataset on which we wish to train. This ensures that the model
+            input and output are correct.
+    - `explainer`: the explainer model on which the gnn-model has been meta-trained 
+            (if you want to load the model weights after meta-training).
     - `pretrained`: whether to return a pre-trained model or not.
     - `return_checkpoint`: whether to return the dict contining the models parameters or not.
 
@@ -80,19 +100,9 @@ def model_selector(paper: str, dataset: str, pretrained=True, return_checkpoint=
         `torch.nn.module` models and optionallly a dict containing it's parameters.
     """
     model = string_to_model(paper, dataset, device, config)
-    checkpoint = None
     if pretrained:
-        path = get_pretrained_path(paper, dataset)
-        print(f"[models]> ...loading checkpoint from '{path}'")
-        checkpoint = torch.load(path)
-        if paper == "GCN_old":
-            model.load_state_dict(checkpoint)
-            print(f"[models]> Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
-        else:
-            model.load_state_dict(checkpoint['model_state_dict'])
-            print(f"[models]> This model obtained: Train Acc: {checkpoint['train_acc']:.4f}, Val Acc: {checkpoint['val_acc']:.4f}, Test Acc: {checkpoint['test_acc']:.4f}.")
-    
-    if return_checkpoint:
+        model, checkpoint = get_pretrained_checkpoint(model, paper, dataset, explainer)
         return model, checkpoint
     
-    return model
+    print(Fore.BLUE + "[training]> new gnn model loaded")
+    return model, None

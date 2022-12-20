@@ -11,6 +11,7 @@ from utils.evaluation import evaluate, store_checkpoint, load_best_model
 
 from gnns.paper_GNN.GNN import GraphGCN, NodeGCN
 from gnns.paper_CFGNN.gcn import GCNSynthetic
+from utils.models import model_selector
 
 
 dataset_name = "syn1"
@@ -56,7 +57,8 @@ edge_index = graph.edge_index #.indices()
 
 
 ### instantiate GNN model
-model = NodeGCN(num_features=num_node_features, num_classes=num_classes, device="cpu")
+#model = NodeGCN(num_features=num_node_features, num_classes=num_classes, device="cpu")
+model, _ = model_selector(paper=GNN_MODEL, dataset=dataset_name, pretrained=True)
 
 ### need dense adjacency matrix for GCNSynthetic model
 #v = torch.ones(edge_index.size(1))
@@ -93,7 +95,7 @@ with tqdm(range(0, EPOCHS), desc="[training]> Epoch") as epochs_bar:
             #    out = model(x, norm_adj)
             #elif args.paper[:3] == "GNN":
             out = model(x, edge_index)
-
+ 
         # Evaluate train
         train_acc = evaluate(out[idx_train], labels[idx_train])
         test_acc  = evaluate(out[idx_test], labels[idx_test])
@@ -105,15 +107,15 @@ with tqdm(range(0, EPOCHS), desc="[training]> Epoch") as epochs_bar:
         if val_acc > best_val_acc: # New best results
             best_val_acc = val_acc
             best_epoch = epoch
-            store_checkpoint(
-                model=model, 
-                gnn=GNN_MODEL, 
-                paper="", 
-                dataset=dataset_name,
-                train_acc=train_acc, 
-                val_acc=val_acc, 
-                test_acc=test_acc, 
-                epoch=epoch)
+            #store_checkpoint(
+            #    model=model, 
+            #    gnn=GNN_MODEL, 
+            #    paper="", 
+            #    dataset=dataset_name,
+            #    train_acc=train_acc, 
+            #    val_acc=val_acc, 
+            #    test_acc=test_acc, 
+            #    epoch=epoch)
 
         if epoch - best_epoch > EARLY_STOP and best_val_acc > 0.99:
             break
@@ -133,12 +135,12 @@ print(Fore.MAGENTA + "[results]> training final results",
         f"val_acc: {val_acc:.4f}",
         f"test_acc: {test_acc:.4f}")
 
-store_checkpoint(
-    model=model, 
-    gnn=GNN_MODEL, 
-    paper="", 
-    dataset=dataset_name,
-    train_acc=train_acc, 
-    val_acc=val_acc, 
-    test_acc=test_acc)
+#store_checkpoint(
+#    model=model, 
+#    gnn=GNN_MODEL, 
+#    paper="", 
+#    dataset=dataset_name,
+#    train_acc=train_acc, 
+#    val_acc=val_acc, 
+#    test_acc=test_acc)
 #store_train_results(_paper, _dataset, model, train_acc, val_acc, test_acc, desc=desc, meta=False)
