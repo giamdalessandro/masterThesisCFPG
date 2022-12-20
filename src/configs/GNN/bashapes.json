@@ -6,7 +6,7 @@
     "num_classes" : 4,
     "train_params" : {
         "lr" : 0.003,
-        "epochs" : 1000,
+        "epochs" : 100,
         "early_stop" : 100,
         "clip_max" : 2.0,
         "eval_enabled" : true

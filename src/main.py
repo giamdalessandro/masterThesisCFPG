@@ -80,7 +80,7 @@ if TRAIN:
     print(Fore.BLUE + "[training]> loading model...\n", model)
     print("-----------------------------\n")
     train_params = cfg["train_params"]
-    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])
     criterion = torch.nn.CrossEntropyLoss()
 
 
@@ -132,7 +132,11 @@ if TRAIN:
             if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                 break
 
-    model = load_best_model(model, best_epoch, GNN_MODEL, "", DATASET, train_params["eval_enabled"])
+    model = load_best_model(model=model, 
+                best_epoch=best_epoch, 
+                paper=GNN_MODEL, 
+                dataset=DATASET, 
+                eval_enabled=train_params["eval_enabled"])
     #if args.paper[:3] == "GCN":
     #    out = model(x, norm_adj)
     #elif args.paper[:3] == "GNN":

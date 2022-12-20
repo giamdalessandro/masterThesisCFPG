@@ -39,9 +39,9 @@ def store_checkpoint(model, gnn: str, paper: str, dataset: str, train_acc, val_a
     - `epoch`     : the current epoch of the training process;
     """
     if meta:
-        save_dir = f"./checkpoints/meta/{gnn}/{paper}/{dataset}" 
+        save_dir = SAVES_DIR + f"{gnn}/{paper}/{dataset}" 
     else:
-        save_dir = f"./checkpoints/{gnn}/{dataset}" 
+        save_dir = SAVES_DIR + f"{gnn}/{dataset}" 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
@@ -54,7 +54,8 @@ def store_checkpoint(model, gnn: str, paper: str, dataset: str, train_acc, val_a
     else:
         torch.save(checkpoint, os.path.join(save_dir, f"epoch_{epoch}"))
 
-def load_best_model(model, best_epoch: int, gnn: str, paper: str, dataset: str, eval_enabled: bool, meta: bool=False):
+def load_best_model(model, best_epoch: int, paper: str, dataset: str, explainer: str="",
+                    eval_enabled: bool=True, meta: bool=False):
     """
     Load the model parameters from a checkpoint into a model
     
@@ -73,9 +74,9 @@ def load_best_model(model, best_epoch: int, gnn: str, paper: str, dataset: str, 
     to_load = "best_model" if best_epoch == -1 else f"epoch_{best_epoch}"
 
     if meta:
-        checkpoint = torch.load(f"./checkpoints/meta/{gnn}/{paper}/{dataset}/{to_load}")
+        checkpoint = torch.load(SAVES_DIR + f"meta/{paper}/{dataset}/{to_load}")
     else:
-        checkpoint = torch.load(f"./checkpoints/{gnn}/{paper}/{dataset}/{to_load}")
+        checkpoint = torch.load(SAVES_DIR + f"{paper}/{dataset}/{to_load}")
     
     model.load_state_dict(checkpoint['model_state_dict'])
     #print(Fore.MAGENTA + "[results]: best model", model)
