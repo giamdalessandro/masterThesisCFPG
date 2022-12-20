@@ -1,4 +1,5 @@
 import os
+import json
 import pickle as pkl
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
@@ -8,6 +9,18 @@ from torch_geometric.data import Data, InMemoryDataset
 
 path_to_data = "/../../datasets/"
 DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
+
+
+def parse_config(config_path: str):
+    """Parse config file (.json) at `config_path` into a dictionary"""
+    try:    
+        with open(config_path) as config_parser:
+            config = json.loads(json.dumps(json.load(config_parser)))
+        return config
+    except FileNotFoundError:
+        print("No config found")
+        return None
+
 
 
 class BAGraphDataset(InMemoryDataset):
@@ -62,7 +75,6 @@ class BAGraphDataset(InMemoryDataset):
             expl_mask=expl_mask)
 
         self.data, self.slices = self.collate([data])
-
 
 
 def _load_node_dataset(dataset: str):

@@ -1,5 +1,4 @@
 import os
-import json
 import numpy as np
 from tqdm import tqdm
 from colorama import init, Fore 
@@ -8,26 +7,15 @@ init(autoreset=True) # initializes Colorama
 import torch
 from torch_geometric.utils import k_hop_subgraph
 
-from utils.datasets import load_dataset
+from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model
 
 
-def parse_config(config_path: str):
-    """Parse config file (.json) at `config_path` into a dictionary"""
-    try:    
-        with open(config_path) as config_parser:
-            config = json.loads(json.dumps(json.load(config_parser)))
-        return config
-    except FileNotFoundError:
-        print("No config found")
-        return None
-
-
-TRAIN = False
+TRAIN = True
 STORE = False
 DATASET   = "bashapes"
-GNN_MODEL = "GNN"
+GNN_MODEL = "CF-GNN"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -66,19 +54,16 @@ edge_index = graph.edge_index #.indices()
 
 
 ### instantiate GNN model
-#model = NodeGCN(num_features=num_node_features, num_classes=num_classes, device="cpu")
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
 ### need dense adjacency matrix for GCNSynthetic model
-#v = torch.ones(edge_index.size(1))
-#s = (graph.num_nodes,graph.num_nodes)
-#edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
-#model = GCNSynthetic(nfeat=num_node_features,nhid=N_HIDDEN,nout=N_HIDDEN,nclass=num_classes,dropout=0.0)
+v = torch.ones(edge_index.size(1))
+s = (graph.num_nodes,graph.num_nodes)
+edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
 
 # Define graph
 if TRAIN:
-    print(Fore.BLUE + "[training]> loading model...\n", model)
-    print("-----------------------------\n")
+    print(Fore.RED + "\n[training]> starting train...")
     train_params = cfg["train_params"]
     optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])
     criterion = torch.nn.CrossEntropyLoss()
@@ -133,7 +118,7 @@ if TRAIN:
                 break
 
     model = load_best_model(model=model, 
-                best_epoch=best_epoch, 
+                best_epoch=best_epoch,
                 paper=GNN_MODEL, 
                 dataset=DATASET, 
                 eval_enabled=train_params["eval_enabled"])

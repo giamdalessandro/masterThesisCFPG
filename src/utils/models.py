@@ -1,3 +1,4 @@
+import os
 import torch
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
@@ -5,6 +6,8 @@ init(autoreset=True) # initializes Colorama
 from gnns.paper_GNN.GNN import NodeGCN
 from gnns.paper_CFGNN.gcn import GCNSynthetic
 
+path_to_saves = "/../../checkpoints/"
+SAVES_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_saves
 
 
 def string_to_model(paper: str, dataset: str, device: str, config):
@@ -67,13 +70,13 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
         model_name = "best_model"
 
     if explainer == "":
-        path = f"./checkpoints/{paper}/{dataset}/{model_name}"
+        rel_path = f"{paper}/{dataset}/{model_name}"
     else:
-        path = f"./checkpoints/meta/{paper}/{explainer}/{dataset}/{model_name}"
+        rel_path = f"meta/{paper}/{explainer}/{dataset}/{model_name}"
 
-    print(Fore.CYAN + "[models]> ...loading checkpoint from",f"'{path}'")
+    print(Fore.CYAN + "[models]> ...loading checkpoint from",f"'checkpoints/{rel_path}'")
 
-    checkpoint = torch.load(path)
+    checkpoint = torch.load(SAVES_DIR + rel_path)
     if paper == "CF-GNN_old":
         model.load_state_dict(checkpoint)
         print(Fore.CYAN + f"[models]> Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
