@@ -1,3 +1,5 @@
+import os
+import json
 import numpy as np
 from tqdm import tqdm
 from colorama import init, Fore 
@@ -10,23 +12,31 @@ from utils.datasets import load_dataset
 from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model
 
+
+def parse_config(config_path: str):
+    """Parse config file (.json) at `config_path` into a dictionary"""
+    try:    
+        with open(config_path) as config_parser:
+            config = json.loads(json.dumps(json.load(config_parser)))
+        return config
+    except FileNotFoundError:
+        print("No config found")
+        return None
+
+
 TRAIN = False
 STORE = False
+DATASET   = "bashapes"
+GNN_MODEL = "GNN"
 
-dataset_name = "syn1"
-LR             = 0.003
-EPOCHS         = 1500
-EARLY_STOP     = 100
-## GNNExpl model
-GNN_MODEL    = "GNN"
-CLIP_MAX       = 2.0
-EVAL_ENABLED   = True
-## CF-GNNExpl model
-#GNN_MODEL    = "CF-GNN"
-N_HIDDEN       = 20
+rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
+cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
+cfg = parse_config(config_path=cfg_path)
+
 
 ## load a BAshapes dataset
-dataset, test_indices = load_dataset(dataset=dataset_name)
+DATASET = cfg["dataset"]
+dataset, test_indices = load_dataset(dataset=DATASET)
 num_classes = dataset.num_classes
 num_node_features = dataset.num_node_features
 idx_train = dataset.train_mask
@@ -57,7 +67,7 @@ edge_index = graph.edge_index #.indices()
 
 ### instantiate GNN model
 #model = NodeGCN(num_features=num_node_features, num_classes=num_classes, device="cpu")
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=dataset_name, pretrained=True)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
 ### need dense adjacency matrix for GCNSynthetic model
 #v = torch.ones(edge_index.size(1))
@@ -69,13 +79,14 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=dataset_name, pretrained=T
 if TRAIN:
     print(Fore.BLUE + "[training]> loading model...\n", model)
     print("-----------------------------\n")
+    train_params = cfg["train_params"]
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     criterion = torch.nn.CrossEntropyLoss()
 
 
     best_val_acc = 0.0
     best_epoch = 0
-    with tqdm(range(0, EPOCHS), desc="[training]> Epoch") as epochs_bar:
+    with tqdm(range(0, train_params["epochs"]), desc="[training]> Epoch") as epochs_bar:
         for epoch in epochs_bar:
             model.train()
             optimizer.zero_grad()
@@ -86,7 +97,7 @@ if TRAIN:
 
             loss = criterion(out[idx_train], labels[idx_train])
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), CLIP_MAX)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), train_params["clip_max"])
             optimizer.step()
 
             #if args.eval_enabled: model.eval()
@@ -112,16 +123,16 @@ if TRAIN:
                         model=model, 
                         gnn=GNN_MODEL, 
                         paper="", 
-                        dataset=dataset_name,
+                        dataset=DATASET,
                         train_acc=train_acc, 
                         val_acc=val_acc, 
                         test_acc=test_acc, 
                         epoch=epoch)
 
-            if epoch - best_epoch > EARLY_STOP and best_val_acc > 0.99:
+            if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                 break
 
-    model = load_best_model(model, best_epoch, GNN_MODEL, "", dataset_name, EVAL_ENABLED)
+    model = load_best_model(model, best_epoch, GNN_MODEL, "", DATASET, train_params["eval_enabled"])
     #if args.paper[:3] == "GCN":
     #    out = model(x, norm_adj)
     #elif args.paper[:3] == "GNN":
@@ -141,7 +152,7 @@ if STORE:
         model=model, 
         gnn=GNN_MODEL, 
         paper="", 
-        dataset=dataset_name,
+        dataset=DATASET,
         train_acc=train_acc, 
         val_acc=val_acc, 
         test_acc=test_acc)

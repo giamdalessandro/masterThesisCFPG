@@ -1,4 +1,3 @@
-import os
 import torch
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
@@ -9,7 +8,7 @@ from gnns.paper_CFGNN.gcn import GCNSynthetic
 
 
 def string_to_model(paper: str, dataset: str, device: str, config):
-    """ TODO
+    """
     Given a paper and a dataset return the cooresponding neural model needed for training.
 
     Args
@@ -20,34 +19,32 @@ def string_to_model(paper: str, dataset: str, device: str, config):
     Returns 
         `torch.nn.module` models.
     """
-    if paper[:3] == "GNN":
-        if dataset in ['syn1']:
-            return NodeGCN(10, 4, device)
-        elif dataset in ['syn2']:
-            return NodeGCN(10, 8, device)
-        elif dataset in ['syn3']:
-            return NodeGCN(10, 2, device)
-        elif dataset in ['syn4']:
-            return NodeGCN(10, 2, device)
+    # get some model parameters from config file
+    n_feat  = config["num_node_features"]
+    n_hid   = config["num_hidden"]
+    n_class = config["num_classes"]
+
+    if paper == "GNN":  # GNNExplainer gnn model
+        if dataset in ['syn1','syn2','syn3','syn4']:
+            # node classification datasets
+            return NodeGCN(n_feat, n_class, device)
         else:
             raise NotImplementedError(f"Dataset {dataset} not implemented for GNN explainer.")
 
-    elif (paper[:3] == "GCN") or (paper in ["CF","GNN_cfpg"]):
+    elif paper == "CF-GNN":  # CF-GNNExplainer gnn model
         # get GCNSynth model parameter from config file
-        n_feat  = config.gcn.n_feat
-        n_hid   = config.gcn.hidden
-        n_class = config.num_classes
-        drop    = config.gcn.dropout
+        drop = config["dropout"]
 
         if dataset in ['syn1','syn2','syn3','syn4']:
+            # node classification datasets
             return GCNSynthetic(n_feat,n_hid,n_hid,n_class,drop)
         else:
             raise NotImplementedError(f"Dataset {dataset} not implemented for CF explainer.")
     
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Model {paper} not implemented.")
 
-def get_pretrained_checkpoint(model, paper: str, explainer: str, dataset: str):
+def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
     """
     Given a paper and dataset loads the pre-trained model.
 
@@ -74,17 +71,18 @@ def get_pretrained_checkpoint(model, paper: str, explainer: str, dataset: str):
     else:
         path = f"./checkpoints/meta/{paper}/{explainer}/{dataset}/{model_name}"
 
-    print(f"\n[models]> ...loading checkpoint from '{path}'")
+    print(Fore.CYAN + "[models]> ...loading checkpoint from",f"'{path}'")
 
     checkpoint = torch.load(path)
     if paper == "CF-GNN_old":
         model.load_state_dict(checkpoint)
-        print(f"[models]> Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
+        print(Fore.CYAN + f"[models]> Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
     else:
         model.load_state_dict(checkpoint['model_state_dict'])
-        print(f"[models]> This model obtained: train_acc: {checkpoint['train_acc']:.4f}",
-                f"val_acc: {checkpoint['val_acc']:.4f}",
-                f"test_acc: {checkpoint['test_acc']:.4f}.")
+        print(Fore.CYAN + "[models]> This model obtained:",
+            f"train_acc: {checkpoint['train_acc']:.4f}",
+            f"val_acc: {checkpoint['val_acc']:.4f}",
+            f"test_acc: {checkpoint['test_acc']:.4f}.")
 
     return model, checkpoint
 
@@ -106,9 +104,9 @@ def model_selector(paper: str, dataset: str, explainer: str="",  pretrained: boo
         `torch.nn.module` models and optionallly a dict containing it's parameters.
     """
     model = string_to_model(paper, dataset, device, config)
+    print(Fore.CYAN + "\n[models]: loaded model...\n", model)
     if pretrained:
         model, checkpoint = get_pretrained_checkpoint(model, paper, dataset, explainer)
         return model, checkpoint
     
-    print(Fore.BLUE + "[training]> new gnn model loaded")
     return model, None
