@@ -83,3 +83,18 @@ def load_best_model(model, best_epoch: int, paper: str, dataset: str, explainer:
     if eval_enabled: model.eval()
 
     return model
+
+
+def normalize_adj(adj):
+	r"""
+    Normalize adjacancy matrix according to reparam trick in GCN paper
+    """
+	A_tilde = adj + torch.eye(adj.shape[0])
+	D_tilde = torch.diag(sum(A_tilde))
+	# Raise to power -1/2, set all infs to 0s
+	D_tilde_exp = D_tilde ** (-1 / 2)
+	D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
+
+	# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
+	norm_adj = torch.mm(torch.mm(D_tilde_exp, A_tilde), D_tilde_exp)
+	return norm_adj

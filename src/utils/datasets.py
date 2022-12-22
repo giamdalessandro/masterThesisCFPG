@@ -31,8 +31,9 @@ class BAGraphDataset(InMemoryDataset):
     """
     def __init__(self, x, edge_index, labels, y_val, y_test, train_mask, val_mask, 
                 test_mask, edge_label, transform=None, pre_transform=None, verbose: bool=False):
-        """
+        r""" 
         The parameters to initialize the class are the data loaded from the dataset stored in .pkl
+        
         Args:
         - `x` : node features;
         - `edge_index`: adjacency matrix;
@@ -78,7 +79,7 @@ class BAGraphDataset(InMemoryDataset):
 
 
 def _load_node_dataset(dataset: str):
-    """
+    r"""
     Load a graph dataset for graph node classification task.
 
     Args
@@ -115,7 +116,7 @@ def _load_node_dataset(dataset: str):
     return pyg_dataset
 
 def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, shuffle: bool=True):
-    """
+    r"""
     High level function which loads the dataset by calling the proper method 
     for node-classification or graph-classification datasets.
 

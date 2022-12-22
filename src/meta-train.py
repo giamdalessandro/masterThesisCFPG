@@ -9,11 +9,12 @@ from torch_geometric.utils import k_hop_subgraph
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.evaluation import evaluate, store_checkpoint, load_best_model
+from utils.evaluation import evaluate, store_checkpoint, load_best_model, normalize_adj
 
 
-TRAIN = True
-STORE = False
+TRAIN  = True
+STORE  = False
+DEVICE = "cpu"
 DATASET   = "bashapes"
 GNN_MODEL = "CF-GNN"
 
@@ -51,28 +52,38 @@ edge_index = graph.edge_index #.indices()
 #print("\tedge_index       :", edge_index.size())
 #print("\tnode neighborhood:", sub_index.size())
 #print("\tnode features    :", x.size())
+if GNN_MODEL == "CF-GNN":
+    ### need dense adjacency matrix for GCNSynthetic model
+    v = torch.ones(edge_index.size(1))
+    s = (graph.num_nodes,graph.num_nodes)
+    edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
+    edge_index = normalize_adj(edge_index)
 
 
 ### instantiate GNN model
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
-### need dense adjacency matrix for GCNSynthetic model
-v = torch.ones(edge_index.size(1))
-s = (graph.num_nodes,graph.num_nodes)
-edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
-
 # Define graph
 if TRAIN:
-    print(Fore.RED + "\n[training]> starting train...")
+    print(Fore.RED + "\n[meta-training]> starting train...")
     train_params = cfg["train_params"]
-    optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])
-    criterion = torch.nn.CrossEntropyLoss()
 
+    for p in model.parameters():
+        p.to(DEVICE)
+
+    criterion = torch.nn.CrossEntropyLoss()
+    meta_opt = torch.optim.Adam(model.parameters(), lr=train_params["lr"])      
+    inner_opt = torch.optim.Adam(model.parameters(), lr=train_params["inner_lr"])
 
     best_val_acc = 0.0
     best_epoch = 0
-    with tqdm(range(0, train_params["epochs"]), desc="[training]> Epoch") as epochs_bar:
+    with tqdm(range(0, train_params["epochs"]), desc="[meta-training]> Epoch") as epochs_bar:
         for epoch in epochs_bar:
+            # extract a random node to train on
+            idx = torch.randint(0, len(test_indices), (1,))
+            node_idx = torch.tensor([test_indices[idx]]) 
+            print(Fore.BLUE + f"\n[testing]> Chosing node {node_idx.item()}...")
+
             model.train()
             optimizer.zero_grad()
             #if paper[:3] == "GCN":
