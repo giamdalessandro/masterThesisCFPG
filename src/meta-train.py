@@ -12,7 +12,7 @@ from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model, normalize_adj
 
 
-TRAIN  = True
+TRAIN  = False
 STORE  = False
 DEVICE = "cpu"
 DATASET   = "bashapes"
@@ -53,17 +53,17 @@ edge_index = graph.edge_index #.indices()
 #print("\tnode neighborhood:", sub_index.size())
 #print("\tnode features    :", x.size())
 if GNN_MODEL == "CF-GNN":
-    ### need dense adjacency matrix for GCNSynthetic model
+    ## need dense adjacency matrix for GCNSynthetic model
     v = torch.ones(edge_index.size(1))
     s = (graph.num_nodes,graph.num_nodes)
     edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     edge_index = normalize_adj(edge_index)
 
 
-### instantiate GNN model
+## instantiate GNN model
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
-# Define graph
+# Meta-training
 if TRAIN:
     print(Fore.RED + "\n[meta-training]> starting train...")
     train_params = cfg["train_params"]

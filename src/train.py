@@ -60,7 +60,7 @@ if GNN_MODEL == "CF-GNN":
 
 
 ### instantiate GNN model
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=False, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
 # Define graph
 if TRAIN:
@@ -86,7 +86,7 @@ if TRAIN:
             torch.nn.utils.clip_grad_norm_(model.parameters(), train_params["clip_max"])
             optimizer.step()
 
-            #if args.eval_enabled: model.eval()
+            if train_params["eval_enabled"]: model.eval()
             with torch.no_grad():
                 #if args.paper[:3] == "GCN":
                 #    out = model(x, norm_adj)

@@ -91,7 +91,7 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
 
 def model_selector(paper: str, dataset: str, explainer: str="",  pretrained: bool=True, 
                     return_checkpoint: bool=False, device: str="cpu", config=None): 
-    """
+    r""" 
     Given a paper and dataset loads accociated model.
 
     Args
