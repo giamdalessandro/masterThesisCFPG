@@ -67,6 +67,7 @@ class PGExplainer(ExplainerAlgorithm):
         self.lr = lr
         self.coeffs.update(kwargs)
 
+        ## from CFPGE
         #self.sample_bias = sample_bias
         #if self.type == "graph":
         #    self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -247,6 +248,7 @@ class PGExplainer(ExplainerAlgorithm):
         return (eps.log() - (1 - eps).log() + logits) / temperature
 
     def _lossPGE(self, y_hat: Tensor, y: Tensor, edge_mask: Tensor) -> Tensor:
+        """Original PGExplainer loss function"""
         if self.model_config.mode == ModelMode.binary_classification:
             loss = self._loss_binary_classification(y_hat, y)
         elif self.model_config.mode == ModelMode.multiclass_classification:
@@ -265,7 +267,7 @@ class PGExplainer(ExplainerAlgorithm):
 
     def _loss(self, masked_pred, original_pred, edge_mask, reg_coefs):
         """
-        Returns the loss score based on the given mask.
+        Returns the countefactual loss score.
 
         -  `masked_pred`   : Prediction based on the current explanation
         -  `original_pred` : Predicion based on the original graph
