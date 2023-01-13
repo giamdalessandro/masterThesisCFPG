@@ -119,7 +119,7 @@ if TRAIN:
                 break
 
     model = load_best_model(model=model, 
-                best_epoch=-1,#best_epoch,
+                best_epoch=-1,
                 paper=GNN_MODEL, 
                 dataset=DATASET, 
                 eval_enabled=train_params["eval_enabled"])

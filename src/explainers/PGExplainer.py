@@ -67,7 +67,7 @@ class PGExplainer(ExplainerAlgorithm):
         self.lr = lr
         self.coeffs.update(kwargs)
 
-        ## from CFPGE
+        ## from CFPGE   
         #self.sample_bias = sample_bias
         #if self.type == "graph":
         #    self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -191,6 +191,7 @@ class PGExplainer(ExplainerAlgorithm):
         index: Optional[Union[int, Tensor]] = None,
         **kwargs,
     ) -> Explanation:
+        """Computes the explanation given the inpunt"""
         if isinstance(x, dict) or isinstance(edge_index, dict):
             raise ValueError(f"Heterogeneous graphs not yet supported in "
                              f"'{self.__class__.__name__}'")
