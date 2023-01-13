@@ -23,7 +23,7 @@ cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 cfg = parse_config(config_path=cfg_path)
 
 
-## load a BAshapes dataset
+## STEP 1: load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_indices = load_dataset(dataset=DATASET)
 num_classes = dataset.num_classes
@@ -52,6 +52,8 @@ edge_index = graph.edge_index #.indices()
 #print("\tedge_index       :", edge_index.size())
 #print("\tnode neighborhood:", sub_index.size())
 #print("\tnode features    :", x.size())
+
+## STEP 2: instantiate GNN model
 if GNN_MODEL == "CF-GNN":
     ## need dense adjacency matrix for GCNSynthetic model
     v = torch.ones(edge_index.size(1))
@@ -59,11 +61,12 @@ if GNN_MODEL == "CF-GNN":
     edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     edge_index = normalize_adj(edge_index)
 
-
-## instantiate GNN model
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
-# Meta-training
+"""
+TODO Meta-training loop to be implemented
+"""
+## STEP 3: Meta-training
 if TRAIN:
     print(Fore.RED + "\n[meta-training]> starting train...")
     train_params = cfg["train_params"]
@@ -147,6 +150,7 @@ if TRAIN:
             f"val_acc: {val_acc:.4f}",
             f"test_acc: {test_acc:.4f}")
 
+## STEP 4: Store results
 if STORE:
     store_checkpoint(
         model=model, 

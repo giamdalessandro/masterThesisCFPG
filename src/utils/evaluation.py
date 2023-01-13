@@ -98,3 +98,6 @@ def normalize_adj(adj):
 	# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
 	norm_adj = torch.mm(torch.mm(D_tilde_exp, A_tilde), D_tilde_exp)
 	return norm_adj
+
+def index_edge(graph, pair):
+    return torch.where((graph.T == pair).all(dim=1))[0]

@@ -67,13 +67,6 @@ class PGExplainer(ExplainerAlgorithm):
         self.lr = lr
         self.coeffs.update(kwargs)
 
-        ## from CFPGE   
-        #self.sample_bias = sample_bias
-        #if self.type == "graph":
-        #    self.expl_embedding = self.model_to_explain.embedding_size * 2
-        #else:
-        #    self.expl_embedding = self.model_to_explain.embedding_size * 3
-
         self.mlp = Sequential(  # explainer model
             Linear(-1, 64),
             ReLU(),
@@ -191,7 +184,7 @@ class PGExplainer(ExplainerAlgorithm):
         index: Optional[Union[int, Tensor]] = None,
         **kwargs,
     ) -> Explanation:
-        """Computes the explanation given the inpunt"""
+        """Computes the explanation given the model and its input."""
         if isinstance(x, dict) or isinstance(edge_index, dict):
             raise ValueError(f"Heterogeneous graphs not yet supported in "
                              f"'{self.__class__.__name__}'")
@@ -248,7 +241,7 @@ class PGExplainer(ExplainerAlgorithm):
         eps = (1 - 2 * bias) * torch.rand_like(logits) + bias
         return (eps.log() - (1 - eps).log() + logits) / temperature
 
-    def _lossPGE(self, y_hat: Tensor, y: Tensor, edge_mask: Tensor) -> Tensor:
+    def _loss(self, y_hat: Tensor, y: Tensor, edge_mask: Tensor) -> Tensor:
         """Original PGExplainer loss function"""
         if self.model_config.mode == ModelMode.binary_classification:
             loss = self._loss_binary_classification(y_hat, y)
@@ -265,35 +258,3 @@ class PGExplainer(ExplainerAlgorithm):
         mask_ent_loss = mask_ent.mean() * self.coeffs['edge_ent']
 
         return loss + size_loss + mask_ent_loss
-
-    def _loss(self, masked_pred, original_pred, edge_mask, reg_coefs):
-        """
-        Returns the countefactual loss score.
-
-        -  `masked_pred`   : Prediction based on the current explanation
-        -  `original_pred` : Predicion based on the original graph
-        -  `edge_mask`     : Current explanaiton
-        -  `reg_coefs`     : regularization coefficients
-
-        Return
-            Tuple of Tensors (loss,size_loss,mask_ent_loss,pred_loss)
-        """
-        size_reg = self.coeffs["edge_size"]
-        ent_reg  = self.coeffs["edge_ent"]
-        cf_reg   = self.coeffs["edge_cf"]     # have to be added
-        EPS = 1e-15
-
-        # Regularization losses
-        mask = edge_mask.sigmoid()
-        size_loss = torch.sum(mask) * size_reg
-        mask_ent_reg = - mask*torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
-        mask_ent_loss = ent_reg * torch.mean(mask_ent_reg)
-
-        # Explanation loss
-        pred_same = (torch.argmax(masked_pred, dim=1) == original_pred).float()
-        cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
-        pred_loss = pred_same*(-cce_loss)*cf_reg
-
-        # ZAVVE: TODO tryin' to optimize objective function for cf case
-        loss_total = size_loss + mask_ent_loss + pred_loss
-        return loss_total#, size_loss, mask_ent_loss, pred_loss
