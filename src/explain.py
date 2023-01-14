@@ -53,7 +53,7 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, 
 
 
 ## STEP 3: select explainer
-explainer = CFPGExplainer(model, edge_index, x, task="node")
+explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=50)
 explainer.prepare(indices=test_idxs)
 
 ## STEP 4: run experiment

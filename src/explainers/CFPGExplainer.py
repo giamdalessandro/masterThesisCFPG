@@ -1,9 +1,8 @@
+from tqdm import tqdm
 import torch
 from torch import nn
 from torch.optim import Adam
 import torch_geometric as ptgeom
-from torch_geometric.data import Data
-from tqdm import tqdm
 
 from .BaseExplainer import BaseExplainer
 from utils.evaluation import index_edge
@@ -13,8 +12,8 @@ class CFPGExplainer(BaseExplainer):
     A class encaptulating CF-PGExplainer (Parametrized-CFExplainer).
     
     Args:
-        `model_to_explain` (torch.nn.Module): graph classification model who's 
-            predictions we wish to explain.
+        `model_to_explain` (torch.nn.Module): GNN model who's predictions we 
+            wish to explain.
         `graphs` (Tensor): the collections of edge_indices representing the graphs.
         `features` (Tensor): the collection of features for each node in the graphs.
         `task` (string): "node" or "graph".
@@ -23,9 +22,10 @@ class CFPGExplainer(BaseExplainer):
     
     Methods:
         `_create_explainer_input`: utility;
-        `_sample_graph`: utility; sample an explanatory subgraph.
-        `_loss`: calculate the loss of the explainer during training.
-        `train`: train the explainer;
+        `_sample_graph`: utility; sample an explanatory subgraph;
+        `_loss`: calculate the loss of the explainer during training;
+        `_train`: train the explainer;
+        `prepare`: prepare the explanation method for explaining;
         `explain`: search for the subgraph which contributes most to the clasification
              decision of the model-to-be-explained.
     """
@@ -63,10 +63,13 @@ class CFPGExplainer(BaseExplainer):
         if the task is to explain a graph or a sample, this is done by either 
         concatenating two or three embeddings.
         
-        :param pair: edge pair
-        :param embeds: embedding of all nodes in the graph
-        :param node_id: id of the node, not used for graph datasets
-        :return: concatenated embedding
+        Args:
+            `pair`: edge pair;
+            `embeds`: embedding of all nodes in the graph
+            `node_id`: id of the node, not used for graph datasets
+        
+        Returns
+            Concatenated embedding
         """
         rows = pair[0]
         cols = pair[1]
@@ -130,7 +133,7 @@ class CFPGExplainer(BaseExplainer):
         mask_ent_loss = ent_reg * torch.mean(mask_ent_reg)
 
         # Explanation loss
-        pred_same = (torch.argmax(masked_pred, dim=1) == original_pred).float()
+        pred_same = (masked_pred.argmax() == original_pred).float()
         cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
         pred_loss = pred_same*(-cce_loss)*cf_reg
 
@@ -196,8 +199,10 @@ class CFPGExplainer(BaseExplainer):
                     original_pred = self.model_to_explain(feats, graph)
 
                     if self.type == 'node': # we only care for the prediction of the node
-                        masked_pred = masked_pred[n].unsqueeze(dim=0)
-                        original_pred = torch.argmax(original_pred).unsqueeze(0)
+                        masked_pred = masked_pred[n]#.unsqueeze(dim=0)
+                        original_pred = original_pred[n].argmax()
+                        #print("masked pred:", masked_pred.size())
+                        #print("origin pred:", original_pred.size())
 
                     id_loss, size_loss, ent_loss, pred_loss = self._loss(masked_pred=masked_pred, 
                                                                 original_pred=original_pred, 
@@ -216,7 +221,8 @@ class CFPGExplainer(BaseExplainer):
 
     def prepare(self, indices=None):
         """
-        Before we can use the explainer we first need to train it. This is done here.
+        Prepars the explanation method for explaining. When using a parametrized 
+        explainer like PGExplainer, we first need to train the explainer MLP.
 
         Args
         - `indices` : Indices over which we wish to train.
