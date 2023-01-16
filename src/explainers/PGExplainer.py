@@ -1,260 +1,235 @@
-import logging
-from typing import Optional, Union
-
 import torch
-from torch import Tensor
-from torch.nn import ReLU, Sequential
+import torch_geometric as ptgeom
+from torch import nn
+from torch.optim import Adam
+from torch_geometric.data import Data
+from tqdm import tqdm
 
-from torch_geometric.explain import Explanation
-from torch_geometric.explain.algorithm import ExplainerAlgorithm
-from torch_geometric.explain.algorithm.utils import clear_masks, set_masks
-from torch_geometric.explain.config import (
-    ExplanationType,
-    ModelMode,
-    ModelTaskLevel,
-)
-from torch_geometric.nn import Linear
-from torch_geometric.nn.inits import reset
-from torch_geometric.utils import get_message_passing_embeddings
+from .BaseExplainer import BaseExplainer
+from utils.evaluation import index_edge
 
 
-class PGExplainer(ExplainerAlgorithm):
-    r"""The PGExplainer model from the `"Parameterized Explainer for Graph
-    Neural Network" <https://arxiv.org/abs/2011.04573>`_ paper.
-    Internally, it utilizes a neural network to identify subgraph structures
-    that play a crucial role in the predictions made by a GNN.
-    Importantly, the :class:`PGExplainer` needs to be trained via
-    :meth:`~PGExplainer.train` before being able to generate explanations:
-
-    .. code-block:: python
-
-        explainer = Explainer(
-            model=model,
-            algorithm=PGExplainer(epochs=30, lr=0.003),
-            explanation_type='phenomenon',
-            edge_mask_type='object',
-            model_config=ModelConfig(...),
-        )
-
-        # Train against a variety of node-level or graph-level predictions:
-        for epoch in range(30):
-            for index in [...]:  # Indices to train against.
-                loss = explainer.algorithm.train(epoch, model, x, edge_index,
-                                                 target=target, index=index)
-
-        # Get the final explanations:
-        explanation = explainer(x, edge_index, target=target, index=0)
-
-    Args:
-        epochs (int): The number of epochs to train.
-        lr (float, optional): The learning rate to apply.
-            (default: :obj:`0.003`).
-        **kwargs (optional): Additional hyper-parameters to override default
-            settings in
-            :attr:`~torch_geometric.explain.algorithm.PGExplainer.coeffs`.
+class PGExplainer(BaseExplainer):
     """
-
+    A class encaptulating the PGExplainer (https://arxiv.org/abs/2011.04573).
+    
+    :param model_to_explain: graph classification model who's predictions we wish to explain.
+    :param graphs: the collections of edge_indices representing the graphs.
+    :param features: the collcection of features for each node in the graphs.
+    :param task: str "node" or "graph".
+    :param epochs: amount of epochs to train our explainer.
+    :param lr: learning rate used in the training of the explainer.
+    :param temp: the temperture parameters dictacting how we sample our random graphs.
+    :param reg_coefs: reguaization coefficients used in the loss. The first item in the tuple restricts the size of the explainations, the second rescticts the entropy matrix mask.
+    :params sample_bias: the bias we add when sampling random graphs.
+    
+    :function _create_explainer_input: utility;
+    :function _sample_graph: utility; sample an explanatory subgraph.
+    :function _loss: calculate the loss of the explainer during training.
+    :function train: train the explainer
+    :function explain: search for the subgraph which contributes most to the clasification decision of the model-to-be-explained.
+    """
     coeffs = {
-        'edge_size': 0.05,
-        'edge_ent': 1.0,
-        'temp': [5.0, 2.0],
-        'bias': 0.0,
+        "reg_size": 0.05,
+        "reg_ent" : 1.0,
+        "temp": [5.0, 2.0],
+        "sample_bias": 0.0,
     }
 
-    def __init__(self, epochs: int, lr: float = 0.003, **kwargs):
-        super().__init__()
+    def __init__(self, model_to_explain, graphs, features, task, epochs=30, lr=0.003, **kwargs):
+        super().__init__(model_to_explain, graphs, features, task)
+
         self.epochs = epochs
         self.lr = lr
         self.coeffs.update(kwargs)
 
-        self.mlp = Sequential(  # explainer model
-            Linear(-1, 64),
-            ReLU(),
-            Linear(64, 1),
+        if self.type == "graph":
+            self.expl_embedding = self.model_to_explain.embedding_size * 2
+        else:
+            self.expl_embedding = self.model_to_explain.embedding_size * 3
+
+        # Instantiate the explainer model
+        self.explainer_model = nn.Sequential(
+            nn.Linear(self.expl_embedding, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1),
         )
-        self.optimizer = torch.optim.Adam(self.mlp.parameters(), lr=lr)
-        self._curr_epoch = -1
 
-    def supports(self) -> bool:
-        r"""Check inter-PyG dependencies, not really needed"""
-        explanation_type = self.explainer_config.explanation_type
-        if explanation_type != ExplanationType.phenomenon:
-            logging.error(f"'{self.__class__.__name__}' only supports "
-                          f"phenomenon explanations "
-                          f"got (`explanation_type={explanation_type.value}`)")
-            return False
-
-        task_level = self.model_config.task_level
-        if task_level not in {ModelTaskLevel.node, ModelTaskLevel.graph}:
-            logging.error(f"'{self.__class__.__name__}' only supports "
-                          f"node-level or graph-level explanations "
-                          f"got (`task_level={task_level.value}`)")
-            return False
-
-        node_mask_type = self.explainer_config.node_mask_type
-        if node_mask_type is not None:
-            logging.error(f"'{self.__class__.__name__}' does not support "
-                          f"explaining input node features "
-                          f"got (`node_mask_type={node_mask_type.value}`)")
-            return False
-
-        return True
-
-    def reset_parameters(self):
-        reset(self.mlp)
-
-    def train(
-        self,
-        epoch: int,
-        model: torch.nn.Module,
-        x: Tensor,
-        edge_index: Tensor,
-        *,
-        target: Tensor,
-        index: Optional[Union[int, Tensor]] = None,
-        **kwargs,
-    ):
-        r"""Trains the underlying explainer model.
-        Needs to be called before being able to make predictions.
-
-        Args:
-            epoch (int): The current epoch of the training phase.
-            model (torch.nn.Module): The model to explain.
-            x (torch.Tensor): The input node features of a
-                homogeneous graph.
-            edge_index (torch.Tensor): The input edge indices of a homogeneous
-                graph.
-            target (torch.Tensor): The target of the model.
-            index (int or torch.Tensor, optional): The index of the model
-                output to explain. Needs to be a single index.
-                (default: :obj:`None`)
-            **kwargs (optional): Additional keyword arguments passed to
-                :obj:`model`.
+    def _create_explainer_input(self, pair, embeds, node_id):
         """
-        if isinstance(x, dict) or isinstance(edge_index, dict):
-            raise ValueError(f"Heterogeneous graphs not yet supported in "
-                             f"'{self.__class__.__name__}'")
+        Given the embeddign of the sample by the model that we wish to explain, 
+        this method construct the input to the mlp explainer model. Depending on
+        if the task is to explain a graph or a sample, this is done by either 
+        concatenating two or three embeddings.
+        
+        :param pair: edge pair
+        :param embeds: embedding of all nodes in the graph
+        :param node_id: id of the node, not used for graph datasets
+        :return: concatenated embedding
+        """
+        rows = pair[0]
+        cols = pair[1]
+        row_embeds = embeds[rows]
+        col_embeds = embeds[cols]
+        if self.type == 'node':
+            node_embed = embeds[node_id].repeat(rows.size(0), 1)
+            input_expl = torch.cat([row_embeds, col_embeds, node_embed], 1)
+        else:
+            # Node id is not used in this case
+            input_expl = torch.cat([row_embeds, col_embeds], 1)
+        return input_expl
 
-        if self.model_config.task_level == ModelTaskLevel.node:
-            if index is None:
-                raise ValueError(f"The 'index' argument needs to be provided "
-                                 f"in '{self.__class__.__name__}' for "
-                                 f"node-level explanations")
-            if isinstance(index, Tensor) and index.numel() > 1:
-                raise ValueError(f"Only scalars are supported for the 'index' "
-                                 f"argument in '{self.__class__.__name__}'")
+    def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
+        """
+        Implementation of the reparamerization trick to obtain a sample 
+        graph while maintaining the posibility to backprop.
+        
+        Args
+        - `sampling_weights` : Weights provided by the mlp
+        - `temperature`      : annealing temperature to make the procedure more deterministic
+        - `bias`             : Bias on the weights to make samplign less deterministic
+        - `training`         : If set to false, the samplign will be entirely deterministic
+        
+        Return 
+            sample graph
+        """
+        if training:
+            bias = bias + 0.0001  # If bias is 0, we run into problems
+            eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
+            gate_inputs = torch.log(eps) - torch.log(1 - eps)
+            gate_inputs = (gate_inputs + sampling_weights) / temperature
+            graph =  torch.sigmoid(gate_inputs)
+        else:
+            graph = torch.sigmoid(sampling_weights)
+        return graph
 
-        z = get_message_passing_embeddings(model, x, edge_index, **kwargs)[-1]
+    def _loss(self, masked_pred, original_pred, mask):
+        """
+        Returns the loss score based on the given mask.
 
-        self.optimizer.zero_grad()
-        temperature = self._get_temperature(epoch)
+        -  `masked_pred`   : Prediction based on the current explanation
+        -  `original_pred` : Predicion based on the original graph
+        -  `edge_mask`     : Current explanaiton
+        -  `reg_coefs`     : regularization coefficients
 
-        inputs = self._get_inputs(z, edge_index, index)
-        logits = self.mlp(inputs).view(-1)
-        edge_mask = self._concrete_sample(logits, temperature)
-        set_masks(model, edge_mask, edge_index, apply_sigmoid=True)
+        Return
+            loss
+        """
+        reg_size = self.coeffs["reg_size"]
+        reg_ent  = self.coeffs["reg_ent"]
 
-        if self.model_config.task_level == ModelTaskLevel.node:
-            _, hard_edge_mask = self._get_hard_masks(model, index, edge_index,
-                                                     num_nodes=x.size(0))
-            edge_mask = edge_mask[hard_edge_mask]
+        # Regularization losses
+        size_loss = torch.sum(mask) * reg_size
+        mask_ent_reg = -mask * torch.log(mask) - (1 - mask) * torch.log(1 - mask)
+        mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
 
-        y_hat, y = model(x, edge_index, **kwargs), target
+        # Explanation loss
+        cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
 
-        if index is not None:
-            y_hat, y = y_hat[index], y[index]
+        return cce_loss + size_loss + mask_ent_loss
 
-        loss = self._loss(y_hat, y, edge_mask)
-        loss.backward()
-        self.optimizer.step()
+    def _train(self, indices = None):
+        """
+        Main method to train the model
+        
+        Args: 
+        - indices: Indices that we want to use for training.
+        """
+        temp = self.coeffs["temp"]
+        sample_bias = self.coeffs["sample_bias"]
 
-        clear_masks(model)
-        self._curr_epoch = epoch
+        # Make sure the explainer model can be trained
+        self.explainer_model.train()
 
-        return float(loss)
+        # Create optimizer and temperature schedule
+        optimizer = Adam(self.explainer_model.parameters(), lr=self.lr)
+        temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
+
+        # If we are explaining a graph, we can determine the embeddings before we run
+        if self.type == 'node':
+            embeds = self.model_to_explain.embedding(self.features, self.graphs).detach()
+
+        # Start training loop
+        with tqdm(range(0, self.epochs), desc="[PGExplainer]> ...training") as epochs_bar:
+            for e in epochs_bar:
+                optimizer.zero_grad()
+                loss = torch.FloatTensor([0]).detach()
+                t = temp_schedule(e)
+
+                for n in indices:
+                    n = int(n)
+                    if self.type == 'node':
+                        # Similar to the original paper we only consider a subgraph for explaining
+                        feats = self.features
+                        graph = ptgeom.utils.k_hop_subgraph(n, 3, self.graphs)[1]
+                    else:
+                        feats = self.features[n].detach()
+                        graph = self.graphs[n].detach()
+                        embeds = self.model_to_explain.embedding(feats, graph).detach()
+
+                    # Sample possible explanation
+                    input_expl = self._create_explainer_input(graph, embeds, n).unsqueeze(0)
+                    sampling_weights = self.explainer_model(input_expl)
+                    mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
+
+                    masked_pred = self.model_to_explain(feats, graph, edge_weights=mask)
+                    original_pred = self.model_to_explain(feats, graph)
+
+                    if self.type == 'node': # we only care for the prediction of the node
+                        masked_pred = masked_pred[n].unsqueeze(dim=0)
+                        original_pred = original_pred[n]
+
+                    id_loss = self._loss(masked_pred, torch.argmax(original_pred).unsqueeze(0), mask)
+                    loss += id_loss
+
+                epochs_bar.set_postfix(loss=f"{loss.item():.4f}")
+
+                loss.backward()
+                optimizer.step()
 
 
-    def forward(
-        self,
-        model: torch.nn.Module,
-        x: Tensor,
-        edge_index: Tensor,
-        *,
-        target: Tensor,
-        index: Optional[Union[int, Tensor]] = None,
-        **kwargs,
-    ) -> Explanation:
-        """Computes the explanation given the model and its input."""
-        if isinstance(x, dict) or isinstance(edge_index, dict):
-            raise ValueError(f"Heterogeneous graphs not yet supported in "
-                             f"'{self.__class__.__name__}'")
+    def prepare(self, indices=None):
+        """
+        Before we can use the explainer we first need to train it. This is done here.
 
-        if self._curr_epoch < self.epochs - 1:  # Safety check:
-            raise ValueError(f"'{self.__class__.__name__}' is not yet fully "
-                             f"trained (got {self._curr_epoch + 1} epochs "
-                             f"from {self.epochs} epochs). Please first train "
-                             f"the underlying explainer model by running "
-                             f"`explainer.algorithm.train(...)`.")
+        :param indices: Indices over which we wish to train.
+        """
+        # Creation of the explainer_model is done here to make sure that the seed is set
+        if indices is None: # Consider all indices
+            indices = range(0, self.graphs.size(0))
 
-        hard_edge_mask = None
-        if self.model_config.task_level == ModelTaskLevel.node:
-            if index is None:
-                raise ValueError(f"The 'index' argument needs to be provided "
-                                 f"in '{self.__class__.__name__}' for "
-                                 f"node-level explanations")
-            if isinstance(index, Tensor) and index.numel() > 1:
-                raise ValueError(f"Only scalars are supported for the 'index' "
-                                 f"argument in '{self.__class__.__name__}'")
+        self._train(indices=indices)
 
-            # We need to compute hard masks to properly clean up edges and
-            # nodes attributions not involved during message passing:
-            _, hard_edge_mask = self._get_hard_masks(model, index, edge_index,
-                                                     num_nodes=x.size(0))
+    def explain(self, index):
+        """
+        Given the index of a node/graph this method returns its explanation. 
+        This only gives sensible results if the prepare method has already been called.
 
-        z = get_message_passing_embeddings(model, x, edge_index, **kwargs)[-1]
+        Args
+        - index: index of the node/graph that we wish to explain
 
-        inputs = self._get_inputs(z, edge_index, index)
-        logits = self.mlp(inputs).view(-1)
+        Return
+            explanaiton graph and edge weights
+        """
+        index = int(index)
+        if self.type == 'node':
+            # Similar to the original paper we only consider a subgraph for explaining
+            graph = ptgeom.utils.k_hop_subgraph(index, 3, self.graphs)[1]
+            embeds = self.model_to_explain.embedding(self.features, self.graphs).detach()
+        else:
+            feats = self.features[index].clone().detach()
+            graph = self.graphs[index].clone().detach()
+            embeds = self.model_to_explain.embedding(feats, graph).detach()
 
-        edge_mask = self._post_process_mask(logits, hard_edge_mask,
-                                            apply_sigmoid=True)
+        # Use explainer mlp to get an explanation
+        input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
+        sampling_weights = self.explainer_model(input_expl)
+        mask = self._sample_graph(sampling_weights, training=False).squeeze()
 
-        return Explanation(edge_mask=edge_mask)
+        expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
+        for i in range(0, mask.size(0)):
+            pair = graph.T[i]
+            t = index_edge(graph, pair)
+            expl_graph_weights[t] = mask[i]
 
-    ###########################################################################
-
-    def _get_inputs(self, embedding: Tensor, edge_index: Tensor,
-                    index: Optional[int] = None) -> Tensor:
-        zs = [embedding[edge_index[0]], embedding[edge_index[1]]]
-        if self.model_config.task_level == ModelTaskLevel.node:
-            assert index is not None
-            zs.append(embedding[index].view(1, -1).repeat(zs[0].size(0), 1))
-        return torch.cat(zs, dim=-1)
-
-    def _get_temperature(self, epoch: int) -> float:
-        temp = self.coeffs['temp']
-        return temp[0] * pow(temp[1] / temp[0], epoch / self.epochs)
-
-    def _concrete_sample(self, logits: Tensor,
-                         temperature: float = 1.0) -> Tensor:
-        bias = self.coeffs['bias']
-        eps = (1 - 2 * bias) * torch.rand_like(logits) + bias
-        return (eps.log() - (1 - eps).log() + logits) / temperature
-
-    def _loss(self, y_hat: Tensor, y: Tensor, edge_mask: Tensor) -> Tensor:
-        """Original PGExplainer loss function"""
-        if self.model_config.mode == ModelMode.binary_classification:
-            loss = self._loss_binary_classification(y_hat, y)
-        elif self.model_config.mode == ModelMode.multiclass_classification:
-            loss = self._loss_multiclass_classification(y_hat, y)
-        elif self.model_config.mode == ModelMode.regression:
-            loss = self._loss_regression(y_hat, y)
-
-        # Regularization loss:
-        mask = edge_mask.sigmoid()
-        size_loss = mask.sum() * self.coeffs['edge_size']
-        mask = 0.99 * mask + 0.005
-        mask_ent = -mask * mask.log() - (1 - mask) * (1 - mask).log()
-        mask_ent_loss = mask_ent.mean() * self.coeffs['edge_ent']
-
-        return loss + size_loss + mask_ent_loss
+        return graph, expl_graph_weights

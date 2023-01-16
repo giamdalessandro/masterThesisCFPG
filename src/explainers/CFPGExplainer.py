@@ -121,21 +121,22 @@ class CFPGExplainer(BaseExplainer):
         Return
             Tuple of Tensors (loss,size_loss,mask_ent_loss,pred_loss)
         """
-        size_reg = self.coeffs["reg_size"]
-        ent_reg  = self.coeffs["reg_ent"]
-        cf_reg   = self.coeffs["reg_cf"]
+        reg_size = self.coeffs["reg_size"]
+        reg_ent  = self.coeffs["reg_ent"]
+        reg_cf   = self.coeffs["reg_cf"]
         EPS = 1e-15
 
         # Regularization losses
         mask = torch.sigmoid(mask)
-        size_loss = torch.sum(mask) * size_reg
-        mask_ent_reg = - mask*torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
-        mask_ent_loss = ent_reg * torch.mean(mask_ent_reg)
+        size_loss = torch.sum(mask) * reg_size
+        mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
+        mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
 
         # Explanation loss
         pred_same = (masked_pred.argmax() == original_pred).float()
+        if not pred_same: print("CF example found", pred_same)
         cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
-        pred_loss = pred_same*(-cce_loss)*cf_reg
+        pred_loss = pred_same * (-cce_loss) * reg_cf
 
         # ZAVVE: TODO tryin' to optimize objective function for cf case
         loss_total = size_loss + mask_ent_loss + pred_loss
