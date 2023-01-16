@@ -5,11 +5,10 @@ from torch.optim import Adam
 import torch_geometric as ptgeom
 
 from .BaseExplainer import BaseExplainer
-from utils.evaluation import index_edge
+from utils.graphs import index_edge
 
 class CFPGExplainer(BaseExplainer):
-    """
-    A class encaptulating CF-PGExplainer (Parametrized-CFExplainer).
+    """A class encaptulating CF-PGExplainer (Parametrized-CFExplainer).
     
     Args:
         `model_to_explain` (torch.nn.Module): GNN model who's predictions we 
@@ -106,7 +105,6 @@ class CFPGExplainer(BaseExplainer):
         else:
             graph = torch.sigmoid(sampling_weights)
         return graph
-
 
     def _loss(self, masked_pred, original_pred, mask):
         """

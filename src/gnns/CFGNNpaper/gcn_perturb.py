@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
-from utils.graphs import get_degree_matrix, create_symm_matrix_from_vec, create_vec_from_symm_matrix
+from utils.graphs import create_symm_matrix_from_vec, create_vec_from_symm_matrix
 from .gcn import GraphConvolution, GCNSynthetic
 
 
@@ -92,17 +92,20 @@ class GCNSyntheticPerturb(nn.Module):
 	def forward(self, x, sub_adj, embedding: bool):
 		self.sub_adj = sub_adj
 		# Same as normalize_adj in utils.py except includes P_hat in A_tilde
-		self.P_hat_symm = create_symm_matrix_from_vec(self.P_vec, self.num_nodes)      # Ensure symmetry
+		self.P_hat_symm = create_symm_matrix_from_vec(self.P_vec, self.num_nodes)  # Ensure symmetry
 
 		A_tilde = torch.FloatTensor(self.num_nodes, self.num_nodes)
 		A_tilde.requires_grad = True
 
-		if self.edge_additions:         # Learn new adj matrix directly
-			A_tilde = torch.sigmoid(self.P_hat_symm) + torch.eye(self.num_nodes)  # Use sigmoid to bound P_hat in [0,1]
-		else:       # Learn P_hat that gets multiplied element-wise with adj -- only edge deletions
-			A_tilde = torch.sigmoid(self.P_hat_symm) * self.sub_adj + torch.eye(self.num_nodes)       # Use sigmoid to bound P_hat in [0,1]
+		if self.edge_additions:  # Learn new adj matrix directly
+			# Use sigmoid to bound P_hat in [0,1]
+			A_tilde = torch.sigmoid(self.P_hat_symm) + torch.eye(self.num_nodes)  
+		else:  
+			# Learn P_hat that gets multiplied element-wise with adj -- only edge deletions
+			# Use sigmoid to bound P_hat in [0,1]
+			A_tilde = torch.sigmoid(self.P_hat_symm) * self.sub_adj + torch.eye(self.num_nodes)       
 
-		D_tilde = get_degree_matrix(A_tilde).detach()       # Don't need gradient of this
+		D_tilde = torch.diag(A_tilde.sum()).detach()   # Don't need gradient of this
 		# Raise to power -1/2, set all infs to 0s
 		D_tilde_exp = D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
@@ -134,7 +137,7 @@ class GCNSyntheticPerturb(nn.Module):
 		else:
 			A_tilde = self.P * self.adj + torch.eye(self.num_nodes)
 
-		D_tilde = get_degree_matrix(A_tilde)
+		D_tilde = torch.diag(A_tilde.sum())
 		# Raise to power -1/2, set all infs to 0s
 		D_tilde_exp = D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0

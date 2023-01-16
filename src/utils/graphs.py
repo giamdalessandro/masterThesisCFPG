@@ -17,8 +17,7 @@ def normalize_adj(adj):
 	return norm_adj
 
 def sparse_to_dense_adj(graph, mask, n_rows: int):
-	""" ZAVVE
-	Creates the dense version of adjacency matrix `graph`, considering
+	""" ZAVVE: Creates the dense version of adjacency matrix `graph`, considering
 	only those edges also present in `mask`.
 
 	Args
@@ -33,3 +32,15 @@ def sparse_to_dense_adj(graph, mask, n_rows: int):
 	dense_mat[rows,cols] = mask
 
 	return dense_mat
+
+def create_symm_matrix_from_vec(vector, n_rows):
+	matrix = torch.zeros(n_rows, n_rows)
+	idx = torch.tril_indices(n_rows, n_rows)
+	matrix[idx[0], idx[1]] = vector
+	symm_matrix = torch.tril(matrix) + torch.tril(matrix, -1).t()
+	return symm_matrix
+
+def create_vec_from_symm_matrix(matrix, P_vec_size):
+	idx = torch.tril_indices(matrix.shape[0], matrix.shape[0])
+	vector = matrix[idx[0], idx[1]]
+	return vector

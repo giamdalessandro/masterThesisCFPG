@@ -6,7 +6,7 @@ from torch_geometric.data import Data
 from tqdm import tqdm
 
 from .BaseExplainer import BaseExplainer
-from utils.evaluation import index_edge
+from utils.graphs import index_edge
 
 
 class PGExplainer(BaseExplainer):
