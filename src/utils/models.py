@@ -3,8 +3,8 @@ import torch
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
 
-from gnns.paper_GNN.GNN import NodeGCN
-from gnns.paper_CFGNN.gcn import GCNSynthetic
+from gnns.GNNpaper import NodeGCN
+from gnns.CFGNNpaper.gcn import GCNSynthetic
 
 path_to_saves = "/../../checkpoints/"
 SAVES_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_saves

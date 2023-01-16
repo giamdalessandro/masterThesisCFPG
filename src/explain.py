@@ -54,7 +54,7 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, 
 
 
 ## STEP 3: select explainer
-#explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=50)
+explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=50)
 explainer = PGExplainer(model, edge_index, x, task="node", epochs=50)
 # prepare the explainer (e.g. train the mlp model if it's prametrized like PGEexpl)
 explainer.prepare(indices=test_idxs)
