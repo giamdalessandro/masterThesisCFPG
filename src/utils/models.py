@@ -11,8 +11,7 @@ SAVES_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_saves
 
 
 def string_to_model(paper: str, dataset: str, device: str, config):
-    """
-    Given a paper and a dataset return the cooresponding neural model needed for training.
+    """Given a paper and a dataset return the cooresponding neural model needed for training.
 
     Args
     - `paper`: the paper who's classification model we want to use.
@@ -89,18 +88,24 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
 
     return model, checkpoint
 
-def model_selector(paper: str, dataset: str, explainer: str="",  pretrained: bool=True, 
-                    return_checkpoint: bool=False, device: str="cpu", config=None): 
-    r""" 
-    Given a paper and dataset loads accociated model.
+def model_selector(
+        paper: str, 
+        dataset: str, 
+        explainer: str="",  
+        pretrained: bool=True, 
+        device: str="cpu", 
+        config=None
+    ): 
+    r"""Given a paper and dataset loads accociated model.
 
     Args
     - `paper`   : the paper who's classification model we want to use.
     - `dataset` : the dataset on which we wish to train. This ensures that the model
-            input and output are correct.
+        input and output are correct.
     - `explainer` : the explainer model on which the gnn-model has been meta-trained 
-            (if you want to load the model weights after meta-training).
-    - `pretrained` : whether to return a pre-trained model or not.
+        (if you want to load the model weights after meta-training).
+    - `pretrained` : whether to return a pre-trained model or not. If true returns the 
+        model checkpoint.
     - `return_checkpoint`: whether to return the dict contining the models parameters or not.
 
     Returns 
