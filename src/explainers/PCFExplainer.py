@@ -254,7 +254,7 @@ class PCFExplainer(BaseExplainer):
 
                     #masked_pred = self.model.forward(feats, adj=self.adj)
                     original_pred = self.model.forward(feats, adj=self.norm_adj)
-                    #masked_pred = self.cf_model.forward(feats, sub_adj=self.norm_adj)
+                    #masked_pred = self.cf_model.forward(feats, sub_adj=dense_mask)
                     masked_pred, _ = self.cf_model.forward_prediction(feats, P_mask=dense_mask)
                     
                     #print("masked_pred  :", torch.argmax(masked_pred[n]).unsqueeze(dim=0), "idx:", n)
