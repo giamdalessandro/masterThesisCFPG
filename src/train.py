@@ -59,7 +59,7 @@ if GNN_MODEL == "CF-GNN":
     edge_index = normalize_adj(edge_index)
 
 
-### instantiate GNN model
+### instantiate GNN modelgraph
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
 # Define graph

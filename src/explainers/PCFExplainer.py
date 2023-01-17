@@ -25,14 +25,15 @@ class PCFExplainer(BaseExplainer):
         "reg_cf"  : 0.75, 
         "temp": [5.0, 2.0],
         "sample_bias": 0.0,
-        "n_hid"   : 3,
+        "n_hid"   : 20,
         "dropout" : 0.0,
         "beta"    : 0.5
     }
 
     def __init__(self, 
             model: torch.nn.Module, 
-            edge_index: torch.Tensor, 
+            edge_index: torch.Tensor,
+            norm_adj: torch.Tensor, 
             features: torch.Tensor, 
             task: str,  
             epochs=30, 
@@ -41,8 +42,9 @@ class PCFExplainer(BaseExplainer):
             **kwargs
         ):
         super().__init__(model, edge_index, features, task)
-        self.device = device
-        self.model  = self.model_to_explain
+        self.device   = device
+        self.norm_adj = norm_adj
+        self.model    = self.model_to_explain
         self.model.eval()
 
         # from config
@@ -76,8 +78,15 @@ class PCFExplainer(BaseExplainer):
         nclass  = self.model_to_explain.nclass
 
 		# Instantiate CF model class, load weights from original model
-        self.cf_model = GCNSyntheticPerturb(self.features.shape[1], n_hid, n_hid,
-		                                    nclass, self.adj, dropout, beta)
+        self.cf_model = GCNSyntheticPerturb(    
+                            nfeat = self.features.shape[1], 
+                            nhid=n_hid, 
+                            nout=n_hid,
+                            nclass=nclass, 
+                            adj=self.norm_adj, 
+                            dropout=dropout, 
+                            beta=beta,
+                            edge_additions=True)
         
         self.cf_model.load_state_dict(self.model.state_dict(), strict=False)
 
@@ -125,7 +134,7 @@ class PCFExplainer(BaseExplainer):
 
     def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
         """Implementation of the reparamerization trick to obtain a sample 
-        graph while maintaining the posibility to backprop.
+        graph while maintaining the possibility to backprop.
         
         Args
         - `sampling_weights` : Weights provided by the mlp;
@@ -188,17 +197,19 @@ class PCFExplainer(BaseExplainer):
         - indices: Indices that we want to use for training.
         """
         # Make sure the explainer model can be trained
+        temp = self.coeffs["temp"]
+        sample_bias = self.coeffs["sample_bias"]
         self.explainer_mlp.train()
         #print("adj :", self.adj.size())
 
         # Create optimizer and temperature schedule
         #optimizer = optim.Adam(self.explainer_mlp.parameters(), lr=self.lr)
         optimizer = optim.SGD(self.explainer_mlp.parameters(), lr=self.lr, momentum=0.9)
-        temp_schedule = lambda e: self.temp[0]*((self.temp[1]/self.temp[0])**(e/self.epochs))
+        temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model.embedding(self.features, self.adj).detach()
+            embeds = self.model.embedding(self.features, self.norm_adj).detach()
 
         # explainer training loop
         with tqdm(range(0, self.epochs), desc="[PCFxplainer]> ...training", disable=False) as epochs_bar:
@@ -219,6 +230,7 @@ class PCFExplainer(BaseExplainer):
                     else:
                         feats = self.features[n].detach()
                         graph = self.adj[n].detach()
+                        graph = graph.to_dense()
                         embeds = self.model.embedding(feats, graph).detach()
 
                     # Sample possible explanation
@@ -228,19 +240,21 @@ class PCFExplainer(BaseExplainer):
                     #print("embeds     :", embeds.size())
 
                     sampling_weights = self.explainer_mlp(input_expl)
-                    mask = self._sample_graph(sampling_weights, t, bias=self.sample_bias).squeeze()
+                    mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
                     #print("sampling_weights :", sampling_weights.size())
-                    #print("mask             :", mask.size())
-                    #print("graph            :", graph.size())
+                    #print("mask    :", mask.size())
+                    #print("graph   :", graph.size())
                     #print("#edge in expl    :", torch.sum(mask>0.5).item())
 
-                    dense_mask = sparse_to_dense_adj(graph, mask, self.adj.size(0))
-                    #print("mask dense       :", dense_mask.size())
-                    #print("adj dense        :", self.adj.size())
+                    s = self.norm_adj.size()
+                    dense_mask = torch.sparse_coo_tensor(indices=graph, values=mask, size=s).to_dense()
+                    #print("mask dense  :", dense_mask.size())
+                    #print("adj dense   :", self.adj.size())
 
-                    masked_pred = self.model.forward(feats, adj=dense_mask)
-                    #masked_pred, _ = self.cf_model.forward_prediction(feats, P_mask=dense_mask)
-                    original_pred = self.model.forward(feats, adj=self.adj)
+                    #masked_pred = self.model.forward(feats, adj=self.adj)
+                    original_pred = self.model.forward(feats, adj=self.norm_adj)
+                    #masked_pred = self.cf_model.forward(feats, sub_adj=self.norm_adj)
+                    masked_pred, _ = self.cf_model.forward_prediction(feats, P_mask=dense_mask)
                     
                     #print("masked_pred  :", torch.argmax(masked_pred[n]).unsqueeze(dim=0), "idx:", n)
                     #print("origin_pred  :", torch.argmax(original_pred[n].unsqueeze(dim=0)))
@@ -252,8 +266,7 @@ class PCFExplainer(BaseExplainer):
 
                     id_loss, size_loss, ent_loss, pred_loss = self._loss(masked_pred=masked_pred, 
                                                             original_pred=original_pred, 
-                                                            mask=mask, 
-                                                            reg_coefs=self.reg_coefs)
+                                                            mask=mask)
                     loss_total += id_loss
                     size_total += size_loss
                     ent_total  += ent_loss
@@ -272,7 +285,7 @@ class PCFExplainer(BaseExplainer):
         self._cf_prepare()
 
         if indices is None: # Consider all indices
-            indices = range(0, self.adj.size(0))
+            indices = range(0, self.norm_adj.size(0))
         self._train(indices=indices)
         
     def explain(self, index):

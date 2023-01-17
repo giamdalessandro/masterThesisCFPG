@@ -9,9 +9,7 @@ from .gcn import GraphConvolution, GCNSynthetic
 
 
 class GraphConvolutionPerturb(nn.Module):
-	"""
-	Similar to GraphConvolution except includes P_hat
-	"""
+	"""Similar to GraphConvolution except includes P_hat"""
 	def __init__(self, in_features, out_features, bias=True):
 		super(GraphConvolutionPerturb, self).__init__()
 		self.in_features = in_features
@@ -21,7 +19,6 @@ class GraphConvolutionPerturb(nn.Module):
 			self.bias = Parameter(torch.FloatTensor(out_features))
 		else:
 			self.register_parameter('bias', None)
-
 
 	def forward(self, input, adj):
 		support = torch.mm(input, self.weight)
@@ -38,9 +35,7 @@ class GraphConvolutionPerturb(nn.Module):
 
 
 class GCNSyntheticPerturb(nn.Module):
-	"""
-	3-layer GCN used in GNN Explainer synthetic tasks
-	"""
+	"""3-layer GCN used in GNN Explainer synthetic tasks"""
 	def __init__(self, 
 			nfeat: int, 
 			nhid: int, 
@@ -89,7 +84,7 @@ class GCNSyntheticPerturb(nn.Module):
 			else:
 				torch.sub(self.P_vec, eps)
 
-	def forward(self, x, sub_adj, embedding: bool):
+	def forward(self, x, sub_adj, embedding: bool=False):
 		self.sub_adj = sub_adj
 		# Same as normalize_adj in utils.py except includes P_hat in A_tilde
 		self.P_hat_symm = create_symm_matrix_from_vec(self.P_vec, self.num_nodes)  # Ensure symmetry
@@ -105,7 +100,7 @@ class GCNSyntheticPerturb(nn.Module):
 			# Use sigmoid to bound P_hat in [0,1]
 			A_tilde = torch.sigmoid(self.P_hat_symm) * self.sub_adj + torch.eye(self.num_nodes)       
 
-		D_tilde = torch.diag(A_tilde.sum()).detach()   # Don't need gradient of this
+		D_tilde = torch.diag(sum(A_tilde)).detach()   # Don't need gradient of this
 		# Raise to power -1/2, set all infs to 0s
 		D_tilde_exp = D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
@@ -130,14 +125,17 @@ class GCNSyntheticPerturb(nn.Module):
 		if P_mask is None:
 			self.P = (torch.sigmoid(self.P_hat_symm) >= 0.5).float()   # threshold P_hat
 		else:
-			self.P = P_mask >= 0.5
+			self.P = (P_mask.sigmoid() >= 0.5).float()
+
 
 		if self.edge_additions:
 			A_tilde = self.P + torch.eye(self.num_nodes)
 		else:
 			A_tilde = self.P * self.adj + torch.eye(self.num_nodes)
 
-		D_tilde = torch.diag(A_tilde.sum())
+		#print("P matrix:", self.P.size())
+		#print("A_tilde:", A_tilde.size())
+		D_tilde = torch.diag(sum(A_tilde))
 		# Raise to power -1/2, set all infs to 0s
 		D_tilde_exp = D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
