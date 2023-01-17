@@ -140,7 +140,7 @@ class CFPGExplainer(BaseExplainer):
 
         # Explanation loss
         pred_same = (masked_pred.argmax() == original_pred).float()
-        if not pred_same: print("CF example found", pred_same)
+        #if not pred_same: print("CF example found", pred_same)
         cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
         pred_loss = pred_same * (-cce_loss) * reg_cf
 

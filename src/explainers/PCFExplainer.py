@@ -176,8 +176,9 @@ class PCFExplainer(BaseExplainer):
 
         # Regularization losses
         mask = torch.sigmoid(mask)
-        size_loss = (torch.sum(self.adj) - torch.sum(mask)) * reg_size
-        mask_ent_reg = - mask*torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
+        #size_loss = (torch.sum(self.adj) - torch.sum(mask)) * reg_size
+        size_loss = torch.sum(mask) * reg_size
+        mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
         mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
 
         # Countefactual loss
@@ -303,7 +304,7 @@ class PCFExplainer(BaseExplainer):
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
             graph = k_hop_subgraph(index, 3, self.adj)[1]
-            embeds = self.model.embedding(self.features, self.adj).detach()
+            embeds = self.model.embedding(self.features, self.norm_adj).detach()
         else:
             feats = self.features[index].clone().detach()
             graph = self.adj[index].clone().detach()
