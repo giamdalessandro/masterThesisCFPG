@@ -10,9 +10,7 @@ from torch_geometric.nn import GCNConv
 
 
 class GraphConvolution(nn.Module):
-    """
-    Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
-    """
+    """Simple GCN layer, similar to https://arxiv.org/abs/1609.02907"""
     def __init__(self, in_features, out_features, bias=True):
         super(GraphConvolution, self).__init__()
         self.in_features = in_features
@@ -45,11 +43,10 @@ class GraphConvolution(nn.Module):
 
 
 class GCNSynthetic(nn.Module):
-    """
-    3-layer GCN used in GNN Explainer synthetic tasks
-    """
+    """3-layer GCN used in GNN Explainer synthetic tasks"""
     def __init__(self, nfeat, nhid, nout, nclass, dropout):
         super(GCNSynthetic, self).__init__()
+        self.nclass = nclass
 
         self.gc1 = GraphConvolution(nfeat, nhid)
         self.gc2 = GraphConvolution(nhid, nhid)

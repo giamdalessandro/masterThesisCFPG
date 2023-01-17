@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 
 
 class BaseExplainer(ABC):
-    def __init__(self, model_to_explain, graphs, features, task):
+    def __init__(self, model_to_explain, adjacency, features, task):
         self.model_to_explain = model_to_explain
-        self.graphs = graphs
+        self.adj      = adjacency
         self.features = features
-        self.type = task
+        self.type     = task
 
     @abstractmethod
     def prepare(self, args):

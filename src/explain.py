@@ -6,16 +6,18 @@ init(autoreset=True) # initializes Colorama
 import torch
 from explainers.CFPGExplainer import CFPGExplainer
 from explainers.PGExplainer import PGExplainer
+from explainers.PCFExplainer import PCFExplainer
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.evaluation import normalize_adj
+from utils.graphs import normalize_adj
+
+from gnns.CFGNNpaper.gcn import GCNSynthetic
 
 TRAIN = True
 STORE = False
 DATASET   = "bashapes"
-GNN_MODEL = "GNN"
-
+GNN_MODEL = "CF-GNN"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -25,12 +27,8 @@ cfg = parse_config(config_path=cfg_path)
 ## STEP 1: load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_idxs = load_dataset(dataset=DATASET)
+num_classes = dataset.num_classes
 #print(list(test_idxs))
-#num_classes = dataset.num_classes
-#num_node_features = dataset.num_node_features
-#idx_train = dataset.train_mask
-#idx_eval  = dataset.val_mask
-#idx_test  = dataset.test_mask
 
 graph = dataset[0]
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
@@ -51,12 +49,14 @@ if GNN_MODEL == "CF-GNN":
     edge_index = normalize_adj(edge_index)
 
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
-
+#print("\n\tmodel:", isinstance(model, GCNSynthetic))
 
 ## STEP 3: select explainer
-explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=50)
-explainer = PGExplainer(model, edge_index, x, task="node", epochs=50)
-# prepare the explainer (e.g. train the mlp model if it's prametrized like PGEexpl)
+#explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=50)
+#explainer = PGExplainer(model, edge_index, x, task="node", epochs=50)
+explainer = PCFExplainer(model, edge_index, x, task="node", epochs=50)
+
+# prepare the explainer (e.g. train the mlp model if it's parametrized like PGEexpl)
 explainer.prepare(indices=test_idxs)
 
 ## STEP 4: run experiment

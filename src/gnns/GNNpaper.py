@@ -4,13 +4,13 @@ from torch_geometric.nn import GCNConv, global_max_pool, global_mean_pool
 
 
 class NodeGCN(torch.nn.Module):
-    """
-    A graph clasification model for nodes decribed in https://arxiv.org/abs/1903.03894.
+    """A graph clasification model for nodes decribed in https://arxiv.org/abs/1903.03894.
     This model consists of 3 stacked GCN layers followed by a linear layer.
     """
     def __init__(self, num_features, num_classes, device):
         super(NodeGCN, self).__init__()
         self.device = device
+        self.nclass = num_classes
 
         self.embedding_size = 20 * 3
         self.conv1 = GCNConv(num_features, 20)
@@ -51,14 +51,14 @@ class NodeGCN(torch.nn.Module):
         return input_lin
 
 class GraphGCN(torch.nn.Module):
-    """
-    A graph clasification model for graphs decribed in https://arxiv.org/abs/1903.03894.
+    """A graph clasification model for graphs decribed in https://arxiv.org/abs/1903.03894.
     This model consists of 3 stacked GCN layers followed by a linear layer.
     In between the GCN outputs and linear layers are pooling operations in both mean and max.
     """
     def __init__(self, num_features, num_classes, device):
         super(GraphGCN, self).__init__()
         self.device = device
+        self.nclass = num_classes
 
         self.embedding_size = 20
         self.conv1 = GCNConv(num_features, 20)

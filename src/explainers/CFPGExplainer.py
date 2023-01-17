@@ -37,13 +37,21 @@ class CFPGExplainer(BaseExplainer):
         "sample_bias": 0.0,
     }
 
-    def __init__(self, model_to_explain, graphs, features, task, epochs=30, lr=0.003, **kwargs):
-        super().__init__(model_to_explain, graphs, features, task)
+    def __init__(self, 
+            model_to_explain: torch.nn.Module, 
+            edge_index: torch.Tensor, 
+            features: torch.Tensor, 
+            task: str, 
+            epochs: int=30, 
+            lr: float=0.003, 
+            **kwargs
+        ):
+        super().__init__(model_to_explain, edge_index, features, task)
         self.epochs = epochs
         self.lr = lr
         self.coeffs.update(kwargs)
 
-        if self.type == "graph":
+        if self.type == "graph": # graph classificatio model
             self.expl_embedding = self.model_to_explain.embedding_size * 2
         else:
             self.expl_embedding = self.model_to_explain.embedding_size * 3
@@ -159,7 +167,7 @@ class CFPGExplainer(BaseExplainer):
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.graphs).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
             
 
         # Start training loop
@@ -178,10 +186,10 @@ class CFPGExplainer(BaseExplainer):
                     if self.type == 'node':
                         # Similar to the original paper we only consider a subgraph for explaining
                         feats = self.features
-                        graph = ptgeom.utils.k_hop_subgraph(n, 3, self.graphs)[1]
+                        graph = ptgeom.utils.k_hop_subgraph(n, 3, self.adj)[1]
                     else:
                         feats = self.features[n].detach()
-                        graph = self.graphs[n].detach()
+                        graph = self.adj[n].detach()
                         embeds = self.model_to_explain.embedding(feats, graph).detach()
 
                     # Sample possible explanation
@@ -227,7 +235,7 @@ class CFPGExplainer(BaseExplainer):
         - `indices` : Indices over which we wish to train.
         """
         if indices is None: # Consider all indices
-            indices = range(0, self.graphs.size(0))
+            indices = range(0, self.adj.size(0))
 
         self._train(indices=torch.Tensor(indices))
 
@@ -245,11 +253,11 @@ class CFPGExplainer(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            graph = ptgeom.utils.k_hop_subgraph(index, 3, self.graphs)[1]
-            embeds = self.model_to_explain.embedding(self.features, self.graphs).detach()
+            graph = ptgeom.utils.k_hop_subgraph(index, 3, self.adj)[1]
+            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
         else:
             feats = self.features[index].clone().detach()
-            graph = self.graphs[index].clone().detach()
+            graph = self.adj[index].clone().detach()
             embeds = self.model_to_explain.embedding(feats, graph).detach()
 
         # Use explainer mlp to get an explanation
