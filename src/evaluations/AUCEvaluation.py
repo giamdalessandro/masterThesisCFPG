@@ -66,7 +66,7 @@ class AUCEvaluation(BaseEvaluation):
     
     :funcion get_score: obtain the roc auc score.
     """
-    def __init__(self, task, ground_truth, indices):
+    def __init__(self, ground_truth, indices, task: str="node"):
         self.task = task
         self.ground_truth = ground_truth
         self.indices = indices
