@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 from sklearn.metrics import roc_auc_score
 
@@ -38,12 +39,19 @@ def _eval_AUC_node(explanations, explanation_labels):
             prediction_node.append(expl[1][i].item())
 
             # Graphs are defined bidirectional, so we need to retrieve both edges
-            pair = expl[0].T[i].numpy()
-            idx_edge = np.where((explanation_labels[0].T == pair).all(axis=1))[0]
-            idx_edge_rev = np.where((explanation_labels[0].T == [pair[1], pair[0]]).all(axis=1))[0]
+            pair = expl[0].T[i] #.numpy()
+            pair_rev = torch.Tensor([pair[1], pair[0]])
+            idx_edge = np.where((explanation_labels[0].T == pair).all(dim=1))[0]
+            idx_edge_rev = np.where((explanation_labels[0].T == pair_rev).all(dim=1))[0]
+            print("idx edge    :", idx_edge)
+            print("idx edge rev:", idx_edge_rev)
+            print("expl labels  :", explanation_labels[1].size())
+            #print("expl edge    :", explanation_labels[1][idx_edge])
+            #print("expl edge rev:", explanation_labels[1][idx_edge_rev])
 
             # If any of the edges is in the ground truth set, the edge should be in the explanation
             gt = explanation_labels[1][idx_edge] + explanation_labels[1][idx_edge_rev]
+            print("ground truth:", gt)
             if gt == 0:
                 ground_truth_node.append(0)
             else:
@@ -68,8 +76,13 @@ class AUCEvaluation(BaseEvaluation):
     """
     def __init__(self, ground_truth, indices, task: str="node"):
         self.task = task
-        self.ground_truth = ground_truth
         self.indices = indices
+
+        #labels = []
+        #print("gt.T :", ground_truth[0])
+        #for pair in ground_truth[0]:
+        #    labels.append(ground_truth[1][pair[0],pair[1]])
+        self.ground_truth = ground_truth
 
     def get_score(self, explanations):
         """

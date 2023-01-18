@@ -31,8 +31,8 @@ class BAGraphDataset(InMemoryDataset):
     """
     def __init__(self, x, edge_index, labels, y_val, y_test, train_mask, val_mask, 
                 test_mask, edge_label, transform=None, pre_transform=None, verbose: bool=False):
-        r""" 
-        The parameters to initialize the class are the data loaded from the dataset stored in .pkl
+        r""" The parameters to initialize the class are the data loaded 
+        from the dataset stored in .pkl
         
         Args:
         - `x` : node features;

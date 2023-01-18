@@ -13,12 +13,18 @@ from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.graphs import normalize_adj
 
+from evaluations.AUCEvaluation import AUCEvaluation
+from evaluations.EfficiencyEvaluation import EfficiencyEvluation
+
 from gnns.CFGNNpaper.gcn import GCNSynthetic
 
-TRAIN = True
-STORE = False
+SEED   = 42
+EPOCHS = 10
+TRAIN  = True
+STORE  = False
 DATASET   = "bashapes"
 GNN_MODEL = "CF-GNN"
+
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -51,17 +57,39 @@ if GNN_MODEL == "CF-GNN":
 
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
+
 ## STEP 3: select explainer
 #explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=30)
 #explainer = PGExplainer(model, edge_index, x, task="node", epochs=50)
-explainer = PCFExplainer(model, edge_index, norm_adj, x, task="node", epochs=50)
+explainer = PCFExplainer(model, edge_index, norm_adj, x, task="node", epochs=EPOCHS) # needs 'CF-GNN' model
+
+
+## STEP 4: run 
+# Initialize evalution modules for AUC score and efficiency
+gt = (graph.edge_index,graph.edge_label)
+auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
+inference_eval = EfficiencyEvluation()
+
+# ensure all modules have the same seed
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+np.random.seed(SEED)
+
+inference_eval.reset()
 
 # prepare the explainer (e.g. train the mlp model if it's parametrized like PGEexpl)
+indices = torch.tensor(test_idxs)
 explainer.prepare(indices=test_idxs)
 
-## STEP 4: run experiment
+# actually explain GNN predictions for all test indices
+inference_eval.start_explaining()
 explanations = []
 with tqdm(test_idxs[:], desc="[replication]> ...testing indexes", miniters=1, disable=False) as test_epoch:
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
         explanations.append((graph, expl))
+
+inference_eval.done_explaining()
+
+auc_score  = auc_eval.get_score(explanations)
+time_score = inference_eval.get_score(explanations)
