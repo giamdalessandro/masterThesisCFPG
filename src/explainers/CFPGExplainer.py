@@ -32,7 +32,7 @@ class CFPGExplainer(BaseExplainer):
     coeffs = {
         "reg_size": 0.05,
         "reg_ent" : 1.0,
-        "reg_cf"  : 0.5, 
+        "reg_cf"  : 5.0, 
         "temp": [5.0, 2.0],
         "sample_bias": 0.0,
     }

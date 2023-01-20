@@ -43,7 +43,7 @@ def _eval_AUC_node(explanations, explanation_labels):
             edge_start = torch.Tensor(idx_edge) in explanation_labels[1][0]
             edge_end = torch.Tensor(idx_edge_rev) in explanation_labels[1][1]
             #print("edge_start:",edge_start,"edge_end:",edge_end)
-            #gt = explanation_labels[1][0,idx_edge] + explanation_labels[1][1,idx_edge_rev]
+            #gt = explanation_labels[1][idx_edge] + explanation_labels[1][idx_edge_rev]
             gt = edge_start + edge_end
             #print("ground truth:", gt)
             if gt == 0:

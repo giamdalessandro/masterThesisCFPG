@@ -19,11 +19,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 from gnns.CFGNNpaper.gcn import GCNSynthetic
 
 SEED   = 42
-EPOCHS = 100
+EPOCHS = 50   # explainer epochs
 TRAIN  = True
 STORE  = False
 DATASET   = "bashapes"
-GNN_MODEL = "GNN"
+GNN_MODEL = "CF-GNN"
 
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
@@ -60,9 +60,9 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, 
 
 ## STEP 3: select explainer
 print("\n[explain]> ...loading explainer")
-explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=EPOCHS)
-#explainer = PGExplainer(model, edge_index, x, task="node", epochs=EPOCHS)
-#explainer = PCFExplainer(model, edge_index, norm_adj, x, task="node", epochs=EPOCHS) # needs 'CF-GNN' model
+#explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS)
+#explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
+explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS) # needs 'CF-GNN' model
 
 
 ## STEP 4: train and execute explainer
@@ -93,7 +93,7 @@ with tqdm(test_idxs[:], desc="[explain]> ...testing", miniters=1, disable=False)
 inference_eval.done_explaining()
 
 print("\n[explain]> ...explainer evaluation")
-auc_score  = auc_eval.get_score(explanations)
+auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 
 print(f"[explain]> AUC score   : {auc_score:.4f}")
