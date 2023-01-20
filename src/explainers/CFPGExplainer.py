@@ -32,7 +32,7 @@ class CFPGExplainer(BaseExplainer):
     coeffs = {
         "reg_size": 0.05,
         "reg_ent" : 1.0,
-        "reg_cf"  : 0.75, 
+        "reg_cf"  : 0.5, 
         "temp": [5.0, 2.0],
         "sample_bias": 0.0,
     }
@@ -41,7 +41,7 @@ class CFPGExplainer(BaseExplainer):
             model_to_explain: torch.nn.Module, 
             edge_index: torch.Tensor, 
             features: torch.Tensor, 
-            task: str, 
+            task: str="node", 
             epochs: int=30, 
             lr: float=0.003, 
             **kwargs

@@ -35,7 +35,7 @@ class PCFExplainer(BaseExplainer):
             edge_index: torch.Tensor,
             norm_adj: torch.Tensor, 
             features: torch.Tensor, 
-            task: str,  
+            task: str="node",  
             epochs=30, 
             lr=0.003, 
             device: str="cpu",
@@ -132,7 +132,7 @@ class PCFExplainer(BaseExplainer):
             input_expl = torch.cat([row_embeds, col_embeds], 1)
         return input_expl
 
-    def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
+    def _sample_graph(self, sampling_weights, temperature: float=1.0, bias: float=0.0, training: bool=True):
         """Implementation of the reparamerization trick to obtain a sample 
         graph while maintaining the possibility to backprop.
         
@@ -155,9 +155,8 @@ class PCFExplainer(BaseExplainer):
             graph = torch.sigmoid(sampling_weights)
         return graph
 
-    def _loss(self, masked_pred, original_pred, mask):
-        """ TODO 
-        Returns the loss score based on the given mask.
+    def _loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
+        """ TODO: Returns the loss score based on the given mask.
 
         Args
         -  `masked_pred`   : Prediction based on the current explanation

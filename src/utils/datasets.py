@@ -24,8 +24,7 @@ def parse_config(config_path: str):
 
 
 class BAGraphDataset(InMemoryDataset):
-    r"""
-    PyG dataset class to wrap the stored BA-Shapes datasets from the 
+    r"""PyG dataset class to wrap the stored BA-Shapes datasets from the 
     `"GNNExplainer: Generating Explanations for Graph Neural Networks" 
     <https://arxiv.org/pdf/1903.03894.pdf>` paper.
     """
@@ -79,14 +78,13 @@ class BAGraphDataset(InMemoryDataset):
 
 
 def _load_node_dataset(dataset: str):
-    r"""
-    Load a graph dataset for graph node classification task.
+    r"""Load a graph dataset for graph node classification task.
 
     Args
     - `dataset`: Which dataset to load. Choose from "syn1", "syn2", "syn3" or "syn4"
     
     Returns
-        pytorch-geometric `Dataset`
+        `torch_geometric.data.Dataset`
     """
     filename = dataset + ".pkl"
     path = DATA_DIR + "pkls/" + filename
@@ -116,8 +114,7 @@ def _load_node_dataset(dataset: str):
     return pyg_dataset
 
 def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, shuffle: bool=True):
-    r"""
-    High level function which loads the dataset by calling the proper method 
+    r"""High level function which loads the dataset by calling the proper method 
     for node-classification or graph-classification datasets.
 
     Args:
