@@ -212,7 +212,7 @@ class PCFExplainer(BaseExplainer):
             embeds = self.model.embedding(self.features, self.norm_adj).detach()
 
         # explainer training loop
-        with tqdm(range(0, self.epochs), desc="[PCFxplainer]> ...training", disable=False) as epochs_bar:
+        with tqdm(range(0, self.epochs), desc="[PCFExplainer]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
                 loss_total = torch.FloatTensor([0]).detach()
@@ -235,25 +235,17 @@ class PCFExplainer(BaseExplainer):
 
                     # Sample possible explanation
                     input_expl = self._create_explainer_input(graph, embeds, n).unsqueeze(0)
-                    #print("sub_graph  :", graph.size())
                     #print("input_expl :", input_expl.size())
                     #print("embeds     :", embeds.size())
 
                     sampling_weights = self.explainer_mlp(input_expl)
                     mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
-                    #print("sampling_weights :", sampling_weights.size())
-                    #print("mask    :", mask.size())
-                    #print("graph   :", graph.size())
                     #print("#edge in expl    :", torch.sum(mask>0.5).item())
 
                     s = self.norm_adj.size()
                     dense_mask = torch.sparse_coo_tensor(indices=graph, values=mask, size=s).to_dense()
-                    #print("mask dense  :", dense_mask.size())
-                    #print("adj dense   :", self.adj.size())
-
-                    #masked_pred = self.model.forward(feats, adj=self.adj)
+                    
                     original_pred = self.model.forward(feats, adj=self.norm_adj)
-                    #masked_pred = self.cf_model.forward(feats, sub_adj=dense_mask)
                     masked_pred, _ = self.cf_model.forward_prediction(feats, P_mask=dense_mask)
                     
                     #print("masked_pred  :", torch.argmax(masked_pred[n]).unsqueeze(dim=0), "idx:", n)
@@ -262,8 +254,7 @@ class PCFExplainer(BaseExplainer):
                     if self.type == 'node': # we only care for the prediction of the node
                         masked_pred = masked_pred[n].unsqueeze(dim=0)
                         original_pred = torch.argmax(original_pred[n]).unsqueeze(0)
-                        #original_pred = original_pred[n]
-
+                        
                     id_loss, size_loss, ent_loss, pred_loss = self._loss(masked_pred=masked_pred, 
                                                             original_pred=original_pred, 
                                                             mask=mask)

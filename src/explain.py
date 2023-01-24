@@ -23,7 +23,7 @@ SEED   = 42
 EPOCHS = 20   # explainer epochs
 TRAIN  = True
 STORE  = False
-DATASET   = "BAshapes"  # "BAshapes" (syn2), "BAcommunities" (syn2)
+DATASET   = "BAcommunities"  # "BAshapes" (syn2), "BAcommunities" (syn2)
 GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
 
 
@@ -32,7 +32,7 @@ cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 cfg = parse_config(config_path=cfg_path)
 
 
-## STEP 1: load a BAshapes dataset
+#### STEP 1: load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_idxs = load_dataset(dataset=DATASET)
 # add dataset info to config 
@@ -50,7 +50,7 @@ x = graph.x
 edge_index = graph.edge_index
 
 
-## STEP 2: instantiate GNN model, one of GNN or CF-GNN
+#### STEP 2: instantiate GNN model, one of GNN or CF-GNN
 if GNN_MODEL == "CF-GNN":
     # need dense adjacency matrix for GCNSynthetic model
     v = torch.ones(edge_index.size(1))
@@ -61,14 +61,14 @@ if GNN_MODEL == "CF-GNN":
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
 
-## STEP 3: select explainer
+#### STEP 3: select explainer
 print(Fore.RED + "\n[explain]> ...loading explainer")
-#explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS)
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
+#explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS)
 explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS) # needs 'CF-GNN' model
 
 
-## STEP 4: train and execute explainer
+#### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
 gt = (graph.edge_index,graph.edge_label)
 auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
@@ -81,7 +81,7 @@ np.random.seed(SEED)
 
 inference_eval.reset()
 
-# prepare the explainer (e.g. train the mlp model if it's parametrized like PGEexpl)
+# prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
 indices = torch.tensor(test_idxs)
 explainer.prepare(indices=test_idxs)
 
@@ -95,6 +95,7 @@ with tqdm(test_idxs[:], desc="[explain]> ...testing", miniters=1, disable=False)
 
 inference_eval.done_explaining()
 
+# compute AUC score for computed explanation
 print(Fore.RED + "\n[explain]> ...computing metrics on eplanations")
 auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
