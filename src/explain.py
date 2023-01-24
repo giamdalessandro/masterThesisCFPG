@@ -93,7 +93,7 @@ with tqdm(test_idxs[:], desc="[explain]> ...testing", miniters=1, disable=False)
 
 inference_eval.done_explaining()
 
-print(Fore.RED + "\n[explain]> ...explainer evaluation")
+print(Fore.RED + "\n[explain]> ...computing metrics on eplanations")
 auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 

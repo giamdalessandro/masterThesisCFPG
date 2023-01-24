@@ -203,8 +203,8 @@ class PCFExplainer(BaseExplainer):
         #print("adj :", self.adj.size())
 
         # Create optimizer and temperature schedule
-        #optimizer = optim.Adam(self.explainer_mlp.parameters(), lr=self.lr)
-        optimizer = optim.SGD(self.explainer_mlp.parameters(), lr=self.lr, momentum=0.9)
+        optimizer = optim.Adam(self.explainer_mlp.parameters(), lr=self.lr)
+        #optimizer = optim.SGD(self.explainer_mlp.parameters(), lr=self.lr, momentum=0.9)
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         # If we are explaining a graph, we can determine the embeddings before we run
