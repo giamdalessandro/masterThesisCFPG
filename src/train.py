@@ -133,7 +133,7 @@ if TRAIN:
     train_acc = evaluate(out[idx_train], labels[idx_train])
     test_acc  = evaluate(out[idx_test], labels[idx_test])
     val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-    print(Fore.MAGENTA + "[results]> training final results", 
+    print(Fore.RED + "[results]> training final results", 
             f"\n\ttrain_acc: {train_acc:.4f}",
             f"val_acc: {val_acc:.4f}",
             f"test_acc: {test_acc:.4f}")
