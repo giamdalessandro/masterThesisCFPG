@@ -9,12 +9,13 @@ from torch_geometric.utils import k_hop_subgraph
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.evaluation import evaluate, store_checkpoint, load_best_model, normalize_adj
+from utils.evaluation import evaluate, store_checkpoint, load_best_model 
+from utils.graphs import normalize_adj
 
 
 TRAIN = True
-STORE = False
-DATASET   = "bashapes"
+STORE = True
+DATASET   = "BAcommunities" #"BAshapes"
 GNN_MODEL = "CF-GNN"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
@@ -25,8 +26,12 @@ cfg = parse_config(config_path=cfg_path)
 ## load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_indices = load_dataset(dataset=DATASET)
-num_classes = dataset.num_classes
-num_node_features = dataset.num_node_features
+# add dataset info to config 
+cfg.update(
+    {"num_classes": dataset.num_classes,
+    "num_node_features": dataset.num_node_features})
+#cfg["num_classes"] = dataset.num_classes
+#cfg["num_node_features"] = dataset.num_node_features
 idx_train = dataset.train_mask
 idx_eval  = dataset.val_mask
 idx_test  = dataset.test_mask
@@ -60,7 +65,7 @@ if GNN_MODEL == "CF-GNN":
 
 
 ### instantiate GNN modelgraph
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), config=cfg)
 
 # Define graph
 if TRAIN:
@@ -69,7 +74,7 @@ if TRAIN:
     optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])
     criterion = torch.nn.CrossEntropyLoss()
 
-
+    # training loop 
     best_val_acc = 0.0
     best_epoch = 0
     with tqdm(range(0, train_params["epochs"]), desc="[training]> Epoch") as epochs_bar:
@@ -80,7 +85,7 @@ if TRAIN:
             #    out = model(x, norm_adj)
             #elif paper[:3] == "GNN":
             out = model(x, edge_index)
-
+            
             loss = criterion(out[idx_train], labels[idx_train])
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), train_params["clip_max"])
@@ -119,7 +124,7 @@ if TRAIN:
                 break
 
     model = load_best_model(model=model, 
-                best_epoch=-1,
+                best_epoch=best_epoch,#-1,
                 paper=GNN_MODEL, 
                 dataset=DATASET, 
                 eval_enabled=train_params["eval_enabled"])

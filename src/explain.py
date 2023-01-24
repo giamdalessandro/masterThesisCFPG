@@ -23,7 +23,7 @@ SEED   = 42
 EPOCHS = 20   # explainer epochs
 TRAIN  = True
 STORE  = False
-DATASET   = "bashapes"  # "bashapes" (syn1)
+DATASET   = "BAshapes"  # "BAshapes" (syn2), "BAcommunities" (syn2)
 GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
 
 
