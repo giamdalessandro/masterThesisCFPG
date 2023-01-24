@@ -42,7 +42,7 @@ class BAGraphDataset(InMemoryDataset):
         - `train_mask`:
         - `val_mask`:
         - `test_mask`:
-        - `edge_label`:
+        - `edge_label`: 
         """
         super().__init__(None, transform, pre_transform)
         self.train_mask = train_mask
@@ -70,7 +70,7 @@ class BAGraphDataset(InMemoryDataset):
         data = Data(
             x=x, 
             edge_index=edge_index.indices(), 
-            edge_label=edge_label.indices(),  
+            edge_label=edge_label, #.indices(),  
             y=labels, 
             expl_mask=expl_mask)
 
