@@ -13,23 +13,32 @@ from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.graphs import normalize_adj
 
+from evaluations.AUCEvaluation import AUCEvaluation
+from evaluations.EfficiencyEvaluation import EfficiencyEvluation
+
 from gnns.CFGNNpaper.gcn import GCNSynthetic
 
-TRAIN = True
-STORE = False
-DATASET   = "bashapes"
-GNN_MODEL = "CF-GNN"
+
+SEED   = 42
+EPOCHS = 20   # explainer epochs
+TRAIN  = True
+STORE  = False
+DATASET   = "BAcommunities"  # "BAshapes" (syn2), "BAcommunities" (syn2)
+GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
+
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 cfg = parse_config(config_path=cfg_path)
 
 
-## STEP 1: load a BAshapes dataset
+#### STEP 1: load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_idxs = load_dataset(dataset=DATASET)
-num_classes = dataset.num_classes
-#print(list(test_idxs))
+# add dataset info to config 
+cfg.update({
+    "num_classes": dataset.num_classes,
+    "num_node_features": dataset.num_node_features})
 
 graph = dataset[0]
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
@@ -41,7 +50,7 @@ x = graph.x
 edge_index = graph.edge_index
 
 
-## STEP 2: instantiate GNN model, one of GNN or CF-GNN
+#### STEP 2: instantiate GNN model, one of GNN or CF-GNN
 if GNN_MODEL == "CF-GNN":
     # need dense adjacency matrix for GCNSynthetic model
     v = torch.ones(edge_index.size(1))
@@ -51,17 +60,45 @@ if GNN_MODEL == "CF-GNN":
 
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
-## STEP 3: select explainer
-#explainer = CFPGExplainer(model, edge_index, x, task="node", epochs=30)
-#explainer = PGExplainer(model, edge_index, x, task="node", epochs=50)
-explainer = PCFExplainer(model, edge_index, norm_adj, x, task="node", epochs=50)
 
-# prepare the explainer (e.g. train the mlp model if it's parametrized like PGEexpl)
+#### STEP 3: select explainer
+print(Fore.RED + "\n[explain]> ...loading explainer")
+#explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
+#explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS)
+explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS) # needs 'CF-GNN' model
+
+
+#### STEP 4: train and execute explainer
+# Initialize evalution modules for AUC score and efficiency
+gt = (graph.edge_index,graph.edge_label)
+auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
+inference_eval = EfficiencyEvluation()
+
+# ensure all modules have the same seed
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+np.random.seed(SEED)
+
+inference_eval.reset()
+
+# prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
+indices = torch.tensor(test_idxs)
 explainer.prepare(indices=test_idxs)
 
-## STEP 4: run experiment
+# actually explain GNN predictions for all test indices
+inference_eval.start_explaining()
 explanations = []
-with tqdm(test_idxs[:], desc="[replication]> ...testing indexes", miniters=1, disable=False) as test_epoch:
+with tqdm(test_idxs[:], desc="[explain]> ...testing", miniters=1, disable=False) as test_epoch:
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
         explanations.append((graph, expl))
+
+inference_eval.done_explaining()
+
+# compute AUC score for computed explanation
+print(Fore.RED + "\n[explain]> ...computing metrics on eplanations")
+auc_score = auc_eval.get_score(explanations)
+time_score = inference_eval.get_score(explanations)
+
+print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
+print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")

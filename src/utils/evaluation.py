@@ -70,7 +70,7 @@ def load_best_model(model, best_epoch: int, paper: str, dataset: str, explainer:
     Returns 
         model with paramaters taken from the checkpoint
     """
-    print(Fore.MAGENTA + "\n[results]> best result at epoch", best_epoch)
+    print(Fore.RED + "\n[results]> best result at epoch", best_epoch)
     to_load = "best_model" if best_epoch == -1 else f"epoch_{best_epoch}"
 
     if meta:

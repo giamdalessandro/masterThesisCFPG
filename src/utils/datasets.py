@@ -24,15 +24,14 @@ def parse_config(config_path: str):
 
 
 class BAGraphDataset(InMemoryDataset):
-    r"""
-    PyG dataset class to wrap the stored BA-Shapes datasets from the 
+    r"""PyG dataset class to wrap the stored BA-Shapes datasets from the 
     `"GNNExplainer: Generating Explanations for Graph Neural Networks" 
     <https://arxiv.org/pdf/1903.03894.pdf>` paper.
     """
     def __init__(self, x, edge_index, labels, y_val, y_test, train_mask, val_mask, 
                 test_mask, edge_label, transform=None, pre_transform=None, verbose: bool=False):
-        r""" 
-        The parameters to initialize the class are the data loaded from the dataset stored in .pkl
+        r""" The parameters to initialize the class are the data loaded 
+        from the dataset stored in .pkl
         
         Args:
         - `x` : node features;
@@ -43,7 +42,7 @@ class BAGraphDataset(InMemoryDataset):
         - `train_mask`:
         - `val_mask`:
         - `test_mask`:
-        - `edge_label`:
+        - `edge_label`: 
         """
         super().__init__(None, transform, pre_transform)
         self.train_mask = train_mask
@@ -71,7 +70,7 @@ class BAGraphDataset(InMemoryDataset):
         data = Data(
             x=x, 
             edge_index=edge_index.indices(), 
-            edge_label=edge_label.indices(),  
+            edge_label=edge_label, #.indices(),  
             y=labels, 
             expl_mask=expl_mask)
 
@@ -79,14 +78,13 @@ class BAGraphDataset(InMemoryDataset):
 
 
 def _load_node_dataset(dataset: str):
-    r"""
-    Load a graph dataset for graph node classification task.
+    r"""Load a graph dataset for graph node classification task.
 
     Args
     - `dataset`: Which dataset to load. Choose from "syn1", "syn2", "syn3" or "syn4"
     
     Returns
-        pytorch-geometric `Dataset`
+        `torch_geometric.data.Dataset`
     """
     filename = dataset + ".pkl"
     path = DATA_DIR + "pkls/" + filename
@@ -116,8 +114,7 @@ def _load_node_dataset(dataset: str):
     return pyg_dataset
 
 def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, shuffle: bool=True):
-    r"""
-    High level function which loads the dataset by calling the proper method 
+    r"""High level function which loads the dataset by calling the proper method 
     for node-classification or graph-classification datasets.
 
     Args:

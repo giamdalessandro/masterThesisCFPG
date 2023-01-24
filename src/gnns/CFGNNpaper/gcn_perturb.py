@@ -153,7 +153,7 @@ class GCNSyntheticPerturb(nn.Module):
 		return F.log_softmax(x, dim=1), self.P
 
 	def loss(self, output, y_pred_orig, y_pred_new_actual):
-		pred_same = (y_pred_new_actual == y_pred_orig).float()
+		#pred_same = (y_pred_new_actual == y_pred_orig).float()
 
 		# Need dim >=2 for F.nll_loss to work
 		output = output.unsqueeze(0)
@@ -166,9 +166,9 @@ class GCNSyntheticPerturb(nn.Module):
 		cf_adj.requires_grad = True  # Need to change this otherwise loss_graph_dist has no gradient
 
 		# Want negative in front to maximize loss instead of minimizing it to find CFs
-		loss_pred = -F.nll_loss(output, y_pred_orig)
+		loss_pred = F.nll_loss(output, y_pred_orig)              #F.nll_loss(output, y_pred_orig)
 		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2   # num of edges changed (symmetrical)
 
 		# Zero-out loss_pred with pred_same if prediction flips
-		loss_total = pred_same * loss_pred + self.beta * loss_graph_dist
+		loss_total = loss_pred + self.beta * loss_graph_dist
 		return loss_total, loss_pred, loss_graph_dist, cf_adj

@@ -40,7 +40,7 @@ class PGExplainer(BaseExplainer):
             model_to_explain: torch.nn.Module, 
             edge_index: torch.Tensor, 
             features: torch.Tensor, 
-            task: str, 
+            task: str="node", 
             epochs: int=30, 
             lr: float=0.003, 
             **kwargs

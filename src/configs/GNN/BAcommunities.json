@@ -1,0 +1,12 @@
+{
+    "paper" : "GNN",
+    "dataset" : "syn2",
+    "num_hidden" : 20,
+    "train_params" : {
+        "lr" : 0.005,
+        "epochs" : 1000,
+        "early_stop" : 100,
+        "clip_max" : 2.0,
+        "eval_enabled" : true
+    }
+}

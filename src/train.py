@@ -9,13 +9,14 @@ from torch_geometric.utils import k_hop_subgraph
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.evaluation import evaluate, store_checkpoint, load_best_model, normalize_adj
+from utils.evaluation import evaluate, store_checkpoint, load_best_model 
+from utils.graphs import normalize_adj
 
 
 TRAIN = True
 STORE = False
-DATASET   = "bashapes"
-GNN_MODEL = "CF-GNN"
+DATASET   = "BAcommunities" #"BAshapes", "BAcommunities"
+GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -25,8 +26,10 @@ cfg = parse_config(config_path=cfg_path)
 ## load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_indices = load_dataset(dataset=DATASET)
-num_classes = dataset.num_classes
-num_node_features = dataset.num_node_features
+# add dataset info to config 
+cfg.update({
+    "num_classes": dataset.num_classes,
+    "num_node_features": dataset.num_node_features})
 idx_train = dataset.train_mask
 idx_eval  = dataset.val_mask
 idx_test  = dataset.test_mask
@@ -37,8 +40,6 @@ print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
 labels = graph.y
 labels = np.argmax(labels, axis=1)
-#print("\t#nodes:", graph.num_nodes)
-#print("\t#edges:", graph.num_edges)args
 
 ## extract a random node to train on
 #idx = torch.randint(0, len(test_indices), (1,))
@@ -60,7 +61,7 @@ if GNN_MODEL == "CF-GNN":
 
 
 ### instantiate GNN modelgraph
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), config=cfg)
 
 # Define graph
 if TRAIN:
@@ -69,7 +70,7 @@ if TRAIN:
     optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])
     criterion = torch.nn.CrossEntropyLoss()
 
-
+    # training loop 
     best_val_acc = 0.0
     best_epoch = 0
     with tqdm(range(0, train_params["epochs"]), desc="[training]> Epoch") as epochs_bar:
@@ -80,7 +81,7 @@ if TRAIN:
             #    out = model(x, norm_adj)
             #elif paper[:3] == "GNN":
             out = model(x, edge_index)
-
+            
             loss = criterion(out[idx_train], labels[idx_train])
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), train_params["clip_max"])
@@ -119,7 +120,7 @@ if TRAIN:
                 break
 
     model = load_best_model(model=model, 
-                best_epoch=-1,
+                best_epoch=best_epoch,#-1,
                 paper=GNN_MODEL, 
                 dataset=DATASET, 
                 eval_enabled=train_params["eval_enabled"])
@@ -132,7 +133,7 @@ if TRAIN:
     train_acc = evaluate(out[idx_train], labels[idx_train])
     test_acc  = evaluate(out[idx_test], labels[idx_test])
     val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-    print(Fore.MAGENTA + "[results]> training final results", 
+    print(Fore.RED + "[results]> training final results", 
             f"\n\ttrain_acc: {train_acc:.4f}",
             f"val_acc: {val_acc:.4f}",
             f"test_acc: {test_acc:.4f}")
