@@ -43,8 +43,8 @@ cfg.update({
 graph = dataset[0]
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
-labels = graph.y
-labels = np.argmax(labels, axis=1)
+class_labels = graph.y
+class_labels = np.argmax(class_labels, axis=1)
 
 x = graph.x
 edge_index = graph.edge_index
