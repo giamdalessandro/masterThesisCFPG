@@ -35,8 +35,10 @@ cfg = parse_config(config_path=cfg_path)
 ## STEP 1: load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_idxs = load_dataset(dataset=DATASET)
-num_classes = dataset.num_classes
-#print(list(test_idxs))
+# add dataset info to config 
+cfg.update({
+    "num_classes": dataset.num_classes,
+    "num_node_features": dataset.num_node_features})
 
 graph = dataset[0]
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")

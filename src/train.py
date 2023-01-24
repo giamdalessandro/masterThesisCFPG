@@ -14,9 +14,9 @@ from utils.graphs import normalize_adj
 
 
 TRAIN = True
-STORE = True
-DATASET   = "BAcommunities" #"BAshapes"
-GNN_MODEL = "CF-GNN"
+STORE = False
+DATASET   = "BAcommunities" #"BAshapes", "BAcommunities"
+GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -27,11 +27,9 @@ cfg = parse_config(config_path=cfg_path)
 DATASET = cfg["dataset"]
 dataset, test_indices = load_dataset(dataset=DATASET)
 # add dataset info to config 
-cfg.update(
-    {"num_classes": dataset.num_classes,
+cfg.update({
+    "num_classes": dataset.num_classes,
     "num_node_features": dataset.num_node_features})
-#cfg["num_classes"] = dataset.num_classes
-#cfg["num_node_features"] = dataset.num_node_features
 idx_train = dataset.train_mask
 idx_eval  = dataset.val_mask
 idx_test  = dataset.test_mask
@@ -42,8 +40,6 @@ print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
 labels = graph.y
 labels = np.argmax(labels, axis=1)
-#print("\t#nodes:", graph.num_nodes)
-#print("\t#edges:", graph.num_edges)args
 
 ## extract a random node to train on
 #idx = torch.randint(0, len(test_indices), (1,))
