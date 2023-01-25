@@ -67,7 +67,7 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TR
 if TRAIN:
     print(Fore.RED + "\n[training]> starting train...")
     train_params = cfg["train_params"]
-    optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"], weight_decay=train_params["weight_decay"])
+    optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])#, weisght_decay=train_params["weight_decay"])
     #optimizer = torch.optim.SGD(model.parameters(), lr=train_params["lr"], nesterov=True, momentum=0.9)
     criterion = torch.nn.CrossEntropyLoss()
 

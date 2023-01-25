@@ -16,14 +16,12 @@ from utils.graphs import normalize_adj
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
-from gnns.CFGNNpaper.gcn import GCNSynthetic
-
 
 SEED   = 42
 EPOCHS = 40   # explainer epochs
 TRAIN  = True
 STORE  = False
-DATASET   = "BAcommunities"  # "BAshapes"(syn1), "BAcommunities"(syn2)
+DATASET   = "BAcommunity"  # "BAshapes"(syn1), "BAcommunities"(syn2)
 GNN_MODEL = "GNN"    # "GNN" or "CF-GNN"
 
 
@@ -106,4 +104,4 @@ print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
 print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")
 
 print(Fore.RED + "[explain]> cf examples found:",f"{len(explainer.cf_examples.keys())}")
-print(Fore.RED + "[explain]> cf ex. for nodes:",f"{explainer.cf_examples.keys()}")
+#print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")

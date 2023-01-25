@@ -45,7 +45,7 @@ class CFPGExplainer(BaseExplainer):
             features: torch.Tensor, 
             task: str="node", 
             epochs: int=30, 
-            lr: float=0.003, 
+            lr: float=0.005, 
             **kwargs
         ):
         super().__init__(model_to_explain, edge_index, features, task)
@@ -214,7 +214,7 @@ class CFPGExplainer(BaseExplainer):
                                                                 mask=mask)
 
                     # if original prediction changes save the CF example
-                    if (not pred_same): # and (id_loss < best_loss): 
+                    if pred_same == 0: 
                         #print("cf example found for node", idx)
                         best_loss = id_loss
                         try: 

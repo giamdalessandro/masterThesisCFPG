@@ -265,7 +265,7 @@ class PCFExplainer(BaseExplainer):
 
                     # if original prediction changes save the CF example
                     pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
-                    if pred_same == 0: # and (id_loss < best_loss): 
+                    if pred_same == 0: 
                         #print("cf example found for node", idx)
                         best_loss = id_loss
                         try: 
