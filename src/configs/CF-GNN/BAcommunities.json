@@ -9,6 +9,7 @@
         "epochs" : 1000,
         "early_stop" : 100,
         "clip_max" : 2.0,
+        "weight_decay" : 0.0001,
         "eval_enabled" : true
     }
 }

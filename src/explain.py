@@ -20,11 +20,11 @@ from gnns.CFGNNpaper.gcn import GCNSynthetic
 
 
 SEED   = 42
-EPOCHS = 20   # explainer epochs
+EPOCHS = 40   # explainer epochs
 TRAIN  = True
 STORE  = False
-DATASET   = "BAcommunities"  # "BAshapes" (syn2), "BAcommunities" (syn2)
-GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
+DATASET   = "BAcommunities"  # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "GNN"    # "GNN" or "CF-GNN"
 
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
@@ -64,8 +64,10 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, 
 #### STEP 3: select explainer
 print(Fore.RED + "\n[explain]> ...loading explainer")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
-#explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS)
-explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS) # needs 'CF-GNN' model
+if GNN_MODEL == "GNN":
+    explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS)
+elif GNN_MODEL == "CF-GNN":
+    explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS) # needs 'CF-GNN' model
 
 
 #### STEP 4: train and execute explainer
@@ -102,3 +104,6 @@ time_score = inference_eval.get_score(explanations)
 
 print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
 print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")
+
+print(Fore.RED + "[explain]> cf examples found:",f"{len(explainer.cf_examples.keys())}")
+print(Fore.RED + "[explain]> cf ex. for nodes:",f"{explainer.cf_examples.keys()}")

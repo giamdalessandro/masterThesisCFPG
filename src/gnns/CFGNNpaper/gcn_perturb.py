@@ -148,9 +148,10 @@ class GCNSyntheticPerturb(nn.Module):
 		x2 = F.relu(self.gc2(x1, norm_adj))
 		x2 = F.dropout(x2, self.dropout, training=self.training)
 		x3 = self.gc3(x2, norm_adj)
-		x  = self.lin(torch.cat((x1, x2, x3), dim=1))
+		input_lin = torch.cat((x1, x2, x3), dim=1)
+		x = self.lin(input_lin)
 		
-		return F.log_softmax(x, dim=1), self.P
+		return F.log_softmax(x, dim=1), self.P, x3
 
 	def loss(self, output, y_pred_orig, y_pred_new_actual):
 		#pred_same = (y_pred_new_actual == y_pred_orig).float()
@@ -167,7 +168,7 @@ class GCNSyntheticPerturb(nn.Module):
 
 		# Want negative in front to maximize loss instead of minimizing it to find CFs
 		loss_pred = F.nll_loss(output, y_pred_orig)              #F.nll_loss(output, y_pred_orig)
-		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2   # num of edges changed (symmetrical)
+		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2    # num of edges changed (symmetrical)
 
 		# Zero-out loss_pred with pred_same if prediction flips
 		loss_total = loss_pred + self.beta * loss_graph_dist

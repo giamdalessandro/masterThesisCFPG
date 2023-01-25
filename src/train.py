@@ -13,10 +13,10 @@ from utils.evaluation import evaluate, store_checkpoint, load_best_model
 from utils.graphs import normalize_adj
 
 
-TRAIN = True
+TRAIN = False
 STORE = False
 DATASET   = "BAcommunities" #"BAshapes", "BAcommunities"
-GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
+GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -67,7 +67,8 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TR
 if TRAIN:
     print(Fore.RED + "\n[training]> starting train...")
     train_params = cfg["train_params"]
-    optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])
+    optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"], weight_decay=train_params["weight_decay"])
+    #optimizer = torch.optim.SGD(model.parameters(), lr=train_params["lr"], nesterov=True, momentum=0.9)
     criterion = torch.nn.CrossEntropyLoss()
 
     # training loop 
@@ -77,9 +78,6 @@ if TRAIN:
         for epoch in epochs_bar:
             model.train()
             optimizer.zero_grad()
-            #if paper[:3] == "GCN":
-            #    out = model(x, norm_adj)
-            #elif paper[:3] == "GNN":
             out = model(x, edge_index)
             
             loss = criterion(out[idx_train], labels[idx_train])
@@ -89,9 +87,6 @@ if TRAIN:
 
             if train_params["eval_enabled"]: model.eval()
             with torch.no_grad():
-                #if args.paper[:3] == "GCN":
-                #    out = model(x, norm_adj)
-                #elif args.paper[:3] == "GNN":
                 out = model(x, edge_index)
     
             # Evaluate train
@@ -124,9 +119,7 @@ if TRAIN:
                 paper=GNN_MODEL, 
                 dataset=DATASET, 
                 eval_enabled=train_params["eval_enabled"])
-    #if args.paper[:3] == "GCN":
-    #    out = model(x, norm_adj)
-    #elif args.paper[:3] == "GNN":
+
     out = model(x, edge_index)
 
     # Train eval

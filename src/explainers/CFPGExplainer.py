@@ -1,4 +1,6 @@
 from tqdm import tqdm
+import numpy as np
+
 import torch
 from torch import nn
 from torch.optim import Adam
@@ -140,7 +142,7 @@ class CFPGExplainer(BaseExplainer):
 
         # Explanation loss
         pred_same = (masked_pred.argmax() == original_pred).float()
-        #if not pred_same: print("CF example found", pred_same)
+        #if not pred_same: print("pred_same_:", pred_same)
         cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
         pred_loss = pred_same * (-cce_loss) * reg_cf
 
@@ -169,7 +171,8 @@ class CFPGExplainer(BaseExplainer):
         if self.type == 'node':
             embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
             
-
+        self.cf_examples = {}
+        best_loss = np.inf
         # Start training loop
         with tqdm(range(0, self.epochs), desc="[CF-PGExplainer]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
@@ -180,40 +183,46 @@ class CFPGExplainer(BaseExplainer):
                 pred_total = torch.FloatTensor([0]).detach()
                 t = temp_schedule(e)
 
-                for n in indices:
-                    n = int(n)
+                for idx in indices:
+                    idx = int(idx)
                     #print(n)
                     if self.type == 'node':
                         # Similar to the original paper we only consider a subgraph for explaining
                         feats = self.features
-                        graph = ptgeom.utils.k_hop_subgraph(n, 3, self.adj)[1]
+                        graph = ptgeom.utils.k_hop_subgraph(idx, 3, self.adj)[1]
                     else:
-                        feats = self.features[n].detach()
-                        graph = self.adj[n].detach()
+                        feats = self.features[idx].detach()
+                        graph = self.adj[idx].detach()
                         embeds = self.model_to_explain.embedding(feats, graph).detach()
 
                     # Sample possible explanation
-                    input_expl = self._create_explainer_input(graph, embeds, n).unsqueeze(0)
-                    #print("embeds :", embeds.size())
-                    #print("input_expl :", input_expl.size())
+                    input_expl = self._create_explainer_input(graph, embeds, idx).unsqueeze(0)
 
                     sampling_weights = self.explainer_mlp(input_expl)
                     mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
-                    #print("sampling_weights :", sampling_weights.size())
-                    #print("mask             :", mask.size())
 
                     masked_pred = self.model_to_explain(feats, graph, edge_weights=mask)
                     original_pred = self.model_to_explain(feats, graph)
 
                     if self.type == 'node': # we only care for the prediction of the node
-                        masked_pred = masked_pred[n]#.unsqueeze(dim=0)
-                        original_pred = original_pred[n].argmax()
-                        #print("masked pred:", masked_pred.size())
-                        #print("origin pred:", original_pred.size())
+                        masked_pred = masked_pred[idx]
+                        original_pred = original_pred[idx].argmax()
+                        pred_same = (masked_pred.argmax() == original_pred)
 
                     id_loss, size_loss, ent_loss, pred_loss = self._loss(masked_pred=masked_pred, 
                                                                 original_pred=original_pred, 
                                                                 mask=mask)
+
+                    # if original prediction changes save the CF example
+                    if (not pred_same): # and (id_loss < best_loss): 
+                        #print("cf example found for node", idx)
+                        best_loss = id_loss
+                        try: 
+                            if best_loss < self.cf_examples[str(idx)]["best_loss"]:
+                                self.cf_examples[str(idx)] = {"best_loss": best_loss}
+                        except KeyError:
+                            self.cf_examples[str(idx)] = {"best_loss": best_loss}
+
                     loss_total += id_loss
                     size_total += size_loss
                     ent_total  += ent_loss

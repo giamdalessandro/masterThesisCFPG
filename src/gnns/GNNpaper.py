@@ -21,7 +21,7 @@ class NodeGCN(torch.nn.Module):
         self.relu3 = ReLU()
         self.lin = Linear(3*20, num_classes)
 
-    def forward(self, x, edge_index, edge_weights=None):
+    def forward(self, x, edge_index, edge_weights=None, expl: bool=False):
         input_lin = self.embedding(x, edge_index, edge_weights)
         final = self.lin(input_lin)
         return final

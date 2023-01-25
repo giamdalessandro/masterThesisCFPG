@@ -44,8 +44,8 @@ class PCFExplainer(BaseExplainer):
         super().__init__(model, edge_index, features, task)
         self.device   = device
         self.norm_adj = norm_adj
-        self.model    = self.model_to_explain
-        self.model.eval()
+        #self.model = self.model_to_explain
+        self.model_to_explain.eval()
 
         # from config
         self.epochs      = epochs
@@ -88,14 +88,14 @@ class PCFExplainer(BaseExplainer):
                             beta=beta,
                             edge_additions=True)
         
-        self.cf_model.load_state_dict(self.model.state_dict(), strict=False)
+        self.cf_model.load_state_dict(self.model_to_explain.state_dict(), strict=False)
 
 		# Freeze weights from original model in cf_model
         for name, param in self.cf_model.named_parameters():
             if name.endswith("weight") or name.endswith("bias"):
                 param.requires_grad = False
         if verbose:
-            for name, param in self.model.named_parameters():
+            for name, param in self.model_to_explain.named_parameters():
                 print("orig model requires_grad: ", name, param.requires_grad)
             for name, param in self.cf_model.named_parameters():
                 print("cf model requires_grad: ", name, param.requires_grad)
@@ -156,7 +156,7 @@ class PCFExplainer(BaseExplainer):
         return graph
 
     def _loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
-        """ TODO: Returns the loss score based on the given mask.
+        """ TODO: Returns the explainer MLP loss score based on the given mask.
 
         Args
         -  `masked_pred`   : Prediction based on the current explanation
@@ -182,6 +182,7 @@ class PCFExplainer(BaseExplainer):
 
         # Countefactual loss
         pred_same = (torch.argmax(masked_pred, dim=1) == original_pred).float()
+        #print("pred_same:", pred_same)
         cce_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
         pred_loss = pred_same * (-cce_loss) * reg_cf
         #print("cce_loss:", cce_loss, "\tpred_loss:", pred_loss)
@@ -209,8 +210,10 @@ class PCFExplainer(BaseExplainer):
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model.embedding(self.features, self.norm_adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.norm_adj).detach()
 
+        self.cf_examples = {}
+        best_loss = np.inf
         # explainer training loop
         with tqdm(range(0, self.epochs), desc="[PCFExplainer]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
@@ -221,20 +224,20 @@ class PCFExplainer(BaseExplainer):
                 pred_total = torch.FloatTensor([0]).detach()
                 t = temp_schedule(e)
 
-                for n in indices:
-                    n = int(n)
+                for idx in indices:
+                    idx = int(idx)
                     if self.type == 'node':
                         # Similar to the original paper we only consider a subgraph for explaining
                         feats = self.features
-                        graph = k_hop_subgraph(n, 3, self.adj)[1]
+                        graph = k_hop_subgraph(idx, 3, self.adj)[1]
                     else:
-                        feats = self.features[n].detach()
-                        graph = self.adj[n].detach()
+                        feats = self.features[idx].detach()
+                        graph = self.adj[idx].detach()
                         graph = graph.to_dense()
-                        embeds = self.model.embedding(feats, graph).detach()
+                        embeds = self.model_to_explain.embedding(feats, graph).detach()
 
                     # Sample possible explanation
-                    input_expl = self._create_explainer_input(graph, embeds, n).unsqueeze(0)
+                    input_expl = self._create_explainer_input(graph, embeds, idx).unsqueeze(0)
                     #print("input_expl :", input_expl.size())
                     #print("embeds     :", embeds.size())
 
@@ -245,23 +248,37 @@ class PCFExplainer(BaseExplainer):
                     s = self.norm_adj.size()
                     dense_mask = torch.sparse_coo_tensor(indices=graph, values=mask, size=s).to_dense()
                     
-                    original_pred = self.model.forward(feats, adj=self.norm_adj)
-                    masked_pred, _ = self.cf_model.forward_prediction(feats, P_mask=dense_mask)
+                    original_pred = self.model_to_explain.forward(feats, adj=self.norm_adj)
+                    masked_pred, cf_P, cf_feats = self.cf_model.forward_prediction(feats, P_mask=dense_mask)
                     
                     #print("masked_pred  :", torch.argmax(masked_pred[n]).unsqueeze(dim=0), "idx:", n)
                     #print("origin_pred  :", torch.argmax(original_pred[n].unsqueeze(dim=0)))
 
                     if self.type == 'node': # we only care for the prediction of the node
-                        masked_pred = masked_pred[n].unsqueeze(dim=0)
-                        original_pred = torch.argmax(original_pred[n]).unsqueeze(0)
+                        masked_pred = masked_pred[idx].unsqueeze(dim=0)
+                        original_pred = torch.argmax(original_pred[idx]).unsqueeze(0)       
+                        pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
                         
                     id_loss, size_loss, ent_loss, pred_loss = self._loss(masked_pred=masked_pred, 
                                                             original_pred=original_pred, 
                                                             mask=mask)
+
+                    # if original prediction changes save the CF example
+                    pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
+                    if pred_same == 0: # and (id_loss < best_loss): 
+                        #print("cf example found for node", idx)
+                        best_loss = id_loss
+                        try: 
+                            if best_loss < self.cf_examples[str(idx)]["best_loss"]:
+                                self.cf_examples[str(idx)] = {"best_loss": best_loss,"P": cf_P, "feats": cf_feats[idx]}
+                        except KeyError:
+                            self.cf_examples[str(idx)] = {"best_loss": best_loss,"P": cf_P, "feats": cf_feats[idx]}
+
                     loss_total += id_loss
                     size_total += size_loss
                     ent_total  += ent_loss
                     pred_total += pred_loss
+
 
                 epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", size_loss=f"{size_total.item():.4f}",
                                         ent_loss=f"{ent_total.item():.4f}", pred_loss=f"{pred_total.item():.4f}")
@@ -294,11 +311,11 @@ class PCFExplainer(BaseExplainer):
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
             graph = k_hop_subgraph(index, 3, self.adj)[1]
-            embeds = self.model.embedding(self.features, self.norm_adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.norm_adj).detach()
         else:
             feats = self.features[index].clone().detach()
             graph = self.adj[index].clone().detach()
-            embeds = self.model.embedding(feats, graph).detach()
+            embeds = self.model_to_explain.embedding(feats, graph).detach()
 
         # Use explainer mlp to get an explanation
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
