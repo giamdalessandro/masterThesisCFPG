@@ -169,7 +169,7 @@ class CFPGExplainer(BaseExplainer):
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
             
         self.cf_examples = {}
         best_loss = np.inf
@@ -193,7 +193,7 @@ class CFPGExplainer(BaseExplainer):
                     else:
                         feats = self.features[idx].detach()
                         graph = self.adj[idx].detach()
-                        embeds = self.model_to_explain.embedding(feats, graph).detach()
+                        embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
                     # Sample possible explanation
                     input_expl = self._create_explainer_input(graph, embeds, idx).unsqueeze(0)
@@ -201,7 +201,7 @@ class CFPGExplainer(BaseExplainer):
                     sampling_weights = self.explainer_mlp(input_expl)
                     mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
 
-                    masked_pred = self.model_to_explain(feats, graph, edge_weights=mask)
+                    masked_pred, cf_feat = self.model_to_explain(feats, graph, edge_weights=mask, cf_expl=True)
                     original_pred = self.model_to_explain(feats, graph)
 
                     if self.type == 'node': # we only care for the prediction of the node
@@ -219,9 +219,9 @@ class CFPGExplainer(BaseExplainer):
                         best_loss = id_loss
                         try: 
                             if best_loss < self.cf_examples[str(idx)]["best_loss"]:
-                                self.cf_examples[str(idx)] = {"best_loss": best_loss}
+                                self.cf_examples[str(idx)] = {"best_loss": best_loss, "mask": mask, "feats": cf_feat[idx]}
                         except KeyError:
-                            self.cf_examples[str(idx)] = {"best_loss": best_loss}
+                            self.cf_examples[str(idx)] = {"best_loss": best_loss, "mask": mask, "feats": cf_feat[idx]}
 
                     loss_total += id_loss
                     size_total += size_loss
@@ -263,11 +263,11 @@ class CFPGExplainer(BaseExplainer):
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
             graph = ptgeom.utils.k_hop_subgraph(index, 3, self.adj)[1]
-            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
             graph = self.adj[index].clone().detach()
-            embeds = self.model_to_explain.embedding(feats, graph).detach()
+            embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
         # Use explainer mlp to get an explanation
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)

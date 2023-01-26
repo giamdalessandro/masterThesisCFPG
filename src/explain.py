@@ -19,8 +19,8 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 SEED   = 42
 EPOCHS = 40   # explainer epochs
-TRAIN  = True
-STORE  = False
+#TRAIN  = True
+#STORE  = False
 DATASET   = "BAcommunity"  # "BAshapes"(syn1), "BAcommunities"(syn2)
 GNN_MODEL = "GNN"    # "GNN" or "CF-GNN"
 

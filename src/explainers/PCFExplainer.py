@@ -270,9 +270,9 @@ class PCFExplainer(BaseExplainer):
                         best_loss = id_loss
                         try: 
                             if best_loss < self.cf_examples[str(idx)]["best_loss"]:
-                                self.cf_examples[str(idx)] = {"best_loss": best_loss,"P": cf_P, "feats": cf_feats[idx]}
+                                self.cf_examples[str(idx)] = {"best_loss": best_loss,"mask": cf_P, "feats": cf_feats[idx]}
                         except KeyError:
-                            self.cf_examples[str(idx)] = {"best_loss": best_loss,"P": cf_P, "feats": cf_feats[idx]}
+                            self.cf_examples[str(idx)] = {"best_loss": best_loss,"mask": cf_P, "feats": cf_feats[idx]}
 
                     loss_total += id_loss
                     size_total += size_loss
