@@ -18,11 +18,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 
 SEED   = 42
-EPOCHS = 40   # explainer epochs
+EPOCHS = 20   # explainer epochs
 #TRAIN  = True
 #STORE  = False
-DATASET   = "BAcommunity"  # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"    # "GNN" or "CF-GNN"
+DATASET   = "BAshapes"  # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
 
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
@@ -33,6 +33,7 @@ cfg = parse_config(config_path=cfg_path)
 #### STEP 1: load a BAshapes dataset
 DATASET = cfg["dataset"]
 dataset, test_idxs = load_dataset(dataset=DATASET)
+train_idxs = dataset.train_mask
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -83,12 +84,13 @@ inference_eval.reset()
 
 # prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
 indices = torch.tensor(test_idxs)
-explainer.prepare(indices=test_idxs)
+explainer.prepare(indices=indices)
+
 
 # actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
 explanations = []
-with tqdm(test_idxs[:], desc="[explain]> ...testing", miniters=1, disable=False) as test_epoch:
+with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> ...testing", miniters=1, disable=False) as test_epoch:
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
         explanations.append((graph, expl))
@@ -103,5 +105,23 @@ time_score = inference_eval.get_score(explanations)
 print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
 print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")
 
-print(Fore.RED + "[explain]> cf examples found:",f"{len(explainer.cf_examples.keys())}")
+cf_examples = explainer.cf_examples
+print(Fore.RED + "[explain]>",f"{len(cf_examples.keys())}","nodes with at least one CF example.")
 #print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
+
+
+#### STEP 5: build the node_features for the adversarial graph based on the cf examples 
+adv_node_feats = []
+for n_idx in range(x.size(0)):
+    #print("node_id:", n_idx)
+    try:
+        adv_f = cf_examples[str(n_idx)]["feat"]
+        adv_f = torch.nn.functional.max_pool1d(adv_f.unsqueeze(dim=0), 2)#.squeeze()
+        adv_node_feats.append(adv_f)
+        #print("feat   :", x[int(k)].size())
+        #print("cf_ex  :", pool_feat.size()) 
+    except KeyError:
+        adv_node_feats.append(x[n_idx].unsqueeze(dim=0))
+
+adv_node_feats = torch.cat(adv_node_feats, dim=0)
+print("adv_features :", adv_node_feats.size()) 

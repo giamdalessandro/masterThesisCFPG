@@ -42,6 +42,7 @@ class PCFExplainer(BaseExplainer):
             **kwargs
         ):
         super().__init__(model, edge_index, features, task)
+        self.expl_name = "PCFExplainer"
         self.device   = device
         self.norm_adj = norm_adj
         #self.model = self.model_to_explain

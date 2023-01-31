@@ -1,10 +1,10 @@
 from tqdm import tqdm
-import numpy as np
+from numpy import Inf
 
 import torch
 from torch import nn
 from torch.optim import Adam
-import torch_geometric as ptgeom
+from torch_geometric.utils import k_hop_subgraph 
 
 from .BaseExplainer import BaseExplainer
 from utils.graphs import index_edge
@@ -49,6 +49,7 @@ class CFPGExplainer(BaseExplainer):
             **kwargs
         ):
         super().__init__(model_to_explain, edge_index, features, task)
+        self.expl_name = "CF-PGExplainer"
         self.epochs = epochs
         self.lr = lr
         self.coeffs.update(kwargs)
@@ -172,7 +173,7 @@ class CFPGExplainer(BaseExplainer):
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
             
         self.cf_examples = {}
-        best_loss = np.inf
+        best_loss = Inf
         # Start training loop
         with tqdm(range(0, self.epochs), desc="[CF-PGExplainer]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
@@ -189,7 +190,7 @@ class CFPGExplainer(BaseExplainer):
                     if self.type == 'node':
                         # Similar to the original paper we only consider a subgraph for explaining
                         feats = self.features
-                        graph = ptgeom.utils.k_hop_subgraph(idx, 3, self.adj)[1]
+                        graph = k_hop_subgraph(idx, 3, self.adj)[1]
                     else:
                         feats = self.features[idx].detach()
                         graph = self.adj[idx].detach()
@@ -262,7 +263,7 @@ class CFPGExplainer(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            graph = ptgeom.utils.k_hop_subgraph(index, 3, self.adj)[1]
+            graph = k_hop_subgraph(index, 3, self.adj)[1]
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
