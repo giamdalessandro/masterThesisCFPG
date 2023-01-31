@@ -20,8 +20,8 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 SEED   = 42
 EPOCHS = 20   # explainer epochs
 #TRAIN  = True
-#STORE  = False
-DATASET   = "BAshapes"  # "BAshapes"(syn1), "BAcommunities"(syn2)
+STORE_ADV = False
+DATASET   = "BAcommunity"  # "BAshapes"(syn1), "BAcommunities"(syn2)
 GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
 
 
@@ -106,22 +106,35 @@ print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
 print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")
 
 cf_examples = explainer.cf_examples
-print(Fore.RED + "[explain]>",f"{len(cf_examples.keys())}","nodes with at least one CF example.")
+print(Fore.RED + "[explain]>",f"{len(cf_examples.keys())}","test nodes with at least one CF example.")
 #print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
 
 
-#### STEP 5: build the node_features for the adversarial graph based on the cf examples 
-adv_node_feats = []
-for n_idx in range(x.size(0)):
-    #print("node_id:", n_idx)
-    try:
-        adv_f = cf_examples[str(n_idx)]["feat"]
-        adv_f = torch.nn.functional.max_pool1d(adv_f.unsqueeze(dim=0), 2)#.squeeze()
-        adv_node_feats.append(adv_f)
-        #print("feat   :", x[int(k)].size())
-        #print("cf_ex  :", pool_feat.size()) 
-    except KeyError:
-        adv_node_feats.append(x[n_idx].unsqueeze(dim=0))
 
-adv_node_feats = torch.cat(adv_node_feats, dim=0)
-print("adv_features :", adv_node_feats.size()) 
+#### STEP 5: build the node_features for the adversarial graph based on the cf examples 
+if STORE_ADV:
+    adv_node_feats = []
+    for n_idx in range(x.size(0)):
+        try:
+            adv_f = cf_examples[str(n_idx)]["feat"]
+            adv_f = torch.nn.functional.max_pool1d(adv_f.unsqueeze(dim=0), 2)#.squeeze()
+            adv_node_feats.append(adv_f)
+        except KeyError:
+            adv_node_feats.append(x[n_idx].unsqueeze(dim=0))
+
+    adv_node_feats = torch.cat(adv_node_feats, dim=0)
+    adv_data = {
+        "node_feats" : adv_node_feats,
+        "edge_index" : edge_index,
+        "labels" : class_labels,
+        "train_idxs" : dataset.train_mask,
+        "eval_idxs" : dataset.val_mask,
+        "test_idxs" : dataset.test_mask,
+        "edge_labels" : dataset[0].edge_label,
+    }
+    print("adv_features :", adv_node_feats.size()) 
+
+    # store in a .pkl file the adv examples
+    rel_path = f"/../datasets/pkls/{DATASET}_adv_{GNN_MODEL}.pt"
+    save_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
+    torch.save(adv_data, save_path)

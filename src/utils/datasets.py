@@ -28,17 +28,18 @@ class BAGraphDataset(InMemoryDataset):
     `"GNNExplainer: Generating Explanations for Graph Neural Networks"` 
     <https://arxiv.org/pdf/1903.03894.pdf> paper.
     """
-    def __init__(self, dataset: str="syn1", transform=None, pre_transform=None, verbose: bool=False):
+    def __init__(self, dataset: str="syn1", data_dir: str=DATA_DIR, transform=None, pre_transform=None, verbose: bool=False):
         r"""The data are loaded from a stored `.pkl` file representing one of 
         the synthetic Barabasi-Albert graph datasets from the paper mentioned above. 
         
         Args:
-        - `dataset`(str): which synthetic dataset to load, one of "syn1", "syn2", "syn3", "syn4".
+        - `dataset`(str) : which synthetic dataset to load, one of "syn1", "syn2", "syn3", "syn4".
+        - `data_dir`(str): directory path where dataset files are stored. 
         """
         super().__init__(None, transform, pre_transform)
         
         filename = dataset + ".pkl"
-        path = DATA_DIR + "pkls/" + filename
+        path = data_dir + "pkls/" + filename
         # load raw data
         with open(path, 'rb') as fin:
             data = pkl.load(fin)
