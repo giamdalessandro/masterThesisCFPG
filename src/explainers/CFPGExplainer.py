@@ -117,7 +117,7 @@ class CFPGExplainer(BaseExplainer):
             graph = torch.sigmoid(sampling_weights)
         return graph
 
-    def _loss(self, masked_pred, original_pred, mask):
+    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """
         Returns the loss score based on the given mask.
 

@@ -156,7 +156,7 @@ class PCFExplainer(BaseExplainer):
             graph = torch.sigmoid(sampling_weights)
         return graph
 
-    def _loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
+    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """ TODO: Returns the explainer MLP loss score based on the given mask.
 
         Args
