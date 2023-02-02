@@ -116,5 +116,5 @@ def model_selector(
     if pretrained:
         model, checkpoint = get_pretrained_checkpoint(model, paper, dataset, explainer)
         return model, checkpoint
-    shapes
+        
     return model, None

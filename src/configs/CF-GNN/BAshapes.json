@@ -9,6 +9,8 @@
         "epochs" : 1000,
         "early_stop" : 100,
         "clip_max" : 2.0,
-        "eval_enabled" : true
+        "eval_enabled" : true,
+        "T" : 5,
+        "inner_lr" : 0.0001
     }
 }
