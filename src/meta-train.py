@@ -96,12 +96,11 @@ if TRAIN:
             #print(Fore.BLUE + f"\n[testing]> Chosing node {node_idx.item()}...")
 
             # Extract computational subgraph
-            sub_index = k_hop_subgraph(node_idx, 3, edge_index)[1]
-            edge_idx = edge_index
             if GNN_MODEL == "CF-GNN":
-                sub_index = norm_edge_index.to_dense()
-                #print("sub_index:", sub_index.size())
-                edge_idx = norm_edge_index
+                sub_index = edge_idx = norm_edge_index
+            else:
+                sub_index = k_hop_subgraph(node_idx, 3, edge_index)[1]
+                edge_idx = edge_index
             model.eval()
 
             if train_params["eval_enabled"]: model.eval()
@@ -136,18 +135,7 @@ if TRAIN:
             # Meta-Update
             clear_mask(model)      
             with torch.no_grad():
-                #if GNN_MODEL == "CF-GNN":
-                model = meta_update_weights(model, params, verbose=False)
-                #elif GNN_MODEL == "GNN":
-                #    model.conv1.weight.copy_(params[-9])
-                #    model.conv1.bias.copy_(params[-8])
-                #    model.conv2.weight.copy_(params[-6])
-                #    model.conv2.bias.copy_(params[-5])
-                #    model.conv3.weight.copy_(params[-4])
-                #    model.conv3.bias.copy_(params[-3])
-                #    model.lin.weight.copy_(params[-2])
-                #    model.lin.bias.copy_(params[-1])
-
+                model = meta_update_weights(model, params, gnn=GNN_MODEL, verbose=False)
 
             out = model(x, edge_idx)
 
