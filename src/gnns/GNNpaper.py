@@ -21,9 +21,12 @@ class NodeGCN(torch.nn.Module):
         self.relu3 = ReLU()
         self.lin = Linear(3*20, num_classes)
 
-    def forward(self, x, edge_index, edge_weights=None):
-        input_lin = self.embedding(x, edge_index, edge_weights)
+    def forward(self, x, edge_index, edge_weights=None, cf_expl: bool=False):
+        input_lin, x3 = self.embedding(x, edge_index, edge_weights)
         final = self.lin(input_lin)
+
+        if cf_expl: 
+            return final, x3
         return final
 
     def embedding(self, x, edge_index, edge_weights=None):
@@ -48,7 +51,7 @@ class NodeGCN(torch.nn.Module):
 
         input_lin = torch.cat(stack, dim=1)
 
-        return input_lin
+        return input_lin, out3
 
 class GraphGCN(torch.nn.Module):
     """A graph clasification model for graphs decribed in https://arxiv.org/abs/1903.03894.

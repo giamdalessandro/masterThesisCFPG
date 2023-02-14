@@ -112,9 +112,9 @@ def model_selector(
         `torch.nn.module` models and optionallly a dict containing it's parameters.
     """
     model = string_to_model(paper, dataset, device, config)
-    print(Fore.CYAN + "\n[models]: loaded model...\n", model)
+    print(Fore.CYAN + "\n[models]: chosen model\n", model)
     if pretrained:
         model, checkpoint = get_pretrained_checkpoint(model, paper, dataset, explainer)
         return model, checkpoint
-    
+        
     return model, None

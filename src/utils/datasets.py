@@ -24,44 +24,44 @@ def parse_config(config_path: str):
 
 
 class BAGraphDataset(InMemoryDataset):
-    r"""PyG dataset class to wrap the stored BA-Shapes datasets from the 
-    `"GNNExplainer: Generating Explanations for Graph Neural Networks" 
-    <https://arxiv.org/pdf/1903.03894.pdf>` paper.
+    r"""PyG dataset class to wrap the synthetic BA-Shapes datasets from the 
+    `"GNNExplainer: Generating Explanations for Graph Neural Networks"` 
+    <https://arxiv.org/pdf/1903.03894.pdf> paper.
     """
-    def __init__(self, x, edge_index, labels, y_val, y_test, train_mask, val_mask, 
-                test_mask, edge_label, transform=None, pre_transform=None, verbose: bool=False):
-        r""" The parameters to initialize the class are the data loaded 
-        from the dataset stored in .pkl
+    def __init__(self, dataset: str="syn1", data_dir: str=DATA_DIR, transform=None, pre_transform=None, verbose: bool=False):
+        r"""The data are loaded from a stored `.pkl` file representing one of 
+        the synthetic Barabasi-Albert graph datasets from the paper mentioned above. 
         
         Args:
-        - `x` : node features;
-        - `edge_index`: adjacency matrix;
-        - `labels`: ground-truth labels for node classification;
-        - `y_val`:
-        - `y_test`:
-        - `train_mask`:
-        - `val_mask`:
-        - `test_mask`:
-        - `edge_label`: 
+        - `dataset`(str) : which synthetic dataset to load, one of "syn1", "syn2", "syn3", "syn4".
+        - `data_dir`(str): directory path where dataset files are stored. 
         """
         super().__init__(None, transform, pre_transform)
+        
+        filename = dataset + ".pkl"
+        path = data_dir + "pkls/" + filename
+        # load raw data
+        with open(path, 'rb') as fin:
+            data = pkl.load(fin)
+            adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label_matrix = data
+
         self.train_mask = train_mask
         self.val_mask   = val_mask
         self.test_mask  = test_mask
 
 
-        x = torch.tensor(x, dtype=torch.float)
+        x = torch.tensor(features, dtype=torch.float)
         num_nodes = x.size(0)
         expl_mask = torch.zeros(num_nodes, dtype=torch.bool)
         expl_mask[torch.arange(400, num_nodes, 5)] = True
 
         # pyg uses sparse matrix representation as default
-        edge_index = torch.tensor(edge_index).to_sparse()
-        edge_label = torch.tensor(edge_label).to_sparse()
+        edge_index = torch.tensor(adj).to_sparse()
+        edge_label = torch.tensor(edge_label_matrix).to_sparse()
 
-        labels[val_mask]  = y_val[val_mask]
-        labels[test_mask] = y_test[test_mask]
-        labels = torch.tensor(labels)
+        y_train[val_mask]  = y_val[val_mask]
+        y_train[test_mask] = y_test[test_mask]
+        labels = torch.tensor(y_train)
         if verbose:
             print("\n[DEBUG]> edge_index:", edge_index)
             print("\n[DEBUG]> edge_label:", edge_label)
@@ -87,26 +87,11 @@ def _load_node_dataset(dataset: str):
         `torch_geometric.data.Dataset`
     """
     filename = dataset + ".pkl"
-    path = DATA_DIR + "pkls/" + filename
     print(Fore.GREEN + f"[dataset]> node dataset from file '{filename}'...")
 
-    # load raw data
-    with open(path, 'rb') as fin:
-        data = pkl.load(fin)
-        adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label_matrix = data
-
     # create dataset class with loaded data
-    pyg_dataset = BAGraphDataset(
-        x=features, 
-        edge_index=adj, 
-        labels=y_train,
-        y_val=y_val,
-        y_test=y_test,
-        train_mask=train_mask,
-        val_mask=val_mask,
-        test_mask=test_mask,
-        edge_label=edge_label_matrix
-    )
+    pyg_dataset = BAGraphDataset(dataset=dataset)
+
     print("\t#graphs:       ", len(pyg_dataset))
     print("\t#classes:      ", pyg_dataset.num_classes)
     print("\t#node_features:", pyg_dataset.num_node_features)
