@@ -5,7 +5,7 @@ from colorama import init, Fore
 init(autoreset=True) # initializes Colorama
 
 import torch
-from torch_geometric.data import Data, InMemoryDataset
+from torch_geometric.data import Data, InMemoryDataset, Dataset
 
 path_to_data = "/../../datasets/"
 DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
@@ -23,13 +23,20 @@ def parse_config(config_path: str):
 
 
 
-class BAGraphDataset(InMemoryDataset):
+class BAGraphDataset(Dataset):
     r"""PyG dataset class to wrap the synthetic BA-Shapes datasets from the 
     `"GNNExplainer: Generating Explanations for Graph Neural Networks"` 
     <https://arxiv.org/pdf/1903.03894.pdf> paper.
     """
-    def __init__(self, dataset: str="syn1", data_dir: str=DATA_DIR, transform=None, pre_transform=None, verbose: bool=False):
-        r"""The data are loaded from a stored `.pkl` file representing one of 
+    def __init__(self, 
+            dataset  : str="syn1", 
+            data_dir : str=DATA_DIR,
+            load_adv : bool=False, 
+            transform=None, 
+            pre_transform=None, 
+            verbose  : bool=False
+        ):
+        """The data are loaded from a stored `.pkl` file representing one of 
         the synthetic Barabasi-Albert graph datasets from the paper mentioned above. 
         
         Args:
@@ -74,7 +81,50 @@ class BAGraphDataset(InMemoryDataset):
             y=labels, 
             expl_mask=expl_mask)
 
-        self.data, self.slices = self.collate([data])
+        # collate function needs a list of Data objects
+        data_list = [data]
+
+        # load raw adversarial examples
+        if load_adv:
+            adv_file = dataset + "_adv_CF-GNN.pt"
+            adv_path = data_dir + "pkls/" + adv_file
+
+            with open(adv_path, 'rb') as fin:
+                adv_dict = torch.load(fin)
+                adv_feats = adv_dict["node_feats"] #.clone().detach()
+
+                if verbose:
+                    print("[DEBUG]> adv_feat:", adv_feats.size())
+                    for k,v in adv_dict.items():
+                        print("[DEBUG]> key:",k,"item:",v)
+
+            adv_data = Data(
+                x=adv_feats,
+                edge_index=edge_index.indices(), 
+                edge_label=edge_label,  
+                y=labels, 
+                expl_mask=expl_mask)            
+
+            data_list.append(adv_data)
+        
+        for d in data_list:
+            print("[data_list]>", d)
+
+        #self.data, self.slices = self.collate(data_list)   # if using pyg InMemoryDataset
+        self.data = data_list
+
+
+    def len(self):
+        """Returns the number of examples in your dataset."""
+        return len(self.data)
+
+    def get(self, idx):
+        """Implements the logic to load a single graph."""
+        #data = torch.load(osp.join(self.processed_dir, f'data_{idx}.pt'))
+        return self.data[idx]
+
+
+
 
 
 def _load_node_dataset(dataset: str):
@@ -90,7 +140,7 @@ def _load_node_dataset(dataset: str):
     print(Fore.GREEN + f"[dataset]> node dataset from file '{filename}'...")
 
     # create dataset class with loaded data
-    pyg_dataset = BAGraphDataset(dataset=dataset)
+    pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=True)
 
     print("\t#graphs:       ", len(pyg_dataset))
     print("\t#classes:      ", pyg_dataset.num_classes)

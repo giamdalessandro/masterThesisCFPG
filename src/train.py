@@ -29,7 +29,7 @@ dataset, test_indices = load_dataset(dataset=DATASET)
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
-    "num_node_features": dataset.num_node_features})
+    "num_node_features": dataset[0].num_node_features})
 idx_train = dataset.train_mask
 idx_eval  = dataset.val_mask
 idx_test  = dataset.test_mask
@@ -130,6 +130,7 @@ if TRAIN:
             f"\n\ttrain_acc: {train_acc:.4f}",
             f"val_acc: {val_acc:.4f}",
             f"test_acc: {test_acc:.4f}")
+
 
 if STORE:
     store_checkpoint(
