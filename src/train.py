@@ -15,7 +15,7 @@ from utils.graphs import normalize_adj
 
 TRAIN = False
 STORE = False
-DATASET   = "BAcommunities" #"BAshapes", "BAcommunities"
+DATASET   = "BAshapes" #"BAshapes", "BAcommunities"
 GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
@@ -25,7 +25,7 @@ cfg = parse_config(config_path=cfg_path)
 
 ## load a BAshapes dataset
 DATASET = cfg["dataset"]
-dataset, test_indices = load_dataset(dataset=DATASET)
+dataset, test_indices = load_dataset(dataset=DATASET, load_adv=False)
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -35,7 +35,7 @@ idx_eval  = dataset.val_mask
 idx_test  = dataset.test_mask
 
 
-graph = dataset[0]
+graph = dataset.get(0)
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
 labels = graph.y
