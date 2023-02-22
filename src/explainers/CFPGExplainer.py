@@ -210,7 +210,7 @@ class CFPGExplainer(BaseExplainer):
                         original_pred = original_pred[idx].argmax()
                         pred_same = (masked_pred.argmax() == original_pred)
 
-                    id_loss, size_loss, ent_loss, pred_loss = self._loss(masked_pred=masked_pred, 
+                    id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                 original_pred=original_pred, 
                                                                 mask=mask)
 
