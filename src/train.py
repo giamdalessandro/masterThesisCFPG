@@ -12,11 +12,21 @@ from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
-
-TRAIN = False
+TRAIN = True
 STORE = False
-DATASET   = "BAshapes" #"BAshapes", "BAcommunities"
+DATASET   = "BAcommunities" #"BAshapes", "BAcommunities"
 GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
+
+SEED = 42
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+np.random.seed(SEED)
+
+if torch.cuda.is_available():
+    device =  torch.cuda.device("cuda")
+    print(">> cuda available", device)
+    print(">> device: ", torch.cuda.get_device_name(device),"\n")
+    device = "cuda"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -25,35 +35,36 @@ cfg = parse_config(config_path=cfg_path)
 
 ## load a BAshapes dataset
 DATASET = cfg["dataset"]
-dataset, test_indices = load_dataset(dataset=DATASET, load_adv=False)
+dataset, test_indices = load_dataset(dataset=DATASET, load_adv=True)
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
     "num_node_features": dataset[0].num_node_features})
-idx_train = dataset.train_mask
-idx_eval  = dataset.val_mask
-idx_test  = dataset.test_mask
+idx_train = torch.LongTensor(dataset.train_mask)
+idx_eval  = torch.LongTensor(dataset.val_mask)
+idx_test  = torch.LongTensor(dataset.test_mask)
 
 
-graph = dataset.get(0)
+graph = dataset.get(0)    # get base BAgraph
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
+
 labels = graph.y
-labels = np.argmax(labels, axis=1)
+labels = torch.argmax(labels, dim=1)
+x = graph.x
+edge_index = graph.edge_index #.indices()
 
 ## extract a random node to train on
 #idx = torch.randint(0, len(test_indices), (1,))
 #node_idx = torch.tensor([test_indices[idx]]) 
 #print(Fore.BLUE + f"\n[testing]> Chosing node {node_idx.item()}...")
-
-x = graph.x
-edge_index = graph.edge_index #.indices()
 #_, sub_index, _, _ = k_hop_subgraph(node_idx, 3, edge_index)
 #print("\tedge_index       :", edge_index.size())
 #print("\tnode neighborhood:", sub_index.size())
 #print("\tnode features    :", x.size())
+
 if GNN_MODEL == "CF-GNN":
-    ### need dense adjacency matrix for GCNSynthetic model
+    ### need dense adjacency matrix forcuda available GCNSynthetic model
     v = torch.ones(edge_index.size(1))
     s = (graph.num_nodes,graph.num_nodes)
     edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
@@ -61,7 +72,22 @@ if GNN_MODEL == "CF-GNN":
 
 
 ### instantiate GNN modelgraph
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), device=device, config=cfg)
+
+if torch.cuda.is_available():
+    print(">> loading tensors to cuda...")
+    model = model.to(device)
+    for p in model.parameters():
+        p.to(device)
+
+    x = x.to(device)
+    edge_index = edge_index.to(device)
+    labels = labels.to(device)
+    idx_train = idx_train.to(device)
+    idx_eval = idx_eval.to(device)
+    idx_test = idx_test.to(device)
+    print(">> DONE")
+
 
 # Define graph
 if TRAIN:
@@ -74,7 +100,7 @@ if TRAIN:
     # training loop 
     best_val_acc = 0.0
     best_epoch = 0
-    with tqdm(range(0, train_params["epochs"]), desc="[training]> Epoch") as epochs_bar:
+    with tqdm(range(0, train_params["epochs"]), desc=">> Epoch") as epochs_bar:
         for epoch in epochs_bar:
             model.train()
             optimizer.zero_grad()
@@ -115,7 +141,7 @@ if TRAIN:
                 break
 
     model = load_best_model(model=model, 
-                best_epoch=best_epoch,#-1,
+                best_epoch=-1, #best_epoch,#-1,
                 paper=GNN_MODEL, 
                 dataset=DATASET, 
                 eval_enabled=train_params["eval_enabled"])

@@ -260,7 +260,7 @@ class PCFExplainer(BaseExplainer):
                         original_pred = torch.argmax(original_pred[idx]).unsqueeze(0)       
                         pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
                         
-                    id_loss, size_loss, ent_loss, pred_loss = self._loss(masked_pred=masked_pred, 
+                    id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                             original_pred=original_pred, 
                                                             mask=mask)
 

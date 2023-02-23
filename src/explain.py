@@ -21,8 +21,10 @@ SEED   = 42
 EPOCHS = 20   # explainer epochs
 #TRAIN  = True
 STORE_ADV = False
-DATASET   = "BAcommunity"  # "BAshapes"(syn1), "BAcommunities"(syn2)
+DATASET   = "BAcommunities"  # "BAshapes"(syn1), "BAcommunities"(syn2)
 GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
+
+
 
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
@@ -106,7 +108,7 @@ print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
 print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")
 
 cf_examples = explainer.cf_examples
-print(Fore.RED + "[explain]>",f"{len(cf_examples.keys())}","test nodes with at least one CF example.")
+print(Fore.RED + "[explain]> test nodes with at least one CF example:",f"{len(cf_examples.keys())}/60")
 #print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
 
 
