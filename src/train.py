@@ -13,9 +13,9 @@ from utils.evaluation import evaluate, store_checkpoint, load_best_model
 from utils.graphs import normalize_adj
 
 TRAIN = True
-STORE = False
-DATASET   = "syn3_treeCycles" #"BAshapes", "BAcommunities", treeGrids
-GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
+STORE = True
+DATASET   = "syn4_treeGrids" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
+GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
 
 CUDA = True
 SEED = 42
@@ -145,7 +145,7 @@ if TRAIN:
                 break
 
     model = load_best_model(model=model, 
-                best_epoch=-1, #best_epoch,#-1,
+                best_epoch=best_epoch,#-1,
                 paper=GNN_MODEL, 
                 dataset=DATASET, 
                 eval_enabled=train_params["eval_enabled"])
