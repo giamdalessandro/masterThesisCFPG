@@ -2,11 +2,14 @@
     "paper" : "CF-GNN",
     "dataset" : "syn3",
     "num_hidden" : 20,
+    "num_layers" : 3,
+    "dropout" : 0.0,
     "train_params" : {
         "lr" : 0.01,
         "epochs" : 1000,
         "early_stop" : 100,
         "clip_max" : 2.0,
+        "weight_decay" : 0.0001,
         "eval_enabled" : true,
         "T" : 5,
         "inner_lr" : 0.0001

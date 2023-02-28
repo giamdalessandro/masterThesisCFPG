@@ -12,16 +12,16 @@ from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
-TRAIN = False
+TRAIN = True
 STORE = False
 DATASET   = "syn3_treeCycles" #"BAshapes", "BAcommunities", treeGrids
-GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
+GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
 
-CUDA = False
+CUDA = True
 SEED = 42
-#torch.manual_seed(SEED)
-#torch.cuda.manual_seed(SEED)
-#np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+np.random.seed(SEED)
 
 device = "cpu"
 if torch.cuda.is_available() and CUDA:
@@ -42,9 +42,9 @@ dataset, test_indices = load_dataset(dataset=DATASET, load_adv=False)
 cfg.update({
     "num_classes": dataset.num_classes,
     "num_node_features": dataset[0].num_node_features})
-idx_train = torch.LongTensor(dataset.train_mask)
-idx_eval  = torch.LongTensor(dataset.val_mask)
-idx_test  = torch.LongTensor(dataset.test_mask)
+idx_train = torch.BoolTensor(dataset.train_mask)
+idx_eval  = torch.BoolTensor(dataset.val_mask)
+idx_test  = torch.BoolTensor(dataset.test_mask)
 
 
 graph = dataset.get(0)    # get base BAgraph
@@ -52,7 +52,8 @@ print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
 
 labels = graph.y
-labels = torch.argmax(labels, dim=1)
+#labels = torch.argmax(labels, dim=1)
+labels = np.argmax(labels, axis=1)
 #print(">>>>", labels.size())
 x = graph.x
 edge_index = graph.edge_index #.indices()
