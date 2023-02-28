@@ -12,20 +12,7 @@ from utils.graphs import index_edge
 class CFPGExplainer(BaseExplainer):
     """A class encaptulating CF-PGExplainer (Parametrized-CFExplainer).
     
-    Args:
-        `model_to_explain` (torch.nn.Module): GNN model who's predictions we 
-            wish to explain.
-        `graphs` (Tensor): the collections of edge_indices representing the graphs.
-        `features` (Tensor): the collection of features for each node in the graphs.
-        `task` (string): "node" or "graph".
-        `epochs` (int): amount of epochs to train our explainer.
-        `lr` (float): learning rate used in the training of the explainer.
-    
     Methods:
-        `_create_explainer_input`: utility;
-        `_sample_graph`: utility; sample an explanatory subgraph;
-        `_loss`: calculate the loss of the explainer during training;
-        `_train`: train the explainer;
         `prepare`: prepare the explanation method for explaining;
         `explain`: search for the subgraph which contributes most to the clasification
              decision of the model-to-be-explained.
@@ -46,9 +33,19 @@ class CFPGExplainer(BaseExplainer):
             task: str="node", 
             epochs: int=30, 
             lr: float=0.005, 
+            device: str="cpu",
             **kwargs
         ):
-        super().__init__(model_to_explain, edge_index, features, task)
+        """
+        `model_to_explain` (torch.nn.Module): GNN model who's predictions we 
+            wish to explain.
+        `graphs` (Tensor): the collections of edge_indices representing the graphs.
+        `features` (Tensor): the collection of features for each node in the graphs.
+        `task` (string): "node" or "graph".
+        `epochs` (int): amount of epochs to train our explainer.
+        `lr` (float): learning rate used in the training of the explainer.
+        """
+        super().__init__(model_to_explain, edge_index, features, task, device)
         self.expl_name = "CF-PGExplainer"
         self.epochs = epochs
         self.lr = lr
@@ -64,7 +61,7 @@ class CFPGExplainer(BaseExplainer):
             nn.Linear(self.expl_embedding, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
-        )
+        ).to(device)
 
     def _create_explainer_input(self, pair, embeds, node_id):
         """
@@ -86,11 +83,11 @@ class CFPGExplainer(BaseExplainer):
         row_embeds = embeds[rows]
         col_embeds = embeds[cols]
         if self.type == 'node':
-            node_embed = embeds[node_id].repeat(rows.size(0), 1)
-            input_expl = torch.cat([row_embeds, col_embeds, node_embed], 1)
+            node_embed = embeds[node_id].repeat(rows.size(0), 1).to(self.device)
+            input_expl = torch.cat([row_embeds, col_embeds, node_embed], 1).to(self.device)
         else:
             # Node id is not used in this case
-            input_expl = torch.cat([row_embeds, col_embeds], 1)
+            input_expl = torch.cat([row_embeds, col_embeds], 1).to(self.device)
         return input_expl
 
     def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
@@ -170,7 +167,7 @@ class CFPGExplainer(BaseExplainer):
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
             
         self.cf_examples = {}
         best_loss = Inf
@@ -178,10 +175,10 @@ class CFPGExplainer(BaseExplainer):
         with tqdm(range(0, self.epochs), desc="[CF-PGExplainer]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
-                loss_total = torch.FloatTensor([0]).detach()
-                size_total = torch.FloatTensor([0]).detach()
-                ent_total  = torch.FloatTensor([0]).detach()
-                pred_total = torch.FloatTensor([0]).detach()
+                loss_total = torch.FloatTensor([0]).detach().to(self.device)
+                size_total = torch.FloatTensor([0]).detach().to(self.device)
+                ent_total  = torch.FloatTensor([0]).detach().to(self.device)
+                pred_total = torch.FloatTensor([0]).detach().to(self.device)
                 t = temp_schedule(e)
 
                 for idx in indices:
@@ -247,7 +244,8 @@ class CFPGExplainer(BaseExplainer):
         if indices is None: # Consider all indices
             indices = range(0, self.adj.size(0))
 
-        self._train(indices=torch.Tensor(indices))
+        indices = torch.Tensor(indices).to(self.device)   
+        self._train(indices=indices)
 
     def explain(self, index):
         """

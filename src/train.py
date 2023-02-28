@@ -12,17 +12,19 @@ from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
-TRAIN = True
+TRAIN = False
 STORE = False
-DATASET   = "BAcommunities" #"BAshapes", "BAcommunities"
+DATASET   = "syn3_treeCycles" #"BAshapes", "BAcommunities", treeGrids
 GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
 
+CUDA = False
 SEED = 42
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
-np.random.seed(SEED)
+#torch.manual_seed(SEED)
+#torch.cuda.manual_seed(SEED)
+#np.random.seed(SEED)
 
-if torch.cuda.is_available():
+device = "cpu"
+if torch.cuda.is_available() and CUDA:
     device =  torch.cuda.device("cuda")
     print(">> cuda available", device)
     print(">> device: ", torch.cuda.get_device_name(device),"\n")
@@ -35,7 +37,7 @@ cfg = parse_config(config_path=cfg_path)
 
 ## load a BAshapes dataset
 DATASET = cfg["dataset"]
-dataset, test_indices = load_dataset(dataset=DATASET, load_adv=True)
+dataset, test_indices = load_dataset(dataset=DATASET, load_adv=False)
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -51,6 +53,7 @@ print("\t>>", graph)
 
 labels = graph.y
 labels = torch.argmax(labels, dim=1)
+#print(">>>>", labels.size())
 x = graph.x
 edge_index = graph.edge_index #.indices()
 
@@ -74,7 +77,7 @@ if GNN_MODEL == "CF-GNN":
 ### instantiate GNN modelgraph
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), device=device, config=cfg)
 
-if torch.cuda.is_available():
+if torch.cuda.is_available() and CUDA:
     print(">> loading tensors to cuda...")
     model = model.to(device)
     for p in model.parameters():

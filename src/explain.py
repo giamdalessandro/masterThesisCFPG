@@ -21,11 +21,19 @@ SEED   = 42
 EPOCHS = 20   # explainer epochs
 #TRAIN  = True
 STORE_ADV = False
-DATASET   = "BAcommunities"  # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
+DATASET   = "BAshapes"  # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "GNN"    # "GNN" or "CF-GNN"
 
+# ensure all modules have the same seed
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+np.random.seed(SEED)
 
-
+if torch.cuda.is_available():
+    device = torch.cuda.device("cuda")
+    print(">> cuda available", device)
+    print(">> device: ", torch.cuda.get_device_name(device),"\n")
+    device = "cuda"
 
 rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
@@ -45,7 +53,7 @@ graph = dataset[0]
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
 class_labels = graph.y
-class_labels = np.argmax(class_labels, axis=1)
+class_labels = torch.argmax(class_labels, dim=1)
 
 x = graph.x
 edge_index = graph.edge_index
@@ -61,14 +69,26 @@ if GNN_MODEL == "CF-GNN":
 
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
+# loading tensors for CUDA computatio 
+if torch.cuda.is_available():
+    print(">> loading tensors to cuda...")
+    model = model.to(device)
+    for p in model.parameters():
+        p.to(device)
+
+    x = x.to(device)
+    edge_index = edge_index.to(device)
+    labels = class_labels.to(device)
+    print(">> DONE")
+
 
 #### STEP 3: select explainer
 print(Fore.RED + "\n[explain]> ...loading explainer")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS)
+    explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS, device=device)
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS) # needs 'CF-GNN' model
+    explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS, device=device) # needs 'CF-GNN' model
 
 
 #### STEP 4: train and execute explainer
@@ -77,15 +97,10 @@ gt = (graph.edge_index,graph.edge_label)
 auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
 inference_eval = EfficiencyEvluation()
 
-# ensure all modules have the same seed
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
-np.random.seed(SEED)
-
 inference_eval.reset()
 
 # prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
-indices = torch.tensor(test_idxs)
+indices = torch.tensor(test_idxs).to(device)
 explainer.prepare(indices=indices)
 
 

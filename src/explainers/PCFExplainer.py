@@ -41,16 +41,15 @@ class PCFExplainer(BaseExplainer):
             device: str="cpu",
             **kwargs
         ):
-        super().__init__(model, edge_index, features, task)
+        super().__init__(model, edge_index, features, task, device)
         self.expl_name = "PCFExplainer"
-        self.device   = device
-        self.norm_adj = norm_adj
+        self.norm_adj = norm_adj#.to(self.device)
         #self.model = self.model_to_explain
         self.model_to_explain.eval()
 
         # from config
-        self.epochs      = epochs
-        self.lr          = lr
+        self.epochs = epochs
+        self.lr     = lr
         self.coeffs.update(kwargs)
 
         gcn_layers = 3
