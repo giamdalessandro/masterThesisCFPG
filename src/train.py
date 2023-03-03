@@ -3,18 +3,16 @@ import numpy as np
 from tqdm import tqdm
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
-
 import torch
-from torch_geometric.utils import k_hop_subgraph
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
-TRAIN = True
-STORE = True
-DATASET   = "syn4_treeGrids" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
+TRAIN = False
+STORE = False
+DATASET   = "syn1_BAshapes" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
 GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
 
 CUDA = True
@@ -37,7 +35,7 @@ cfg = parse_config(config_path=cfg_path)
 
 ## load a BAshapes dataset
 DATASET = cfg["dataset"]
-dataset, test_indices = load_dataset(dataset=DATASET, load_adv=False)
+dataset, test_indices = load_dataset(dataset=DATASET, load_adv=True)
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,

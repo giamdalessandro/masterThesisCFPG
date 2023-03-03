@@ -18,18 +18,20 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 
 SEED   = 42
-EPOCHS = 20   # explainer epochs
+EPOCHS = 30   # explainer epochs
 #TRAIN  = True
 STORE_ADV = False
-DATASET   = "BAshapes"  # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"    # "GNN" or "CF-GNN"
+DATASET   = "syn2_BAcommunities"  # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "CF-GNN"    # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 np.random.seed(SEED)
 
-if torch.cuda.is_available():
+device = "cpu"
+CUDA = False
+if torch.cuda.is_available() and CUDA:
     device = torch.cuda.device("cuda")
     print(">> cuda available", device)
     print(">> device: ", torch.cuda.get_device_name(device),"\n")
@@ -69,8 +71,8 @@ if GNN_MODEL == "CF-GNN":
 
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
 
-# loading tensors for CUDA computatio 
-if torch.cuda.is_available():
+# loading tensors for CUDA computation 
+if torch.cuda.is_available() and CUDA:
     print(">> loading tensors to cuda...")
     model = model.to(device)
     for p in model.parameters():
@@ -86,7 +88,7 @@ if torch.cuda.is_available():
 print(Fore.RED + "\n[explain]> ...loading explainer")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, edge_index, x, epochs=EPOCHS, device=device)
+    explainer = CFPGExplainer(model, data_graph=graph, epochs=EPOCHS, device=device)
 elif GNN_MODEL == "CF-GNN":
     explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS, device=device) # needs 'CF-GNN' model
 
@@ -100,8 +102,9 @@ inference_eval = EfficiencyEvluation()
 inference_eval.reset()
 
 # prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
-indices = torch.tensor(test_idxs).to(device)
-explainer.prepare(indices=indices)
+#print(">>>> test nodes:", indices.size())
+train_idxs = torch.argwhere(torch.Tensor(train_idxs))
+explainer.prepare(indices=train_idxs)
 
 
 # actually explain GNN predictions for all test indices
@@ -123,7 +126,8 @@ print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
 print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")
 
 cf_examples = explainer.cf_examples
-print(Fore.RED + "[explain]> test nodes with at least one CF example:",f"{len(cf_examples.keys())}/60")
+total_tested = len(train_idxs)
+print(Fore.RED + "[explain]> test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{total_tested}")
 #print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
 
 

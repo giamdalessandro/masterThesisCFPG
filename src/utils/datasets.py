@@ -18,8 +18,8 @@ def parse_config(config_path: str):
             config = json.loads(json.dumps(json.load(config_parser)))
         return config
     except FileNotFoundError:
-        print("No config found")
-        return None
+        print(f"No config found for '{config_path}'")
+        exit(0)
 
 
 
@@ -80,7 +80,8 @@ class BAGraphDataset(Dataset):
             edge_index=edge_index.indices(), 
             edge_label=edge_label, #.indices(),  
             y=labels, 
-            expl_mask=expl_mask)
+            expl_mask=expl_mask,
+            n_id=torch.arange(num_nodes))
 
         # collate function needs a list of Data objects
         data_list = [data]

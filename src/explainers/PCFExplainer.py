@@ -4,14 +4,19 @@ import numpy as np
 from tqdm import tqdm
 
 import torch
-from torch_geometric.utils import k_hop_subgraph
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm_
+
+import torch_geometric
+from torch_geometric.utils import k_hop_subgraph
+from torch_geometric.loader import NeighborLoader
 
 from .BaseExplainer import BaseExplainer
 from gnns.CFGNNpaper.gcn_perturb import GCNSyntheticPerturb
 from utils.graphs import index_edge, sparse_to_dense_adj
 
+
+NODE_BATCH_SIZE = 8
 
 
 class PCFExplainer(BaseExplainer):
@@ -32,16 +37,17 @@ class PCFExplainer(BaseExplainer):
 
     def __init__(self, 
             model: torch.nn.Module, 
-            edge_index: torch.Tensor,
+            data_graph: torch_geometric.data.Data,
+            #edge_index: torch.Tensor,
+            #features: torch.Tensor, 
             norm_adj: torch.Tensor, 
-            features: torch.Tensor, 
             task: str="node",  
             epochs=30, 
             lr=0.003, 
             device: str="cpu",
             **kwargs
         ):
-        super().__init__(model, edge_index, features, task, device)
+        super().__init__(model, data_graph, task, device)
         self.expl_name = "PCFExplainer"
         self.norm_adj = norm_adj#.to(self.device)
         #self.model = self.model_to_explain
@@ -268,11 +274,12 @@ class PCFExplainer(BaseExplainer):
                     if pred_same == 0: 
                         #print("cf example found for node", idx)
                         best_loss = id_loss
+                        cf_ex = {"best_loss": best_loss,"mask": cf_P, "feats": cf_feats[idx]}
                         try: 
                             if best_loss < self.cf_examples[str(idx)]["best_loss"]:
-                                self.cf_examples[str(idx)] = {"best_loss": best_loss,"mask": cf_P, "feats": cf_feats[idx]}
+                                self.cf_examples[str(idx)] = cf_ex
                         except KeyError:
-                            self.cf_examples[str(idx)] = {"best_loss": best_loss,"mask": cf_P, "feats": cf_feats[idx]}
+                            self.cf_examples[str(idx)] = cf_ex
 
                     loss_total += id_loss
                     size_total += size_loss
