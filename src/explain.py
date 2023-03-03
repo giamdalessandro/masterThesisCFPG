@@ -21,8 +21,8 @@ SEED   = 42
 EPOCHS = 30   # explainer epochs
 #TRAIN  = True
 STORE_ADV = False
-DATASET   = "syn2_BAcommunities"  # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"    # "GNN" or "CF-GNN"
+DATASET   = "syn2"     # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "CF-GNN"   # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -37,7 +37,12 @@ if torch.cuda.is_available() and CUDA:
     print(">> device: ", torch.cuda.get_device_name(device),"\n")
     device = "cuda"
 
-rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
+if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
+elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
+elif DATASET == "syn3": data_cfg = DATASET + "_treeCycles"
+elif DATASET == "syn4": data_cfg = DATASET + "_treeGrids"
+
+rel_path = f"/configs/{GNN_MODEL}/{data_cfg}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 cfg = parse_config(config_path=cfg_path)
 
@@ -88,9 +93,9 @@ if torch.cuda.is_available() and CUDA:
 print(Fore.RED + "\n[explain]> ...loading explainer")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, data_graph=graph, epochs=EPOCHS, device=device)
+    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device)
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, edge_index, norm_adj, x, epochs=EPOCHS, device=device) # needs 'CF-GNN' model
+    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device) # needs 'CF-GNN' model
 
 
 #### STEP 4: train and execute explainer

@@ -16,7 +16,7 @@ from gnns.CFGNNpaper.gcn_perturb import GCNSyntheticPerturb
 from utils.graphs import index_edge, sparse_to_dense_adj
 
 
-NODE_BATCH_SIZE = 8
+NODE_BATCH_SIZE = 1
 
 
 class PCFExplainer(BaseExplainer):
@@ -25,7 +25,7 @@ class PCFExplainer(BaseExplainer):
 	"""
     ## default values for explainer parameters
     coeffs = {
-        "reg_size": 0.05,
+        "reg_size": 0.005,
         "reg_ent" : 1.0,
         "reg_cf"  : 0.75, 
         "temp": [5.0, 2.0],
@@ -38,8 +38,6 @@ class PCFExplainer(BaseExplainer):
     def __init__(self, 
             model: torch.nn.Module, 
             data_graph: torch_geometric.data.Data,
-            #edge_index: torch.Tensor,
-            #features: torch.Tensor, 
             norm_adj: torch.Tensor, 
             task: str="node",  
             epochs=30, 
@@ -49,7 +47,9 @@ class PCFExplainer(BaseExplainer):
         ):
         super().__init__(model, data_graph, task, device)
         self.expl_name = "PCFExplainer"
-        self.norm_adj = norm_adj#.to(self.device)
+        self.adj = self.data_graph.edge_index.to(device)
+        self.features = self.data_graph.x.to(device)
+        self.norm_adj = norm_adj.to(device)
         #self.model = self.model_to_explain
         self.model_to_explain.eval()
 
@@ -218,6 +218,16 @@ class PCFExplainer(BaseExplainer):
         if self.type == 'node':
             embeds = self.model_to_explain.embedding(self.features, self.norm_adj).detach()
 
+        # use NeighborLoader to consider batch_size nodes and their respective neighborhood
+        loader = NeighborLoader(
+            self.data_graph,
+            # Sample n neighbors for each node for 3 GNN iterations, 
+            num_neighbors=[-1] * 3,          # -1 for all neighbors
+            batch_size=NODE_BATCH_SIZE,      # num of nodes in the batch
+            input_nodes=indices,
+            disjoint=False,
+        )
+
         self.cf_examples = {}
         best_loss = np.inf
         # explainer training loop
@@ -230,65 +240,94 @@ class PCFExplainer(BaseExplainer):
                 pred_total = torch.FloatTensor([0]).detach()
                 t = temp_schedule(e)
 
-                for idx in indices:
-                    idx = int(idx)
+                #for idx in indices:
+                #    idx = int(idx)
+                #    if self.type == 'node':
+                #        # Similar to the original paper we only consider a subgraph for explaining
+                #        feats = self.features
+                #        graph = k_hop_subgraph(idx, 3, self.adj)[1]
+                #    else:
+                #        feats = self.features[idx].detach()
+                #        graph = self.adj[idx].detach()
+                #        graph = graph.to_dense()
+                #        embeds = self.model_to_explain.embedding(feats, graph).detach()
+
+                for node_batch in loader:
                     if self.type == 'node':
-                        # Similar to the original paper we only consider a subgraph for explaining
-                        feats = self.features
-                        graph = k_hop_subgraph(idx, 3, self.adj)[1]
-                    else:
-                        feats = self.features[idx].detach()
-                        graph = self.adj[idx].detach()
-                        graph = graph.to_dense()
-                        embeds = self.model_to_explain.embedding(feats, graph).detach()
+                        #batch_feats = node_batch.x
+                        #batch_ids = node_batch.batch
+                        batch_graph = node_batch.edge_index
 
-                    # Sample possible explanation
-                    input_expl = self._create_explainer_input(graph, embeds, idx).unsqueeze(0)
-                    #print("input_expl :", input_expl.size())
-                    #print("embeds     :", embeds.size())
+                        # NeighborLoader may include random nodes to match the chosen batch_size,
+                        # may need to consider only a subset of the batch  
+                        #valid_nodes = torch.argwhere(torch.where(batch_ids[:NODE_BATCH_SIZE] == 0, 1, 0)).squeeze()
+                        #if valid_nodes.nelement() > 1:
+                        #    curr_batch_size = valid_nodes[1].item()
+                        #else:
+                        curr_batch_size = NODE_BATCH_SIZE
 
-                    sampling_weights = self.explainer_mlp(input_expl)
-                    mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
-                    #print("#edge in expl    :", torch.sum(mask>0.5).item())
 
-                    s = self.norm_adj.size()
-                    dense_mask = torch.sparse_coo_tensor(indices=graph, values=mask, size=s).to_dense()
-                    
-                    original_pred = self.model_to_explain.forward(feats, adj=self.norm_adj)
-                    masked_pred, cf_P, cf_feats = self.cf_model.forward_prediction(feats, P_mask=dense_mask)
-                    
-                    #print("masked_pred  :", torch.argmax(masked_pred[n]).unsqueeze(dim=0), "idx:", n)
-                    #print("origin_pred  :", torch.argmax(original_pred[n].unsqueeze(dim=0)))
+                    for b_idx in range(curr_batch_size):
+                        # only need node_id neighnbors to compute the explainer input
+                        global_idx = node_batch.n_id[b_idx].item()
+                        #print("\n------- node (global_id)", global_idx, f"(local id {b_idx})")
 
-                    if self.type == 'node': # we only care for the prediction of the node
-                        masked_pred = masked_pred[idx].unsqueeze(dim=0)
-                        original_pred = torch.argmax(original_pred[idx]).unsqueeze(0)       
-                        pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
+                        #neighbors = torch.argwhere(torch.where(batch_ids == b_idx, 1, 0)).squeeze()
+                        #if neighbors.nelement() > 1: 
+                        #    sub_feats = torch.stack([batch_feats[n] for n in neighbors])
+                        #else:
+                        #    print("\n\tNo neighbors for this node")
+                        #    print("\tlocal id:", b_idx, "global id:", global_idx)
+                        #    exit(0)
+
+                        sub_graph = batch_graph #k_hop_subgraph(b_idx, 3, batch_graph, relabel_nodes=True)[1]
+
+                        # Sample possible explanation
+                        input_expl = self._create_explainer_input(sub_graph, embeds, global_idx).unsqueeze(0)
+
+                        sampling_weights = self.explainer_mlp(input_expl)
+                        mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
+                        #print("#edge in expl    :", torch.sum(mask>0.5).item())
+
+                        s = self.norm_adj.size()
+                        dense_mask = torch.sparse_coo_tensor(indices=sub_graph, values=mask, size=s).to_dense()
                         
-                    id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
-                                                            original_pred=original_pred, 
-                                                            mask=mask)
+                        original_pred = self.model_to_explain.forward(self.features, adj=self.norm_adj)
+                        masked_pred, cf_P, cf_feats = self.cf_model.forward_prediction(self.features, P_mask=dense_mask)
+                        
+                        #print("masked_pred  :", torch.argmax(masked_pred[n]).unsqueeze(dim=0), "idx:", n)
+                        #print("origin_pred  :", torch.argmax(original_pred[n].unsqueeze(dim=0)))
 
-                    # if original prediction changes save the CF example
-                    pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
-                    if pred_same == 0: 
-                        #print("cf example found for node", idx)
-                        best_loss = id_loss
-                        cf_ex = {"best_loss": best_loss,"mask": cf_P, "feats": cf_feats[idx]}
-                        try: 
-                            if best_loss < self.cf_examples[str(idx)]["best_loss"]:
-                                self.cf_examples[str(idx)] = cf_ex
-                        except KeyError:
-                            self.cf_examples[str(idx)] = cf_ex
+                        sub_node_idx = global_idx
+                        if self.type == 'node': # we only care for the prediction of the node
+                            masked_pred = masked_pred[sub_node_idx].unsqueeze(dim=0)
+                            original_pred = torch.argmax(original_pred[sub_node_idx]).unsqueeze(0)       
+                            pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
+                            
+                        id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
+                                                                original_pred=original_pred, 
+                                                                mask=mask)
 
-                    loss_total += id_loss
-                    size_total += size_loss
-                    ent_total  += ent_loss
-                    pred_total += pred_loss
+                        # if original prediction changes save the CF example
+                        pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
+                        if pred_same == 0: 
+                            #print("cf example found for node", idx)
+                            best_loss = id_loss
+                            cf_ex = {"best_loss": best_loss,"mask": cf_P, "feats": cf_feats[sub_node_idx]}
+                            try: 
+                                if best_loss < self.cf_examples[str(global_idx)]["best_loss"]:
+                                    self.cf_examples[str(global_idx)] = cf_ex
+                            except KeyError:
+                                self.cf_examples[str(global_idx)] = cf_ex
+
+                        loss_total += id_loss
+                        size_total += size_loss
+                        ent_total  += ent_loss
+                        pred_total += pred_loss
 
 
-                epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", size_loss=f"{size_total.item():.4f}",
-                                        ent_loss=f"{ent_total.item():.4f}", pred_loss=f"{pred_total.item():.4f}")
+                    epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", size_loss=f"{size_total.item():.4f}",
+                                            ent_loss=f"{ent_total.item():.4f}", pred_loss=f"{pred_total.item():.4f}")
 
                 loss_total.backward()
                 optimizer.step()

@@ -205,6 +205,18 @@ class CFPGExplainer(BaseExplainer):
                 pred_total = torch.FloatTensor([0]).detach().to(self.device)
                 t = temp_schedule(e)
 
+                #for idx in indices:
+                #    idx = int(idx)
+                #    #print(idx)
+                #    if self.type == 'node':
+                #        # Similar to the original paper we only consider a subgraph for explaining
+                #        feats = self.features
+                #        sub_graph = k_hop_subgraph(idx, 3, self.adj)[1]
+                #    else:
+                #        feats = self.features[idx].detach()
+                #        graph = self.adj[idx].detach()
+                #        embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
+                
                 for node_batch in loader:
                     if self.type == 'node':
                         # Similar to the original paper we only consider a subgraph for explaining
@@ -226,20 +238,7 @@ class CFPGExplainer(BaseExplainer):
  
                     else: 
                         raise NotImplementedError("graph classification")   # graph classification case
-                    
-                    #exit(0)
 
-                #for idx in indices:
-                #    idx = int(idx)
-                #    #print(idx)
-                #    if self.type == 'node':
-                #        # Similar to the original paper we only consider a subgraph for explaining
-                #        feats = self.features
-                #        sub_graph = k_hop_subgraph(idx, 3, self.adj)[1]
-                #    else:
-                #        feats = self.features[idx].detach()
-                #        graph = self.adj[idx].detach()
-                #        embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
                     for b_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
