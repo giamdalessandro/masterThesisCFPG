@@ -229,12 +229,12 @@ class CFPGExplainer(BaseExplainer):
 
                         # NeighborLoader may include random nodes to match the chosen batch_size,
                         # may need to consider only a subset of the batch  
-                        valid_nodes = torch.argwhere(torch.where(batch_ids[:NODE_BATCH_SIZE] == 0, 1, 0)).squeeze()
-                        if valid_nodes.nelement() > 1:
-                            #print(">> curr batch size:", valid_nodes[1])
-                            curr_batch_size = valid_nodes[1].item()
-                        else:
-                            curr_batch_size = NODE_BATCH_SIZE
+                        curr_batch_size = NODE_BATCH_SIZE
+                        if NODE_BATCH_SIZE > 1:
+                            valid_nodes = torch.argwhere(torch.where(batch_ids[:NODE_BATCH_SIZE] == 0, 1, 0)).squeeze()
+                            if valid_nodes.nelement() > 1:
+                                #print(">> curr batch size:", valid_nodes[1])
+                                curr_batch_size = valid_nodes[1].item()
  
                     else: 
                         raise NotImplementedError("graph classification")   # graph classification case

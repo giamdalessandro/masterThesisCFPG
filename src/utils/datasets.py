@@ -88,7 +88,7 @@ class BAGraphDataset(Dataset):
 
         # load raw adversarial examples
         if load_adv:
-            adv_file = dataset + "_adv_train_GNN.pt"
+            adv_file = dataset + "_adv_train_CF-GNN.pt"
             adv_path = data_dir + "pkls/" + adv_file
 
             with open(adv_path, 'rb') as fin:

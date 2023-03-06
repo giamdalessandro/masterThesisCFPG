@@ -12,7 +12,7 @@ from utils.graphs import normalize_adj
 
 TRAIN = False
 STORE = False
-DATASET   = "syn2" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
+DATASET   = "syn1" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
 GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
 
 CUDA = True

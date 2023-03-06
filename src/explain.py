@@ -21,8 +21,8 @@ SEED   = 42
 EPOCHS = 30   # explainer epochs
 TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"   # "GNN" or "CF-GNN"
+DATASET   = "syn2"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "CF-GNN"   # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -56,15 +56,13 @@ cfg.update({
     "num_classes": dataset.num_classes,
     "num_node_features": dataset.num_node_features})
 
-graph = dataset[0]
+graph = dataset.get(0)
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
 class_labels = graph.y
 class_labels = torch.argmax(class_labels, dim=1)
-
 x = graph.x
 edge_index = graph.edge_index
-
 
 #### STEP 2: instantiate GNN model, one of GNN or CF-GNN
 if GNN_MODEL == "CF-GNN":
@@ -74,7 +72,8 @@ if GNN_MODEL == "CF-GNN":
     dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     norm_adj = normalize_adj(dense_index)
 
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, explainer="adv", pretrained=True, config=cfg)
+
 
 # loading tensors for CUDA computation 
 if torch.cuda.is_available() and CUDA:

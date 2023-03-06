@@ -16,7 +16,7 @@ from gnns.CFGNNpaper.gcn_perturb import GCNSyntheticPerturb
 from utils.graphs import index_edge, sparse_to_dense_adj
 
 
-NODE_BATCH_SIZE = 2
+NODE_BATCH_SIZE = 16
 
 
 class PCFExplainer(BaseExplainer):
@@ -27,7 +27,7 @@ class PCFExplainer(BaseExplainer):
     coeffs = {
         "reg_size": 0.005,
         "reg_ent" : 1.0,
-        "reg_cf"  : 0.75, 
+        "reg_cf"  : 5.0, 
         "temp": [5.0, 2.0],
         "sample_bias": 0.0,
         "n_hid"   : 20,
@@ -225,7 +225,7 @@ class PCFExplainer(BaseExplainer):
             num_neighbors=[-1] * 3,          # -1 for all neighbors
             batch_size=NODE_BATCH_SIZE,      # num of nodes in the batch
             input_nodes=indices,
-            disjoint=False,
+            disjoint=True,
         )
 
         self.cf_examples = {}
@@ -255,16 +255,18 @@ class PCFExplainer(BaseExplainer):
                 for node_batch in loader:
                     if self.type == 'node':
                         #batch_feats = node_batch.x
-                        #batch_ids = node_batch.batch
+                        batch_ids = node_batch.batch
                         batch_graph = node_batch.edge_index
+                        #print(">>", batch_feats.size())
+                        #print(">>", batch_ids[:NODE_BATCH_SIZE])
 
                         # NeighborLoader may include random nodes to match the chosen batch_size,
-                        # may need to consider only a subset of the batch  
-                        #valid_nodes = torch.argwhere(torch.where(batch_ids[:NODE_BATCH_SIZE] == 0, 1, 0)).squeeze()
-                        #if valid_nodes.nelement() > 1:
-                        #    curr_batch_size = valid_nodes[1].item()
-                        #else:
+                        # may need to consider only a subset of the batch 
                         curr_batch_size = NODE_BATCH_SIZE
+                        if NODE_BATCH_SIZE > 1: 
+                            valid_nodes = torch.argwhere(torch.where(batch_ids[:NODE_BATCH_SIZE] == 0, 1, 0)).squeeze()
+                            if valid_nodes.nelement() > 1:
+                                curr_batch_size = valid_nodes[1].item()                                
 
 
                     for b_idx in range(curr_batch_size):
@@ -280,7 +282,7 @@ class PCFExplainer(BaseExplainer):
                         #    print("\tlocal id:", b_idx, "global id:", global_idx)
                         #    exit(0)
 
-                        sub_graph = batch_graph #k_hop_subgraph(b_idx, 3, batch_graph, relabel_nodes=True)[1]
+                        sub_graph = k_hop_subgraph(b_idx, 3, batch_graph, relabel_nodes=True)[1]
 
                         # Sample possible explanation
                         input_expl = self._create_explainer_input(sub_graph, embeds, global_idx).unsqueeze(0)
