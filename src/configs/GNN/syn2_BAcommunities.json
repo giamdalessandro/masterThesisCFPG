@@ -10,5 +10,12 @@
         "eval_enabled" : true,
         "T" : 5,
         "inner_lr" : 0.0001
+    },
+    "expl_params" : {
+        "reg_ent" : 1.0,
+        "reg_size" : 0.005,
+        "reg_cf" : 7.5,
+        "temps" : [1.0, 1.0],
+        "sample_bias" : 0.5
     }
 }

@@ -26,11 +26,11 @@ class CFPGExplainer(BaseExplainer):
     """
     ## default values for explainer parameters
     coeffs = {
-        "reg_size": 0.005,
+        "reg_size": 0.05,
         "reg_ent" : 1.0,
-        "reg_cf"  : 7.5, 
+        "reg_cf"  : 5.0, 
         "temp": [5.0, 2.0],
-        "sample_bias": 0.5,
+        "sample_bias": 0.0,
     }
 
     def __init__(self, 

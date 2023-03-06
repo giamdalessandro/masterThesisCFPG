@@ -10,8 +10,8 @@ from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
-TRAIN = False
-STORE = False
+TRAIN = True
+STORE = True
 DATASET   = "syn1" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
 GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
 

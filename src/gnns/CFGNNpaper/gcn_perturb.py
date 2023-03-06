@@ -167,8 +167,8 @@ class GCNSyntheticPerturb(nn.Module):
 		cf_adj.requires_grad = True  # Need to change this otherwise loss_graph_dist has no gradient
 
 		# Want negative in front to maximize loss instead of minimizing it to find CFs
-		loss_pred = F.nll_loss(output, y_pred_orig)              #F.nll_loss(output, y_pred_orig)
-		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2    # num of edges changed (symmetrical)
+		loss_pred = F.nll_loss(output, y_pred_orig)              #-F.nll_loss(output, y_pred_orig)
+		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2   # num of edges changed (symmetrical)
 
 		# Zero-out loss_pred with pred_same if prediction flips
 		loss_total = loss_pred + self.beta * loss_graph_dist

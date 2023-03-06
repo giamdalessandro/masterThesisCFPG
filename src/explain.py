@@ -18,11 +18,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 
 SEED   = 42
-EPOCHS = 30   # explainer epochs
+EPOCHS = 100   # explainer epochs
 TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn2"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "CF-GNN"   # "GNN" or "CF-GNN"
+DATASET   = "syn3"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "GNN"   # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -72,7 +72,7 @@ if GNN_MODEL == "CF-GNN":
     dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     norm_adj = normalize_adj(dense_index)
 
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, explainer="adv", pretrained=True, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, explainer="", pretrained=True, config=cfg)
 
 
 # loading tensors for CUDA computation 
@@ -92,10 +92,11 @@ if torch.cuda.is_available() and CUDA:
 print(Fore.RED + "\n[explain]> ...loading explainer")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device)
+    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, kwargs=cfg["expl_params"])
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device) # needs 'CF-GNN' model
-
+    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, kwargs=cfg["expl_params"]) # needs 'CF-GNN' model
+elif GNN_MODEL == "PGE":
+    explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device) # needs 'GNN'
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
