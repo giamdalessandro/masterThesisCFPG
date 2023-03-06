@@ -16,7 +16,7 @@ from gnns.CFGNNpaper.gcn_perturb import GCNSyntheticPerturb
 from utils.graphs import index_edge, sparse_to_dense_adj
 
 
-NODE_BATCH_SIZE = 1
+NODE_BATCH_SIZE = 2
 
 
 class PCFExplainer(BaseExplainer):

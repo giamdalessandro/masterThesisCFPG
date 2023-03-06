@@ -6,7 +6,7 @@
     "dropout" : 0.0,
     "train_params" : {
         "lr" : 0.002,
-        "epochs" : 1000,
+        "epochs" : [300,500],
         "early_stop" : 100,
         "clip_max" : 2.0,
         "weight_decay" : 0.0001,

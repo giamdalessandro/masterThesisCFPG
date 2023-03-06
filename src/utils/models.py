@@ -69,7 +69,7 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
         model_name = "best_model"
 
     if explainer == "":
-        rel_path = f"{paper}/{dataset}/{model_name}"
+        rel_path = f"{paper}/adv/{dataset}/{model_name}"
     else:
         rel_path = f"meta/{paper}/{explainer}/{dataset}/{model_name}"
 

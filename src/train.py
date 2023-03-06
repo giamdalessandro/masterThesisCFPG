@@ -12,8 +12,8 @@ from utils.graphs import normalize_adj
 
 TRAIN = False
 STORE = False
-DATASET   = "syn1_BAshapes" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
-GNN_MODEL = "GNN"        # "GNN", "CF-GNN"
+DATASET   = "syn2" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
+GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
 
 CUDA = True
 SEED = 42
@@ -28,7 +28,13 @@ if torch.cuda.is_available() and CUDA:
     print(">> device: ", torch.cuda.get_device_name(device),"\n")
     device = "cuda"
 
-rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
+
+if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
+elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
+elif DATASET == "syn3": data_cfg = DATASET + "_treeCycles"
+elif DATASET == "syn4": data_cfg = DATASET + "_treeGrids"
+
+rel_path = f"/configs/{GNN_MODEL}/{data_cfg}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 cfg = parse_config(config_path=cfg_path)
 
@@ -45,119 +51,110 @@ idx_eval  = torch.BoolTensor(dataset.val_mask)
 idx_test  = torch.BoolTensor(dataset.test_mask)
 
 
-graph = dataset.get(0)    # get base BAgraph
-print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
-print("\t>>", graph)
-
-labels = graph.y
-#labels = torch.argmax(labels, dim=1)
-labels = np.argmax(labels, axis=1)
-#print(">>>>", labels.size())
-x = graph.x
-edge_index = graph.edge_index #.indices()
-
-## extract a random node to train on
-#idx = torch.randint(0, len(test_indices), (1,))
-#node_idx = torch.tensor([test_indices[idx]]) 
-#print(Fore.BLUE + f"\n[testing]> Chosing node {node_idx.item()}...")
-#_, sub_index, _, _ = k_hop_subgraph(node_idx, 3, edge_index)
-#print("\tedge_index       :", edge_index.size())
-#print("\tnode neighborhood:", sub_index.size())
-#print("\tnode features    :", x.size())
-
-if GNN_MODEL == "CF-GNN":
-    ### need dense adjacency matrix forcuda available GCNSynthetic model
-    v = torch.ones(edge_index.size(1))
-    s = (graph.num_nodes,graph.num_nodes)
-    edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
-    edge_index = normalize_adj(edge_index)
-
-
 ### instantiate GNN modelgraph
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), device=device, config=cfg)
-
-if torch.cuda.is_available() and CUDA:
-    print(">> loading tensors to cuda...")
-    model = model.to(device)
-    for p in model.parameters():
-        p.to(device)
-
-    x = x.to(device)
-    edge_index = edge_index.to(device)
-    labels = labels.to(device)
-    idx_train = idx_train.to(device)
-    idx_eval = idx_eval.to(device)
-    idx_test = idx_test.to(device)
-    print(">> DONE")
+model, _ = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), device=device, config=cfg)
 
 
-# Define graph
-if TRAIN:
-    print(Fore.RED + "\n[training]> starting train...")
-    train_params = cfg["train_params"]
-    optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])#, weisght_decay=train_params["weight_decay"])
-    #optimizer = torch.optim.SGD(model.parameters(), lr=train_params["lr"], nesterov=True, momentum=0.9)
-    criterion = torch.nn.CrossEntropyLoss()
+for g in range(dataset.len()):
+    graph = dataset.get(g)    # get base BAgraph
+    print(Fore.GREEN + f"\n[dataset]> {dataset} dataset graph...")
+    print("\t>>", graph)
 
-    # training loop 
-    best_val_acc = 0.0
-    best_epoch = 0
-    with tqdm(range(0, train_params["epochs"]), desc=">> Epoch") as epochs_bar:
-        for epoch in epochs_bar:
-            model.train()
-            optimizer.zero_grad()
-            out = model(x, edge_index)
-            
-            loss = criterion(out[idx_train], labels[idx_train])
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), train_params["clip_max"])
-            optimizer.step()
+    labels = graph.y
+    labels = torch.argmax(labels, dim=1)
+    x = graph.x
+    edge_index = graph.edge_index #.indices()
 
-            if train_params["eval_enabled"]: model.eval()
-            with torch.no_grad():
+    if GNN_MODEL == "CF-GNN":
+        ### need dense adjacency matrix forcuda available GCNSynthetic model
+        v = torch.ones(edge_index.size(1))
+        s = (graph.num_nodes,graph.num_nodes)
+        edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
+        edge_index = normalize_adj(edge_index)
+
+
+    if torch.cuda.is_available() and CUDA:
+        print(">> loading tensors to cuda...")
+        model = model.to(device)
+        for p in model.parameters():
+            p.to(device)
+
+        x = x.to(device)
+        edge_index = edge_index.to(device)
+        labels = labels.to(device)
+        idx_train = idx_train.to(device)
+        idx_eval = idx_eval.to(device)
+        idx_test = idx_test.to(device)
+        print(">> DONE")
+
+
+    # Define graph
+    if TRAIN:
+        print(Fore.RED + "\n[training]> starting train...")
+        train_params = cfg["train_params"]
+        optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])#, weisght_decay=train_params["weight_decay"])
+        #optimizer = torch.optim.SGD(model.parameters(), lr=train_params["lr"], nesterov=True, momentum=0.9)
+        criterion = torch.nn.CrossEntropyLoss()
+
+        # training loop 
+        best_val_acc = 0.0
+        best_epoch = 0
+        with tqdm(range(0, train_params["epochs"][g]), desc=">> Epoch") as epochs_bar:
+            for epoch in epochs_bar:
+                model.train()
+                optimizer.zero_grad()
                 out = model(x, edge_index)
-    
-            # Evaluate train
-            train_acc = evaluate(out[idx_train], labels[idx_train])
-            test_acc  = evaluate(out[idx_test], labels[idx_test])
-            val_acc   = evaluate(out[idx_eval], labels[idx_eval])
+                
+                loss = criterion(out[idx_train], labels[idx_train])
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), train_params["clip_max"])
+                optimizer.step()
 
-            epochs_bar.set_postfix(loss=f"{loss:.4f}", train_acc=f"{train_acc:.4f}", 
-                                val_acc=f"{val_acc:.4f}", best_val_acc=f"{best_val_acc:.4f}")
+                if train_params["eval_enabled"]: model.eval()
+                with torch.no_grad():
+                    out = model(x, edge_index)
+        
+                # Evaluate train
+                train_acc = evaluate(out[idx_train], labels[idx_train])
+                test_acc  = evaluate(out[idx_test], labels[idx_test])
+                val_acc   = evaluate(out[idx_eval], labels[idx_eval])
 
-            if val_acc > best_val_acc: # New best results
-                best_val_acc = val_acc
-                best_epoch = epoch
-                if STORE:
-                    store_checkpoint(
-                        model=model, 
-                        gnn=GNN_MODEL, 
-                        paper="", 
-                        dataset=DATASET,
-                        train_acc=train_acc, 
-                        val_acc=val_acc, 
-                        test_acc=test_acc, 
-                        epoch=epoch)
+                epochs_bar.set_postfix(loss=f"{loss:.4f}", train_acc=f"{train_acc:.4f}", 
+                                    val_acc=f"{val_acc:.4f}", best_val_acc=f"{best_val_acc:.4f}")
 
-            if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
-                break
+                if val_acc > best_val_acc: # New best results
+                    best_val_acc = val_acc
+                    best_epoch = epoch
+                    if STORE:
+                        store_checkpoint(
+                            model=model, 
+                            gnn=GNN_MODEL, 
+                            paper="", 
+                            dataset=DATASET,
+                            train_acc=train_acc, 
+                            val_acc=val_acc, 
+                            test_acc=test_acc, 
+                            epoch=epoch)
 
-    model = load_best_model(model=model, 
-                best_epoch=best_epoch,#-1,
-                paper=GNN_MODEL, 
-                dataset=DATASET, 
-                eval_enabled=train_params["eval_enabled"])
+                if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
+                    break
 
-    out = model(x, edge_index)
+        model = load_best_model(model=model, 
+                    best_epoch=best_epoch,
+                    paper=GNN_MODEL, 
+                    dataset=DATASET, 
+                    eval_enabled=train_params["eval_enabled"])
 
-    # Train eval
-    train_acc = evaluate(out[idx_train], labels[idx_train])
-    test_acc  = evaluate(out[idx_test], labels[idx_test])
-    val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-    print(Fore.RED + "[results]> training final results", 
-            f"\n\ttrain_acc: {train_acc:.4f}",
-            f"val_acc: {val_acc:.4f}",
-            f"test_acc: {test_acc:.4f}")
+        out = model(x, edge_index)
+
+        # Train eval
+        train_acc = evaluate(out[idx_train], labels[idx_train])
+        test_acc  = evaluate(out[idx_test], labels[idx_test])
+        val_acc   = evaluate(out[idx_eval], labels[idx_eval])
+        print(Fore.RED + "[results]> training final results", 
+                f"\n\ttrain_acc: {train_acc:.4f}",
+                f"val_acc: {val_acc:.4f}",
+                f"test_acc: {test_acc:.4f}")
 
 
 if STORE:

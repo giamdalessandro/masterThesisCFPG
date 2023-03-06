@@ -5,8 +5,8 @@ from colorama import init, Fore
 init(autoreset=True) # initializes Colorama
 
 import torch
-from explainers.CFPGExplainer import CFPGExplainer
 from explainers.PGExplainer import PGExplainer
+from explainers.CFPGExplainer import CFPGExplainer
 from explainers.PCFExplainer import PCFExplainer
 
 from utils.datasets import load_dataset, parse_config
@@ -19,10 +19,10 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 SEED   = 42
 EPOCHS = 30   # explainer epochs
-#TRAIN  = True
+TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn2"     # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "CF-GNN"   # "GNN" or "CF-GNN"
+DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "GNN"   # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -108,7 +108,11 @@ inference_eval.reset()
 
 # prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
 #print(">>>> test nodes:", indices.size())
-train_idxs = torch.argwhere(torch.Tensor(train_idxs))
+if TRAIN_NODES:
+    train_idxs = torch.argwhere(torch.Tensor(train_idxs))
+else:
+    # when explaining use only nodes that have an explanation ground truth
+    train_idxs = test_idxs
 explainer.prepare(indices=train_idxs)
 
 
@@ -156,11 +160,11 @@ if STORE_ADV:
         "train_idxs" : dataset.train_mask,
         "eval_idxs" : dataset.val_mask,
         "test_idxs" : dataset.test_mask,
-        "edge_labels" : dataset[0].edge_label,
+        #"edge_labels" : dataset[0].edge_label,
     }
     print("adv_features :", adv_node_feats.size()) 
 
     # store in a .pkl file the adv examples
-    rel_path = f"/../datasets/pkls/{DATASET}_adv_{GNN_MODEL}.pt"
+    rel_path = f"/../datasets/pkls/{DATASET}_adv_train_{GNN_MODEL}.pt"
     save_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
     torch.save(adv_data, save_path)
