@@ -49,8 +49,7 @@ class PCFExplainer(BaseExplainer):
         self.expl_name = "PCFExplainer"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
-        self.norm_adj = norm_adj.to(device)
-        #self.model = self.model_to_explain
+        self.norm_adj = norm_adj #.to(device)
         self.model_to_explain.eval()
 
         # from config

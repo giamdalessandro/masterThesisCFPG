@@ -4,14 +4,15 @@
     "num_hidden" : 20,
     "train_params" : {
         "lr" : 0.003,
+        "inner_lr" : 0.0001,
         "epochs" : 1000,
         "early_stop" : 100,
         "clip_max" : 2.0,
-        "eval_enabled" : true,
         "T" : 5,
-        "inner_lr" : 0.0001
+        "eval_enabled" : true
     },
     "expl_params" : {
+        "epochs" : 20,
         "reg_ent" : 1.0,
         "reg_size" : 1.0,
         "reg_cf" : 5.0,

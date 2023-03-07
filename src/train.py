@@ -10,9 +10,10 @@ from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
-TRAIN = True
-STORE = True
-DATASET   = "syn1" #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
+MODE = ""   # "" for normal training, "adv" for adversarial
+TRAIN = False
+STORE = False
+DATASET   = "syn1"       #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
 GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
 
 CUDA = True
@@ -88,7 +89,6 @@ for g in range(dataset.len()):
         print(">> DONE")
 
 
-    # Define graph
     if TRAIN:
         print(Fore.RED + "\n[training]> starting train...")
         train_params = cfg["train_params"]
@@ -129,20 +129,21 @@ for g in range(dataset.len()):
                         store_checkpoint(
                             model=model, 
                             gnn=GNN_MODEL, 
-                            paper="", 
                             dataset=DATASET,
                             train_acc=train_acc, 
                             val_acc=val_acc, 
                             test_acc=test_acc, 
-                            epoch=epoch)
+                            epoch=epoch,
+                            mode=MODE) 
 
                 if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                     break
 
         model = load_best_model(model=model, 
                     best_epoch=best_epoch,
-                    paper=GNN_MODEL, 
+                    gnn=GNN_MODEL, 
                     dataset=DATASET, 
+                    mode=MODE,
                     eval_enabled=train_params["eval_enabled"])
 
         out = model(x, edge_index)
@@ -151,7 +152,7 @@ for g in range(dataset.len()):
         train_acc = evaluate(out[idx_train], labels[idx_train])
         test_acc  = evaluate(out[idx_test], labels[idx_test])
         val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-        print(Fore.RED + "[results]> training final results", 
+        print(Fore.RED + "\n[results]> training final results", 
                 f"\n\ttrain_acc: {train_acc:.4f}",
                 f"val_acc: {val_acc:.4f}",
                 f"test_acc: {test_acc:.4f}")
@@ -161,9 +162,9 @@ if STORE:
     store_checkpoint(
         model=model, 
         gnn=GNN_MODEL, 
-        paper="", 
         dataset=DATASET,
         train_acc=train_acc, 
         val_acc=val_acc, 
-        test_acc=test_acc)
+        test_acc=test_acc,
+        mode=MODE) 
     #store_train_results(_paper, _dataset, model, train_acc, val_acc, test_acc, desc=desc, meta=False)

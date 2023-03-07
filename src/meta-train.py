@@ -18,17 +18,23 @@ from utils.graphs import normalize_adj
 from utils.meta_learn import init_mask, clear_mask, set_mask, meta_update_weights
 
 
+MODE = "meta"
+EPOCHS = 1000
 TRAIN  = True
-STORE  = False
+STORE  = True
+DATASET   = "syn1"
+GNN_MODEL = "GNN"
 DEVICE = "cpu"
-DATASET   = "BAshapes"
-GNN_MODEL = "CF-GNN"
 
-rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
+
+if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
+elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
+elif DATASET == "syn3": data_cfg = DATASET + "_treeCycles"
+elif DATASET == "syn4": data_cfg = DATASET + "_treeGrids"
+
+rel_path = f"/configs/{GNN_MODEL}/{data_cfg}.json"
 cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 cfg = parse_config(config_path=cfg_path)
-
-
 
 ## STEP 1: load a BAshapes dataset
 DATASET = cfg["dataset"]
@@ -44,11 +50,9 @@ idx_test  = dataset.test_mask
 graph = dataset[0]
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
-labels = graph.y
-labels = np.argmax(labels, axis=1)
-#print("\t#nodes:", graph.num_nodes)
-#print("\t#edges:", graph.num_edges)args
 
+labels = graph.y
+labels = torch.argmax(labels, dim=1)
 x = graph.x
 edge_index = graph.edge_index #.indices()
 
@@ -61,13 +65,14 @@ if GNN_MODEL == "CF-GNN":
     dense_edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     norm_edge_index = normalize_adj(dense_edge_index)
 
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), config=cfg)
+
 
 # extract explainer loss function for meta-train loop
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, edge_index, x)
+    explainer = CFPGExplainer(model, graph, kwargs=cfg["expl_params"])
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, edge_index, None, x)
+    explainer = PCFExplainer(model, graph, None, kwargs=cfg["expl_params"])
 expl_loss_fn = explainer.loss
 
 
@@ -75,10 +80,10 @@ expl_loss_fn = explainer.loss
 TODO Meta-training loop to be implemented
 """
 #### STEP 3: Meta-training
+train_params = cfg["train_params"]
+expl_params = cfg["expl_params"]
 if TRAIN:
     print(Fore.RED + "\n[meta-training]> starting train...")
-    train_params = cfg["train_params"]
-
     for p in model.parameters():
         p.to(DEVICE)
 
@@ -88,7 +93,7 @@ if TRAIN:
 
     best_val_acc = 0.0
     best_epoch = 0
-    with tqdm(range(0, train_params["epochs"]), desc="[meta-training]> Epoch") as epochs_bar:
+    with tqdm(range(0, EPOCHS), desc="[meta-training]> Epoch") as epochs_bar:
         for epoch in epochs_bar:
             # extract a random node to train on
             idx = torch.randint(0, len(test_indices), (1,))
@@ -164,20 +169,22 @@ if TRAIN:
                     store_checkpoint(
                         model=model, 
                         gnn=GNN_MODEL, 
-                        paper="", 
                         dataset=DATASET,
                         train_acc=train_acc, 
                         val_acc=val_acc, 
                         test_acc=test_acc, 
-                        epoch=epoch)
+                        epoch=epoch,
+                        mode=MODE) 
 
             if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                 break
 
+
     model = load_best_model(model=model, 
                 best_epoch=best_epoch,
-                paper=GNN_MODEL, 
+                gnn=GNN_MODEL, 
                 dataset=DATASET, 
+                mode=MODE,
                 eval_enabled=train_params["eval_enabled"])
     out = model(x, edge_idx)
 
@@ -185,7 +192,7 @@ if TRAIN:
     train_acc = evaluate(out[idx_train], labels[idx_train])
     test_acc  = evaluate(out[idx_test], labels[idx_test])
     val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-    print(Fore.MAGENTA + "[results]> training final results", 
+    print(Fore.RED + "\n[results]> training final results", 
             f"\n\ttrain_acc: {train_acc:.4f}",
             f"val_acc: {val_acc:.4f}",
             f"test_acc: {test_acc:.4f}")
@@ -195,9 +202,9 @@ if STORE:
     store_checkpoint(
         model=model, 
         gnn=GNN_MODEL, 
-        paper="", 
         dataset=DATASET,
         train_acc=train_acc, 
         val_acc=val_acc, 
-        test_acc=test_acc)
+        test_acc=test_acc,
+        mode=MODE)
     #store_train_results(_paper, _dataset, model, train_acc, val_acc, test_acc, desc=desc, meta=False)
