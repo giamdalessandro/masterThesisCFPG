@@ -4,7 +4,7 @@
 # datasets
 datasets/
 checkpoints/
-
+results/
 
 ### github default
 # Byte-compiled / optimized / DLL files
