@@ -90,15 +90,11 @@ class CFPGExplainer(BaseExplainer):
         cols = pair[1]
         row_embeds = embeds[rows]
         col_embeds = embeds[cols]
+
+
         if self.type == 'node':
             node_embed = embeds[node_id].repeat(rows.size(0), 1).to(self.device)
             input_expl = torch.cat([row_embeds, col_embeds, node_embed], 1).to(self.device)
-            #print(">> node id:", node_id)
-            #print("\tnode embed:", node_embed.size())
-            #print("\trow embed :", row_embeds.size())
-            #print("\tcol embed :", col_embeds.size())
-            #print("\tpair:", pair.size())
-            #exit(0)
         else:
             # Node id is not used in this case
             input_expl = torch.cat([row_embeds, col_embeds], 1).to(self.device)
@@ -190,8 +186,10 @@ class CFPGExplainer(BaseExplainer):
             num_neighbors=[-1] * 3,          # -1 for all neighbors
             batch_size=NODE_BATCH_SIZE,      # num of nodes in the batch
             input_nodes=indices,
-            disjoint=True,
+            disjoint=False,
         )
+        n_indices = indices.size(0)
+        n_batches = len(loader)
 
         self.cf_examples = {}
         best_loss = Inf
@@ -217,56 +215,42 @@ class CFPGExplainer(BaseExplainer):
                 #        graph = self.adj[idx].detach()
                 #        embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
                 
+                b_id = 0
                 for node_batch in loader:
+                    if b_id == (n_batches-1):   # last batch may be smaller
+                        curr_batch_size = n_indices % NODE_BATCH_SIZE
+                    else:
+                        curr_batch_size = NODE_BATCH_SIZE
+
                     if self.type == 'node':
                         # Similar to the original paper we only consider a subgraph for explaining
-                        feats = node_batch.x
-                        graph = node_batch.edge_index
-                        batch_ids = node_batch.batch 
-                        #print("\n\tbatch feats:", feats.size())
-                        #print("\tbatch graph:", graph.size())
-                        #print("\tbatch n_id:", node_batch.n_id)
+                        batch_feats  = node_batch.x
+                        batch_graph  = node_batch.edge_index
+                        global_n_ids = node_batch.n_id
+                        b_id += 1
 
-                        # NeighborLoader may include random nodes to match the chosen batch_size,
-                        # may need to consider only a subset of the batch  
-                        curr_batch_size = NODE_BATCH_SIZE
-                        if NODE_BATCH_SIZE > 1:
-                            valid_nodes = torch.argwhere(torch.where(batch_ids[:NODE_BATCH_SIZE] == 0, 1, 0)).squeeze()
-                            if valid_nodes.nelement() > 1:
-                                #print(">> curr batch size:", valid_nodes[1])
-                                curr_batch_size = valid_nodes[1].item()
- 
-                    else: 
-                        raise NotImplementedError("graph classification")   # graph classification case
-
-
-                    for b_idx in range(curr_batch_size):
+                    for b_n_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
-                        global_idx = node_batch.n_id[b_idx].item()
-                        #print("\n------- node (global_id)", global_idx, f"(local id {b_idx})")
+                        global_idx = global_n_ids[b_n_idx]
+                        #print("\n------- node (global_id)", global_idx, f"(local id {b_n_idx})")
 
-                        neighbors = torch.argwhere(torch.where(batch_ids == b_idx, 1, 0)).squeeze()
-                        if neighbors.nelement() > 1: 
-                            sub_feats = torch.stack([feats[n] for n in neighbors])
-                        else:
-                            print("\n\tneighbors:", neighbors)
-                            print("\tlocal id:", b_idx, "global id:", global_idx)
-                            exit(0)
-
-                        sub_graph = k_hop_subgraph(b_idx, 3, graph, relabel_nodes=True)[1]
+                        sub_nodes, sub_index, n_map, _ = k_hop_subgraph(b_n_idx, 3, batch_graph, relabel_nodes=True)
+                        sub_feats = batch_feats[sub_nodes, :]
                         #print("\t>> sub_feats:", sub_feats.size())
-                        #print("\t>> sub_graph:", sub_graph.size())
+
+                        sub_graph = torch.take(global_n_ids,sub_index)    # global node indices to sub-graph
+                        #print("\t>> sub_index:", sub_index.size())
                         
                         # possible explanation for each node in sample
                         input_expl = self._create_explainer_input(sub_graph, embeds, global_idx).unsqueeze(0)
-
+                        
                         sampling_weights = self.explainer_mlp(input_expl)
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
+                        
+                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
+                        original_pred = self.model_to_explain(sub_feats, sub_index)
 
-                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_graph, edge_weights=mask, cf_expl=True)
-                        original_pred = self.model_to_explain(sub_feats, sub_graph)
-
-                        sub_node_idx = 0
+                        sub_node_idx = n_map.item()
                         if self.type == 'node': # node class prediction
                             # when considering the features subset, node prediction is at index 0
                             masked_pred = masked_pred[sub_node_idx]

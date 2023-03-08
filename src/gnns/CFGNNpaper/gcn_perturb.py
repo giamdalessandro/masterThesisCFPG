@@ -41,7 +41,7 @@ class GCNSyntheticPerturb(nn.Module):
 			nhid: int, 
 			nout: int, 
 			nclass: int, 
-			adj, 
+			adj: torch.Tensor, 
 			dropout: float, 
 			beta: float, 
 			edge_additions: bool=False
@@ -102,7 +102,7 @@ class GCNSyntheticPerturb(nn.Module):
 
 		D_tilde = torch.diag(sum(A_tilde)).detach()   # Don't need gradient of this
 		# Raise to power -1/2, set all infs to 0s
-		D_tilde_exp = D_tilde ** (-1 / 2)
+		D_tilde_exp = D_tilde.pow(-0.5)               #D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
 
 		# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
@@ -137,7 +137,7 @@ class GCNSyntheticPerturb(nn.Module):
 		#print("A_tilde:", A_tilde.size())
 		D_tilde = torch.diag(sum(A_tilde))
 		# Raise to power -1/2, set all infs to 0s
-		D_tilde_exp = D_tilde ** (-1 / 2)
+		D_tilde_exp = D_tilde.pow(-0.5)     #D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
 
 		# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)

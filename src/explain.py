@@ -18,11 +18,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 
 SEED   = 42
-EPOCHS = 100   # explainer epochs
+EPOCHS = 30   # explainer epochs
 TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn3"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "CF-GNN"   # "GNN" or "CF-GNN"
+DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "GNN"   # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -110,9 +110,8 @@ inference_eval.reset()
 #print(">>>> test nodes:", indices.size())
 if TRAIN_NODES:
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
-else:
-    # when explaining use only nodes that have an explanation ground truth
-    train_idxs = test_idxs
+else:                              
+    train_idxs = test_idxs   # use only nodes that have an explanation ground truth
 explainer.prepare(indices=train_idxs)
 
 

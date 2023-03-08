@@ -19,10 +19,10 @@ from utils.meta_learn import init_mask, clear_mask, set_mask, meta_update_weight
 
 
 MODE = "meta"
-EPOCHS = 1000
+EPOCHS = 500
 TRAIN  = True
 STORE  = True
-DATASET   = "syn1"
+DATASET   = "syn2"
 GNN_MODEL = "GNN"
 DEVICE = "cpu"
 

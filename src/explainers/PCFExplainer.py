@@ -16,7 +16,7 @@ from gnns.CFGNNpaper.gcn_perturb import GCNSyntheticPerturb
 from utils.graphs import index_edge, sparse_to_dense_adj
 
 
-NODE_BATCH_SIZE = 16
+NODE_BATCH_SIZE = 2
 
 
 class PCFExplainer(BaseExplainer):
@@ -196,7 +196,7 @@ class PCFExplainer(BaseExplainer):
         loss_total = size_loss + mask_ent_loss + pred_loss 
         return loss_total, size_loss, mask_ent_loss, pred_loss
 
-    def _train(self, indices, verbose: bool=False):
+    def _train(self, indices, original_preds: torch.Tensor, verbose: bool=False):
         """Train the explainer MLP.
 
         Args: 
@@ -224,8 +224,10 @@ class PCFExplainer(BaseExplainer):
             num_neighbors=[-1] * 3,          # -1 for all neighbors
             batch_size=NODE_BATCH_SIZE,      # num of nodes in the batch
             input_nodes=indices,
-            disjoint=True,
+            disjoint=False,
         )
+        n_indices = indices.size(0)
+        n_batches = len(loader)
 
         self.cf_examples = {}
         best_loss = np.inf
@@ -251,37 +253,26 @@ class PCFExplainer(BaseExplainer):
                 #        graph = graph.to_dense()
                 #        embeds = self.model_to_explain.embedding(feats, graph).detach()
 
+                b_id = 0
                 for node_batch in loader:
+                    if b_id == (n_batches-1):     # last batch may be smaller
+                        curr_batch_size = n_indices % NODE_BATCH_SIZE
+                    else:
+                        curr_batch_size = NODE_BATCH_SIZE
+
                     if self.type == 'node':
                         #batch_feats = node_batch.x
-                        batch_ids = node_batch.batch
+                        global_n_ids = node_batch.n_id
                         batch_graph = node_batch.edge_index
-                        #print(">>", batch_feats.size())
-                        #print(">>", batch_ids[:NODE_BATCH_SIZE])
-
-                        # NeighborLoader may include random nodes to match the chosen batch_size,
-                        # may need to consider only a subset of the batch 
-                        curr_batch_size = NODE_BATCH_SIZE
-                        if NODE_BATCH_SIZE > 1: 
-                            valid_nodes = torch.argwhere(torch.where(batch_ids[:NODE_BATCH_SIZE] == 0, 1, 0)).squeeze()
-                            if valid_nodes.nelement() > 1:
-                                curr_batch_size = valid_nodes[1].item()                                
-
+                        b_id += 1
 
                     for b_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
-                        global_idx = node_batch.n_id[b_idx].item()
+                        global_idx = global_n_ids[b_idx]
                         #print("\n------- node (global_id)", global_idx, f"(local id {b_idx})")
 
-                        #neighbors = torch.argwhere(torch.where(batch_ids == b_idx, 1, 0)).squeeze()
-                        #if neighbors.nelement() > 1: 
-                        #    sub_feats = torch.stack([batch_feats[n] for n in neighbors])
-                        #else:
-                        #    print("\n\tNo neighbors for this node")
-                        #    print("\tlocal id:", b_idx, "global id:", global_idx)
-                        #    exit(0)
-
-                        sub_graph = k_hop_subgraph(b_idx, 3, batch_graph, relabel_nodes=True)[1]
+                        sub_index = k_hop_subgraph(b_idx, 3, batch_graph)[1]
+                        sub_graph = torch.take(global_n_ids,sub_index)         # global node indices to sub-graph
 
                         # Sample possible explanation
                         input_expl = self._create_explainer_input(sub_graph, embeds, global_idx).unsqueeze(0)
@@ -293,16 +284,13 @@ class PCFExplainer(BaseExplainer):
                         s = self.norm_adj.size()
                         dense_mask = torch.sparse_coo_tensor(indices=sub_graph, values=mask, size=s).to_dense()
                         
-                        original_pred = self.model_to_explain.forward(self.features, adj=self.norm_adj)
+                        #original_pred = self.model_to_explain.forward(self.features, adj=self.norm_adj)
                         masked_pred, cf_P, cf_feats = self.cf_model.forward_prediction(self.features, P_mask=dense_mask)
-                        
-                        #print("masked_pred  :", torch.argmax(masked_pred[n]).unsqueeze(dim=0), "idx:", n)
-                        #print("origin_pred  :", torch.argmax(original_pred[n].unsqueeze(dim=0)))
 
                         sub_node_idx = global_idx
                         if self.type == 'node': # we only care for the prediction of the node
                             masked_pred = masked_pred[sub_node_idx].unsqueeze(dim=0)
-                            original_pred = torch.argmax(original_pred[sub_node_idx]).unsqueeze(0)       
+                            original_pred = torch.argmax(original_preds[sub_node_idx]).unsqueeze(0)       
                             pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
                             
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
@@ -329,7 +317,7 @@ class PCFExplainer(BaseExplainer):
 
                     epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", size_loss=f"{size_total.item():.4f}",
                                             ent_loss=f"{ent_total.item():.4f}", pred_loss=f"{pred_total.item():.4f}")
-
+                
                 loss_total.backward()
                 optimizer.step()
               
@@ -341,7 +329,10 @@ class PCFExplainer(BaseExplainer):
 
         if indices is None: # Consider all indices
             indices = range(0, self.norm_adj.size(0))
-        self._train(indices=indices)
+        indices = torch.LongTensor(indices).to(self.device)
+           
+        original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj)
+        self._train(indices=indices, original_preds=original_preds)
         
     def explain(self, index):
         """Given the index of a node/graph this method returns its 
