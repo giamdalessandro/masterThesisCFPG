@@ -18,11 +18,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 
 SEED   = 42
-EPOCHS = 30   # explainer epochs
-TRAIN_NODES = False
+EPOCHS = 1   # explainer epochs
+TRAIN_NODES = True
 STORE_ADV = False
-DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"   # "GNN" or "CF-GNN"
+DATASET   = "syn2"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "CF-GNN"   # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)

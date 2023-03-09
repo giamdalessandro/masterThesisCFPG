@@ -13,10 +13,12 @@ from torch_geometric.loader import NeighborLoader
 
 from .BaseExplainer import BaseExplainer
 from gnns.CFGNNpaper.gcn_perturb import GCNSyntheticPerturb
-from utils.graphs import index_edge, sparse_to_dense_adj
+
+from utils.graphs import index_edge
+from utils.graphs import normalize_adj
 
 
-NODE_BATCH_SIZE = 2
+NODE_BATCH_SIZE = 16
 
 
 class PCFExplainer(BaseExplainer):
@@ -71,7 +73,7 @@ class PCFExplainer(BaseExplainer):
             torch.nn.Linear(64, 1),
         )
         
-    def _cf_prepare(self, verbose: bool=False):
+    def _cf_prepare(self, n_nodes: int, n_feats: int, sub_index: torch.Tensor, verbose: bool=False):
         """Instantiate GCN Perturbation Model for the explanation. Creates a model
         with the same parameters of the original model to explain, that takes into
         account the perturbation matrix when performing a prediction to compute
@@ -82,28 +84,36 @@ class PCFExplainer(BaseExplainer):
         beta    = self.coeffs["beta"]
         nclass  = self.model_to_explain.nclass
 
+        # need dense adjacency matrix for GCNSynthetic model
+        v = torch.ones(sub_index.size(1))
+        s = (n_nodes,n_nodes)
+        dense_index = torch.sparse_coo_tensor(indices=sub_index, values=v, size=s).to_dense()
+        norm_sub_adj = normalize_adj(dense_index)
+
 		# Instantiate CF model class, load weights from original model
-        self.cf_model = GCNSyntheticPerturb(    
-                            nfeat = self.features.shape[1], 
+        cf_model = GCNSyntheticPerturb(    
+                            nfeat = n_feats, 
                             nhid=n_hid, 
                             nout=n_hid,
                             nclass=nclass, 
-                            adj=self.norm_adj, 
+                            adj=norm_sub_adj, 
                             dropout=dropout, 
                             beta=beta,
                             edge_additions=True)
         
-        self.cf_model.load_state_dict(self.model_to_explain.state_dict(), strict=False)
+        cf_model.load_state_dict(self.model_to_explain.state_dict(), strict=False)
 
 		# Freeze weights from original model in cf_model
-        for name, param in self.cf_model.named_parameters():
+        for name, param in cf_model.named_parameters():
             if name.endswith("weight") or name.endswith("bias"):
                 param.requires_grad = False
         if verbose:
             for name, param in self.model_to_explain.named_parameters():
                 print("orig model requires_grad: ", name, param.requires_grad)
-            for name, param in self.cf_model.named_parameters():
+            for name, param in cf_model.named_parameters():
                 print("cf model requires_grad: ", name, param.requires_grad)
+
+        return cf_model
 
     def _create_explainer_input(self, pair, embeds, node_id):
         """Given the embedding of the sample by the model that we wish to explain, 
@@ -122,12 +132,7 @@ class PCFExplainer(BaseExplainer):
         rows = pair[0]
         cols = pair[1]
         row_embeds = embeds[rows]
-        col_embeds = embeds[cols]
-
-        #print("rows :", rows.size())
-        #print("cols :", cols.size())
-        #print("row_embeds :", row_embeds.size())
-        #print("col_embeds :", col_embeds.size())        
+        col_embeds = embeds[cols]        
 
         if self.type == 'node':
             node_embed = embeds[node_id].repeat(rows.size(0), 1)
@@ -261,33 +266,40 @@ class PCFExplainer(BaseExplainer):
                         curr_batch_size = NODE_BATCH_SIZE
 
                     if self.type == 'node':
-                        #batch_feats = node_batch.x
                         global_n_ids = node_batch.n_id
+                        batch_feats = node_batch.x
                         batch_graph = node_batch.edge_index
                         b_id += 1
+
+                    # instantiate synthetic perturbation model
+                    n_nodes, n_feats = batch_feats.size() 
+                    cf_model = self._cf_prepare(n_nodes, n_feats, batch_graph)
 
                     for b_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
                         global_idx = global_n_ids[b_idx]
                         #print("\n------- node (global_id)", global_idx, f"(local id {b_idx})")
 
-                        sub_index = k_hop_subgraph(b_idx, 3, batch_graph)[1]
-                        sub_graph = torch.take(global_n_ids,sub_index)         # global node indices to sub-graph
+                        _, sub_index, _ , _ = k_hop_subgraph(b_idx, 3, batch_graph, relabel_nodes=True)
+                        #sub_feats = batch_feats[sub_nodes, :]
+                        sub_graph = torch.take(global_n_ids,sub_index)       # global node indices to sub-graph
+                        # instantiate synthetic perturbation model
+                        #n_nodes, n_feats = sub_feats.size()
+                        #cf_model = self._cf_prepare(n_nodes, n_feats, sub_index)
 
                         # Sample possible explanation
                         input_expl = self._create_explainer_input(sub_graph, embeds, global_idx).unsqueeze(0)
 
                         sampling_weights = self.explainer_mlp(input_expl)
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
-                        #print("#edge in expl    :", torch.sum(mask>0.5).item())
-
-                        s = self.norm_adj.size()
-                        dense_mask = torch.sparse_coo_tensor(indices=sub_graph, values=mask, size=s).to_dense()
+                        
+                        s = (n_nodes,n_nodes)
+                        dense_mask = torch.sparse_coo_tensor(indices=sub_index, values=mask, size=s).to_dense()
                         
                         #original_pred = self.model_to_explain.forward(self.features, adj=self.norm_adj)
-                        masked_pred, cf_P, cf_feats = self.cf_model.forward_prediction(self.features, P_mask=dense_mask)
+                        masked_pred, cf_P, cf_feats = cf_model.forward_prediction(batch_feats, P_mask=dense_mask)
 
-                        sub_node_idx = global_idx
+                        sub_node_idx = b_idx
                         if self.type == 'node': # we only care for the prediction of the node
                             masked_pred = masked_pred[sub_node_idx].unsqueeze(dim=0)
                             original_pred = torch.argmax(original_preds[sub_node_idx]).unsqueeze(0)       
@@ -324,9 +336,6 @@ class PCFExplainer(BaseExplainer):
 
     def prepare(self, indices):
         """Prepare the PCFExplainer, this happens at every index."""
-        # instantiate synthetic perturbation model
-        self._cf_prepare()
-
         if indices is None: # Consider all indices
             indices = range(0, self.norm_adj.size(0))
         indices = torch.LongTensor(indices).to(self.device)
