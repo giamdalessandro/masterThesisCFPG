@@ -26,7 +26,7 @@ def string_to_model(paper: str, dataset: str, device: any, config):
     n_hid   = config["num_hidden"]
     n_class = config["num_classes"]
 
-    if paper == "GNN" or "PGE":  # GNNExplainer gnn model
+    if paper == "GNN" or paper == "PGE":  # GNNExplainer and PGExplainer gnn model
         if dataset in ['syn1','syn2','syn3','syn4']:
             # node classification datasets
             return NodeGCN(n_feat, n_class, device)

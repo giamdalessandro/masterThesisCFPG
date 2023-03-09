@@ -22,7 +22,7 @@ EPOCHS = 50   # explainer epochs
 TRAIN_NODES = False
 STORE_ADV = False
 DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"   # "GNN" or "CF-GNN"
+GNN_MODEL = "CF-GNN"   # "GNN", "CF-GNN" or "PGE"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
