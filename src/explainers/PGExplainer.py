@@ -114,7 +114,7 @@ class PGExplainer(BaseExplainer):
             graph = torch.sigmoid(sampling_weights)
         return graph
 
-    def _loss(self, masked_pred, original_pred, mask):
+    def loss(self, masked_pred, original_pred, mask):
         """
         Returns the loss score based on the given mask.
 
@@ -137,7 +137,8 @@ class PGExplainer(BaseExplainer):
         # Explanation loss
         cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
 
-        return cce_loss + size_loss + mask_ent_loss
+        total_loss = cce_loss + size_loss + mask_ent_loss 
+        return total_loss, cce_loss, size_loss, mask_ent_loss
 
     def _train(self, indices = None):
         """
@@ -158,13 +159,16 @@ class PGExplainer(BaseExplainer):
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()#.to(self.device)
 
         # Start training loop
         with tqdm(range(0, self.epochs), desc="[PGExplainer]> ...training") as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
                 loss = torch.FloatTensor([0]).detach()
+                pred_total = torch.FloatTensor([0]).detach().to(self.device)
+                size_total = torch.FloatTensor([0]).detach().to(self.device)
+                ent_total = torch.FloatTensor([0]).detach().to(self.device)
                 t = temp_schedule(e)
 
                 for n in indices:
@@ -190,10 +194,16 @@ class PGExplainer(BaseExplainer):
                         masked_pred = masked_pred[n].unsqueeze(dim=0)
                         original_pred = original_pred[n]
 
-                    id_loss = self._loss(masked_pred, torch.argmax(original_pred).unsqueeze(0), mask)
+                    id_loss, pred_loss, size_loss, ent_loss = self.loss(masked_pred=masked_pred, 
+                                                        original_pred=torch.argmax(original_pred).unsqueeze(0),
+                                                        mask=mask)
                     loss += id_loss
+                    pred_total += pred_loss
+                    size_total += size_loss
+                    ent_total += ent_loss
 
-                epochs_bar.set_postfix(loss=f"{loss.item():.4f}")
+                epochs_bar.set_postfix(loss=f"{loss.item():.4f}", size_loss=f"{size_total.item():.4f}",
+                                ent_loss=f"{ent_total.item():.4f}", pred_loss=f"{pred_total.item():.4f}")
 
                 loss.backward()
                 optimizer.step()
@@ -226,7 +236,7 @@ class PGExplainer(BaseExplainer):
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
             graph = ptgeom.utils.k_hop_subgraph(index, 3, self.adj)[1]
-            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
             graph = self.adj[index].clone().detach()

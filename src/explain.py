@@ -18,11 +18,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 
 SEED   = 42
-EPOCHS = 1   # explainer epochs
-TRAIN_NODES = True
+EPOCHS = 50   # explainer epochs
+TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn2"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "CF-GNN"   # "GNN" or "CF-GNN"
+DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "GNN"   # "GNN" or "CF-GNN"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -57,7 +57,7 @@ cfg.update({
     "num_node_features": dataset.num_node_features})
 
 graph = dataset.get(0)
-print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
+print(Fore.GREEN + "[dataset]>",f"{dataset} dataset graph...")
 print("\t>>", graph)
 class_labels = graph.y
 class_labels = torch.argmax(class_labels, dim=1)
@@ -130,13 +130,14 @@ print(Fore.RED + "\n[explain]> ...computing metrics on eplanations")
 auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 
-print(Fore.RED + "[explain]> AUC score   :",f"{auc_score:.4f}")
-print(Fore.RED + "[explain]> time_elapsed:",f"{time_score:.4f}")
+print("\t>> AUC score:",f"{auc_score:.4f}")
+print("\t>> time_elapsed:",f"{time_score:.4f}")
 
-cf_examples = explainer.cf_examples
-total_tested = len(train_idxs)
-print(Fore.RED + "[explain]> test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{total_tested}")
-#print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
+if GNN_MODEL != "PGE":      # PGE does not produce CF examples
+    cf_examples = explainer.cf_examples
+    max_cf_ex = len(train_idxs)
+    print(Fore.RED + "[explain]> test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{max_cf_ex}")
+    #print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
 
 
 

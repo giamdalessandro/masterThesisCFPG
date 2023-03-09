@@ -18,7 +18,7 @@ from utils.graphs import index_edge
 from utils.graphs import normalize_adj
 
 
-NODE_BATCH_SIZE = 16
+NODE_BATCH_SIZE = 32
 
 
 class PCFExplainer(BaseExplainer):
@@ -114,7 +114,7 @@ class PCFExplainer(BaseExplainer):
                 print("cf model requires_grad: ", name, param.requires_grad)
 
         return cf_model
-
+        
     def _create_explainer_input(self, pair, embeds, node_id):
         """Given the embedding of the sample by the model that we wish to explain, 
         this method construct the input to the mlp explainer model. Depending on
@@ -300,7 +300,7 @@ class PCFExplainer(BaseExplainer):
                         masked_pred, cf_P, cf_feats = cf_model.forward_prediction(batch_feats, P_mask=dense_mask)
 
                         sub_node_idx = b_idx
-                        if self.type == 'node': # we only care for the prediction of the node
+                        if self.type == 'node':    # we only care for the prediction of the node
                             masked_pred = masked_pred[sub_node_idx].unsqueeze(dim=0)
                             original_pred = torch.argmax(original_preds[sub_node_idx]).unsqueeze(0)       
                             pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)

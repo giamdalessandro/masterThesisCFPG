@@ -11,10 +11,10 @@ from utils.evaluation import evaluate, store_checkpoint, load_best_model
 from utils.graphs import normalize_adj
 
 MODE = ""   # "" for normal training, "adv" for adversarial
-TRAIN = False
-STORE = False
-DATASET   = "syn1"       #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
-GNN_MODEL = "CF-GNN"        # "GNN", "CF-GNN"
+TRAIN = True
+STORE = True
+DATASET   = "syn4"       #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
+GNN_MODEL = "PGE"        # "GNN", "CF-GNN", "PGE"
 
 CUDA = True
 SEED = 42
@@ -42,7 +42,7 @@ cfg = parse_config(config_path=cfg_path)
 
 ## load a BAshapes dataset
 DATASET = cfg["dataset"]
-dataset, test_indices = load_dataset(dataset=DATASET, load_adv=True)
+dataset, test_indices = load_dataset(dataset=DATASET, load_adv=(MODE=="adv"))
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
