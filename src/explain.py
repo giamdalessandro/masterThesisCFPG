@@ -17,12 +17,13 @@ from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 
+CUDA = True
 SEED   = 42
-EPOCHS = 50   # explainer epochs
-TRAIN_NODES = False
+EPOCHS = 1   # explainer epochs
+TRAIN_NODES = True
 STORE_ADV = False
 DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "CF-GNN"   # "GNN", "CF-GNN" or "PGE"
+GNN_MODEL = "PGE"   # "GNN", "CF-GNN" or "PGE"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -30,12 +31,12 @@ torch.cuda.manual_seed(SEED)
 np.random.seed(SEED)
 
 device = "cpu"
-CUDA = False
 if torch.cuda.is_available() and CUDA:
     device = torch.cuda.device("cuda")
     print(">> cuda available", device)
     print(">> device: ", torch.cuda.get_device_name(device),"\n")
     device = "cuda"
+    
 
 if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
 elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
@@ -72,12 +73,12 @@ if GNN_MODEL == "CF-GNN":
     dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     norm_adj = normalize_adj(dense_index)
 
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, explainer="", pretrained=True, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg, device=device)
 
 
 # loading tensors for CUDA computation 
 if torch.cuda.is_available() and CUDA:
-    print(">> loading tensors to cuda...")
+    print("\n>> loading tensors to cuda...")
     model = model.to(device)
     for p in model.parameters():
         p.to(device)
@@ -96,7 +97,7 @@ if GNN_MODEL == "GNN":
 elif GNN_MODEL == "CF-GNN":
     explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, kwargs=cfg["expl_params"]) # needs 'CF-GNN' model
 elif GNN_MODEL == "PGE":
-    explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device) # needs 'GNN'
+    explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, kwargs=cfg["expl_params"]) # needs 'GNN' model
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency

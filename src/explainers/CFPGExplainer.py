@@ -69,7 +69,7 @@ class CFPGExplainer(BaseExplainer):
             nn.Linear(self.expl_embedding, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
-        )
+        ).to(self.device)
 
     def _create_explainer_input(self, pair, embeds, node_id):
         """
@@ -117,7 +117,7 @@ class CFPGExplainer(BaseExplainer):
         if training:
             bias = bias + 0.0001  # If bias is 0, we run into problems
             eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
-            gate_inputs = torch.log(eps) - torch.log(1 - eps)
+            gate_inputs = (torch.log(eps) - torch.log(1 - eps)).to(self.device)
             gate_inputs = (gate_inputs + sampling_weights) / temperature
             graph =  torch.sigmoid(gate_inputs)
         else:
@@ -185,7 +185,7 @@ class CFPGExplainer(BaseExplainer):
             # Sample n neighbors for each node for 3 GNN iterations, 
             num_neighbors=[-1] * 3,          # -1 for all neighbors
             batch_size=NODE_BATCH_SIZE,      # num of nodes in the batch
-            input_nodes=indices,
+            input_nodes=indices.cpu(),
             disjoint=False,
         )
         n_indices = indices.size(0)
@@ -231,13 +231,15 @@ class CFPGExplainer(BaseExplainer):
 
                     for b_n_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
-                        global_idx = global_n_ids[b_n_idx]
+                        global_idx = global_n_ids[b_n_idx].to(self.device)
                         #print("\n------- node (global_id)", global_idx, f"(local id {b_n_idx})")
 
                         sub_nodes, sub_index, n_map, _ = k_hop_subgraph(b_n_idx, 3, batch_graph, relabel_nodes=True)
-                        sub_feats = batch_feats[sub_nodes, :]
+                        sub_index = sub_index.to(self.device)
+                        sub_feats = batch_feats[sub_nodes, :].to(self.device)
                         #print("\t>> sub_feats:", sub_feats.size())
 
+                        global_n_ids = global_n_ids.to(self.device)
                         sub_graph = torch.take(global_n_ids,sub_index)    # global node indices to sub-graph
                         #print("\t>> sub_index:", sub_index.size())
                         
@@ -246,7 +248,8 @@ class CFPGExplainer(BaseExplainer):
                         
                         sampling_weights = self.explainer_mlp(input_expl)
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
-                        
+                        #print("mask",mask.device)
+
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
 

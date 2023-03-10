@@ -10,7 +10,7 @@ path_to_saves = "/../../checkpoints/"
 SAVES_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_saves
 
 
-def string_to_model(paper: str, dataset: str, device: any, config):
+def string_to_model(paper: str, dataset: str, device: str, config):
     """Given a paper and a dataset return the cooresponding neural model needed for training.
 
     Args

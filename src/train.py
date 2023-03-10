@@ -11,8 +11,8 @@ from utils.evaluation import evaluate, store_checkpoint, load_best_model
 from utils.graphs import normalize_adj
 
 MODE = ""   # "" for normal training, "adv" for adversarial
-TRAIN = True
-STORE = True
+TRAIN = False
+STORE = False
 DATASET   = "syn4"       #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
 GNN_MODEL = "PGE"        # "GNN", "CF-GNN", "PGE"
 

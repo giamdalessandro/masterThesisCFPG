@@ -51,7 +51,7 @@ class PCFExplainer(BaseExplainer):
         self.expl_name = "PCFExplainer"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
-        self.norm_adj = norm_adj #.to(device)
+        self.norm_adj = norm_adj.to(device)
         self.model_to_explain.eval()
 
         # from config
@@ -71,7 +71,7 @@ class PCFExplainer(BaseExplainer):
             torch.nn.Linear(self.expl_embedding, 64),
             torch.nn.ReLU(),
             torch.nn.Linear(64, 1),
-        )
+        ).to(self.device)
         
     def _cf_prepare(self, n_nodes: int, n_feats: int, sub_index: torch.Tensor, verbose: bool=False):
         """Instantiate GCN Perturbation Model for the explanation. Creates a model
@@ -88,7 +88,7 @@ class PCFExplainer(BaseExplainer):
         v = torch.ones(sub_index.size(1))
         s = (n_nodes,n_nodes)
         dense_index = torch.sparse_coo_tensor(indices=sub_index, values=v, size=s).to_dense()
-        norm_sub_adj = normalize_adj(dense_index)
+        norm_sub_adj = normalize_adj(dense_index).to(self.device)
 
 		# Instantiate CF model class, load weights from original model
         cf_model = GCNSyntheticPerturb(    
@@ -99,7 +99,8 @@ class PCFExplainer(BaseExplainer):
                             adj=norm_sub_adj, 
                             dropout=dropout, 
                             beta=beta,
-                            edge_additions=True)
+                            edge_additions=True,
+                            device=self.device).to(self.device)
         
         cf_model.load_state_dict(self.model_to_explain.state_dict(), strict=False)
 
@@ -158,7 +159,7 @@ class PCFExplainer(BaseExplainer):
         if training:
             bias = bias + 0.0001  # If bias is 0, we run into problems
             eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
-            gate_inputs = torch.log(eps) - torch.log(1 - eps)
+            gate_inputs = (torch.log(eps) - torch.log(1 - eps)).to(self.device)
             gate_inputs = (gate_inputs + sampling_weights) / temperature
             graph = torch.sigmoid(gate_inputs)
         else:
@@ -220,7 +221,7 @@ class PCFExplainer(BaseExplainer):
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.norm_adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.norm_adj).detach().to(self.device)
 
         # use NeighborLoader to consider batch_size nodes and their respective neighborhood
         loader = NeighborLoader(
@@ -228,7 +229,7 @@ class PCFExplainer(BaseExplainer):
             # Sample n neighbors for each node for 3 GNN iterations, 
             num_neighbors=[-1] * 3,          # -1 for all neighbors
             batch_size=NODE_BATCH_SIZE,      # num of nodes in the batch
-            input_nodes=indices,
+            input_nodes=indices.cpu(),
             disjoint=False,
         )
         n_indices = indices.size(0)
@@ -240,10 +241,10 @@ class PCFExplainer(BaseExplainer):
         with tqdm(range(0, self.epochs), desc="[PCFExplainer]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
-                loss_total = torch.FloatTensor([0]).detach()
-                size_total = torch.FloatTensor([0]).detach()
-                ent_total  = torch.FloatTensor([0]).detach()
-                pred_total = torch.FloatTensor([0]).detach()
+                loss_total = torch.FloatTensor([0]).detach().to(self.device)
+                size_total = torch.FloatTensor([0]).detach().to(self.device)
+                ent_total  = torch.FloatTensor([0]).detach().to(self.device)
+                pred_total = torch.FloatTensor([0]).detach().to(self.device)
                 t = temp_schedule(e)
 
                 #for idx in indices:
@@ -267,7 +268,7 @@ class PCFExplainer(BaseExplainer):
 
                     if self.type == 'node':
                         global_n_ids = node_batch.n_id
-                        batch_feats = node_batch.x
+                        batch_feats = node_batch.x.to(self.device)
                         batch_graph = node_batch.edge_index
                         b_id += 1
 
@@ -277,12 +278,14 @@ class PCFExplainer(BaseExplainer):
 
                     for b_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
-                        global_idx = global_n_ids[b_idx]
+                        global_idx = global_n_ids[b_idx].to(self.device)
                         #print("\n------- node (global_id)", global_idx, f"(local id {b_idx})")
 
                         _, sub_index, _ , _ = k_hop_subgraph(b_idx, 3, batch_graph, relabel_nodes=True)
                         #sub_feats = batch_feats[sub_nodes, :]
-                        sub_graph = torch.take(global_n_ids,sub_index)       # global node indices to sub-graph
+                        sub_index = sub_index.to(self.device)
+                        global_n_ids = global_n_ids.to(self.device)
+                        sub_graph = torch.take(global_n_ids,sub_index).to(self.device)   # global node indices to sub-graph
                         # instantiate synthetic perturbation model
                         #n_nodes, n_feats = sub_feats.size()
                         #cf_model = self._cf_prepare(n_nodes, n_feats, sub_index)
@@ -297,7 +300,10 @@ class PCFExplainer(BaseExplainer):
                         dense_mask = torch.sparse_coo_tensor(indices=sub_index, values=mask, size=s).to_dense()
                         
                         #original_pred = self.model_to_explain.forward(self.features, adj=self.norm_adj)
+                        #batch_feats = batch_feats.to(self.device)
+                        dense_mask = dense_mask.to(self.device)
                         masked_pred, cf_P, cf_feats = cf_model.forward_prediction(batch_feats, P_mask=dense_mask)
+                        #masked_pred = masked_pred.cpu()
 
                         sub_node_idx = b_idx
                         if self.type == 'node':    # we only care for the prediction of the node
@@ -339,8 +345,10 @@ class PCFExplainer(BaseExplainer):
         if indices is None: # Consider all indices
             indices = range(0, self.norm_adj.size(0))
         indices = torch.LongTensor(indices).to(self.device)
-           
-        original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj)
+
+        #print("feats", self.features.device)   
+        #print("n_adj", self.norm_adj.device)   
+        original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj).to(self.device)
         self._train(indices=indices, original_preds=original_preds)
         
     def explain(self, index):
