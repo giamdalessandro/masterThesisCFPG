@@ -21,7 +21,7 @@ SEED   = 42
 EPOCHS = 50   # explainer epochs
 TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn2"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
 GNN_MODEL = "CF-GNN"   # "GNN", "CF-GNN" or "PGE"
 
 # ensure all modules have the same seed

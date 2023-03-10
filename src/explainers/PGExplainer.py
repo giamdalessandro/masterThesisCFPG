@@ -39,14 +39,13 @@ class PGExplainer(BaseExplainer):
     def __init__(self, 
             model_to_explain: torch.nn.Module, 
             data_graph: ptgeom.data.Data,
-            #edge_index: torch.Tensor, 
-            #features: torch.Tensor, 
             task: str="node", 
             epochs: int=30, 
             lr: float=0.003, 
+            device: str="cpu",
             **kwargs
         ):
-        super().__init__(model_to_explain, data_graph, task)
+        super().__init__(model_to_explain, data_graph, task, device)
         self.expl_name = "PGExplainer"
         self.adj = self.data_graph.edge_index
         self.features = self.data_graph.x
