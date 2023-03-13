@@ -12,6 +12,7 @@ from explainers.PCFExplainer import PCFExplainer
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.graphs import normalize_adj
+from utils.plots import plot_graph
 
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvluation
@@ -19,11 +20,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 CUDA = True
 SEED   = 42
-EPOCHS = 1   # explainer epochs
-TRAIN_NODES = True
+EPOCHS = 10  # explainer epochs
+TRAIN_NODES = False
 STORE_ADV = False
 DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "PGE"   # "GNN", "CF-GNN" or "PGE"
+GNN_MODEL = "GNN"   # "GNN", "CF-GNN" or "PGE"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -93,11 +94,11 @@ if torch.cuda.is_available() and CUDA:
 print(Fore.RED + "\n[explain]> ...loading explainer")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, kwargs=cfg["expl_params"])
+    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, kwargs=cfg["expl_params"]) # needs 'CF-GNN' model
+    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 elif GNN_MODEL == "PGE":
-    explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, kwargs=cfg["expl_params"]) # needs 'GNN' model
+    explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
@@ -122,7 +123,14 @@ explanations = []
 with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> ...testing", miniters=1, disable=False) as test_epoch:
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
+
+        #print("subg :", graph.size())
+        #print("expl :", expl.size())
+        #print("mask :", mask.size())
+        plot_graph(graph, expl_weights=expl, n_idx=idx, show=False)
+
         explanations.append((graph, expl))
+        #exit(0)
 
 inference_eval.done_explaining()
 
@@ -130,7 +138,6 @@ inference_eval.done_explaining()
 print(Fore.RED + "\n[explain]> ...computing metrics on eplanations")
 auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
-
 print("\t>> AUC score:",f"{auc_score:.4f}")
 print("\t>> time_elapsed:",f"{time_score:.4f}")
 

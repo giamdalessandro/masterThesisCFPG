@@ -27,10 +27,10 @@ class PCFExplainer(BaseExplainer):
 	"""
     ## default values for explainer parameters
     coeffs = {
-        "reg_size": 0.005,
+        "reg_size": 0.5,
         "reg_ent" : 1.0,
         "reg_cf"  : 5.0, 
-        "temp": [5.0, 2.0],
+        "temps": [5.0, 2.0],
         "sample_bias": 0.0,
         "n_hid"   : 20,
         "dropout" : 0.0,
@@ -45,7 +45,7 @@ class PCFExplainer(BaseExplainer):
             epochs=30, 
             lr=0.003, 
             device: str="cpu",
-            **kwargs
+            coeffs: dict= None
         ):
         super().__init__(model, data_graph, task, device)
         self.expl_name = "PCFExplainer"
@@ -57,7 +57,8 @@ class PCFExplainer(BaseExplainer):
         # from config
         self.epochs = epochs
         self.lr     = lr
-        self.coeffs.update(kwargs)
+        for k,v in coeffs.items():
+            self.coeffs[k] = v
 
         gcn_layers = 3
         n_hid = self.coeffs["n_hid"]
@@ -188,6 +189,7 @@ class PCFExplainer(BaseExplainer):
         mask = torch.sigmoid(mask)
         #size_loss = (torch.sum(self.adj) - torch.sum(mask)) * reg_size
         size_loss = torch.sum(mask) * reg_size
+        
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
         mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
 
@@ -209,7 +211,7 @@ class PCFExplainer(BaseExplainer):
         - indices: Indices that we want to use for training.
         """
         # Make sure the explainer model can be trained
-        temp = self.coeffs["temp"]
+        temp = self.coeffs["temps"]
         sample_bias = self.coeffs["sample_bias"]
         self.explainer_mlp.train()
         #print("adj :", self.adj.size())
@@ -308,7 +310,7 @@ class PCFExplainer(BaseExplainer):
                         sub_node_idx = b_idx
                         if self.type == 'node':    # we only care for the prediction of the node
                             masked_pred = masked_pred[sub_node_idx].unsqueeze(dim=0)
-                            original_pred = torch.argmax(original_preds[sub_node_idx]).unsqueeze(0)       
+                            original_pred = torch.argmax(original_preds[global_idx.item()]).unsqueeze(0)       
                             pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
                             
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 

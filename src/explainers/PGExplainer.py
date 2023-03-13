@@ -32,7 +32,7 @@ class PGExplainer(BaseExplainer):
     coeffs = {
         "reg_size": 0.05,
         "reg_ent" : 1.0,
-        "temp": [5.0, 2.0],
+        "temps": [5.0, 2.0],
         "sample_bias": 0.0,
     }
 
@@ -43,7 +43,7 @@ class PGExplainer(BaseExplainer):
             epochs: int=30, 
             lr: float=0.003, 
             device: str="cpu",
-            **kwargs
+            coeffs: dict=None
         ):
         super().__init__(model_to_explain, data_graph, task, device)
         self.expl_name = "PGExplainer"
@@ -51,7 +51,8 @@ class PGExplainer(BaseExplainer):
         self.adj = self.data_graph.edge_index.to(self.device)
         self.epochs = epochs
         self.lr = lr
-        self.coeffs.update(kwargs)
+        for k,v in coeffs.items():
+            self.coeffs[k] = v
 
         if self.type == "graph":
             self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -146,7 +147,7 @@ class PGExplainer(BaseExplainer):
         Args: 
         - indices: Indices that we want to use for training.
         """
-        temp = self.coeffs["temp"]
+        temp = self.coeffs["temps"]
         sample_bias = self.coeffs["sample_bias"]
 
         # Make sure the explainer model can be trained

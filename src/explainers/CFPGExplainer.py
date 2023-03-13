@@ -26,10 +26,10 @@ class CFPGExplainer(BaseExplainer):
     """
     ## default values for explainer parameters
     coeffs = {
-        "reg_size": 0.05,
+        "reg_size": 0.5,
         "reg_ent" : 1.0,
         "reg_cf"  : 5.0, 
-        "temp": [5.0, 2.0],
+        "temps": [5.0, 2.0],
         "sample_bias": 0.0,
     }
 
@@ -40,7 +40,7 @@ class CFPGExplainer(BaseExplainer):
             epochs: int=30, 
             lr: float=0.005, 
             device: str="cpu",
-            **kwargs
+            coeffs: dict=None
         ):
         """
         `model_to_explain` (torch.nn.Module): GNN model who's predictions we 
@@ -57,7 +57,9 @@ class CFPGExplainer(BaseExplainer):
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
         self.lr = lr
-        self.coeffs.update(kwargs)
+        for k,v in coeffs.items():
+            self.coeffs[k] = v
+        print("coeffs:", self.coeffs)
 
         if self.type == "graph": # graph classificatio model
             self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -143,8 +145,12 @@ class CFPGExplainer(BaseExplainer):
         EPS = 1e-15
 
         # Regularization losses
-        mask = torch.sigmoid(mask)
-        size_loss = torch.sum(mask) * reg_size
+        mask_mean = mask.mean()
+        size_loss = (mask > mask_mean).sum()
+        #size_loss = (mask.sigmoid()).sum()
+        #print("\t>> reg mask (mean):", size_loss / size_loss_m)
+        size_loss = size_loss * reg_size
+
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
         mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
 
@@ -165,7 +171,7 @@ class CFPGExplainer(BaseExplainer):
         Args: 
         - indices: Indices that we want to use for training.
         """
-        temp = self.coeffs["temp"]
+        temp = self.coeffs["temps"]
         sample_bias = self.coeffs["sample_bias"]
 
         # Make sure the explainer model can be trained
@@ -248,9 +254,22 @@ class CFPGExplainer(BaseExplainer):
                         
                         sampling_weights = self.explainer_mlp(input_expl)
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
-                        #print("mask",mask.device)
+                        
+                        mask_mean = mask.mean()
+                        mask_adj = (mask > mask_mean).float()
+                        
+                        #mask_adj_idx = torch.argwhere(mask_adj).squeeze()
+                        #print("\n\t>> mask    :", mask_adj.size())
+                        #print("\t>> mask_idx:", mask_adj_idx.size())
+                        #mask_adj = sub_index.T[mask_adj_idx].T
+                        #print("\t>> mask_fin:", mask_adj.size())
+                        cf_adj = torch.ones(mask.size()).to(self.device) 
+                        cf_adj = (cf_adj - mask).abs()
+                        #print("\t>> cf_adj:", cf_adj.size())
+                        #exit(0)
 
-                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
+
+                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_adj, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
 
                         sub_node_idx = n_map.item()
@@ -315,7 +334,7 @@ class CFPGExplainer(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            graph = k_hop_subgraph(index, 3, self.adj)[1]
+            sub_nodes, graph, _, _ = k_hop_subgraph(index, 3, self.adj)
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
@@ -326,6 +345,8 @@ class CFPGExplainer(BaseExplainer):
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
         sampling_weights = self.explainer_mlp(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
+        #print("[explain]> sum mask:", torch.sum(mask > 0.5))
+        #print("[explain]> sum weights:", torch.sum(sampling_weights > 0.5))
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):
@@ -333,4 +354,4 @@ class CFPGExplainer(BaseExplainer):
             t = index_edge(graph, pair)
             expl_graph_weights[t] = mask[i]
 
-        return graph, expl_graph_weights
+        return graph, expl_graph_weights#, sub_nodes, mask
