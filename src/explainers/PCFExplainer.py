@@ -59,6 +59,7 @@ class PCFExplainer(BaseExplainer):
         self.lr     = lr
         for k,v in coeffs.items():
             self.coeffs[k] = v
+        print("\t>> coeffs:", self.coeffs)
 
         gcn_layers = 3
         n_hid = self.coeffs["n_hid"]
@@ -186,9 +187,11 @@ class PCFExplainer(BaseExplainer):
         EPS = 1e-15
 
         # Regularization losses
-        mask = torch.sigmoid(mask)
+        #mask = torch.sigmoid(mask)
+        mask_mean = mask.mean()
+        size_loss = -((mask.sigmoid() > mask_mean)).sum()
         #size_loss = (torch.sum(self.adj) - torch.sum(mask)) * reg_size
-        size_loss = torch.sum(mask) * reg_size
+        size_loss = size_loss * reg_size
         
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
         mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
@@ -211,13 +214,14 @@ class PCFExplainer(BaseExplainer):
         - indices: Indices that we want to use for training.
         """
         # Make sure the explainer model can be trained
+        lr = self.coeffs["lr"]
         temp = self.coeffs["temps"]
         sample_bias = self.coeffs["sample_bias"]
         self.explainer_mlp.train()
         #print("adj :", self.adj.size())
 
         # Create optimizer and temperature schedule
-        optimizer = optim.Adam(self.explainer_mlp.parameters(), lr=self.lr)
+        optimizer = optim.Adam(self.explainer_mlp.parameters(), lr=lr)
         #optimizer = optim.SGD(self.explainer_mlp.parameters(), lr=self.lr, momentum=0.9)
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
@@ -240,7 +244,7 @@ class PCFExplainer(BaseExplainer):
         self.cf_examples = {}
         best_loss = np.inf
         # explainer training loop
-        with tqdm(range(0, self.epochs), desc="[PCFExplainer]> ...training", disable=False) as epochs_bar:
+        with tqdm(range(0, self.epochs), desc="[PCF]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
                 loss_total = torch.FloatTensor([0]).detach().to(self.device)
@@ -299,7 +303,9 @@ class PCFExplainer(BaseExplainer):
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
                         
                         s = (n_nodes,n_nodes)
-                        dense_mask = torch.sparse_coo_tensor(indices=sub_index, values=mask, size=s).to_dense()
+                        cf_adj = torch.ones(mask.size()).to(self.device) 
+                        cf_adj = (cf_adj - mask).abs()
+                        dense_mask = torch.sparse_coo_tensor(indices=sub_index, values=cf_adj, size=s).to_dense()
                         
                         #original_pred = self.model_to_explain.forward(self.features, adj=self.norm_adj)
                         #batch_feats = batch_feats.to(self.device)
@@ -315,7 +321,7 @@ class PCFExplainer(BaseExplainer):
                             
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                 original_pred=original_pred, 
-                                                                mask=mask)
+                                                                mask=cf_adj)
 
                         # if original prediction changes save the CF example
                         pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)

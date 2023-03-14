@@ -14,8 +14,9 @@
         "inner_lr" : 0.0001
     },
     "expl_params" : {
-        "reg_ent" : 1.0,
-        "reg_size" : 0.5  ,
+        "lr" : 0.005,
+        "reg_ent" : 10.0,
+        "reg_size" : 0.05,
         "reg_cf" : 7.5,
         "temps" : [5.0, 2.0],
         "sample_bias" : 0.0

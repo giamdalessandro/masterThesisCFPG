@@ -59,7 +59,7 @@ class CFPGExplainer(BaseExplainer):
         self.lr = lr
         for k,v in coeffs.items():
             self.coeffs[k] = v
-        print("coeffs:", self.coeffs)
+        print("\t>> coeffs:", self.coeffs)
 
         if self.type == "graph": # graph classificatio model
             self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -146,9 +146,13 @@ class CFPGExplainer(BaseExplainer):
 
         # Regularization losses
         mask_mean = mask.mean()
-        size_loss = (mask > mask_mean).sum()
-        #size_loss = (mask.sigmoid()).sum()
-        #print("\t>> reg mask (mean):", size_loss / size_loss_m)
+        #cf_edges = (mask > mask_mean).sum()
+        #tot_edges = torch.ones(mask.size()).to(self.device).sum()
+        #size_loss = ((tot_edges - cf_edges).abs()) / 2
+
+        size_loss = -((mask.sigmoid() > mask_mean)).sum()   # working fine
+        #print("\t>> cf mask size:", size_loss.item())      # working fine
+        #size_loss = (mask.sigmoid()).sum()     # old
         size_loss = size_loss * reg_size
 
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
@@ -171,6 +175,7 @@ class CFPGExplainer(BaseExplainer):
         Args: 
         - indices: Indices that we want to use for training.
         """
+        lr = self.coeffs["lr"]
         temp = self.coeffs["temps"]
         sample_bias = self.coeffs["sample_bias"]
 
@@ -178,7 +183,7 @@ class CFPGExplainer(BaseExplainer):
         self.explainer_mlp.train()
 
         # Create optimizer and temperature schedule
-        optimizer = Adam(self.explainer_mlp.parameters(), lr=self.lr)
+        optimizer = Adam(self.explainer_mlp.parameters(), lr=lr)
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         # If we are explaining a graph, we can determine the embeddings before we run
@@ -200,7 +205,7 @@ class CFPGExplainer(BaseExplainer):
         self.cf_examples = {}
         best_loss = Inf
         # Start training loop
-        with tqdm(range(0, self.epochs), desc="[CF-PGExplainer]> ...training", disable=False) as epochs_bar:
+        with tqdm(range(0, self.epochs), desc="[CFPG]> ...training", disable=False) as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
                 loss_total = torch.FloatTensor([0]).detach().to(self.device)
@@ -255,8 +260,8 @@ class CFPGExplainer(BaseExplainer):
                         sampling_weights = self.explainer_mlp(input_expl)
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
                         
-                        mask_mean = mask.mean()
-                        mask_adj = (mask > mask_mean).float()
+                        #mask_mean = mask.mean()
+                        #mask_adj = (mask > mask_mean).float()
                         
                         #mask_adj_idx = torch.argwhere(mask_adj).squeeze()
                         #print("\n\t>> mask    :", mask_adj.size())
@@ -281,7 +286,7 @@ class CFPGExplainer(BaseExplainer):
 
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                     original_pred=original_pred, 
-                                                                    mask=mask)
+                                                                    mask=mask)  #mask
 
                         # if original prediction changes save the CF example
                         if pred_same == 0:

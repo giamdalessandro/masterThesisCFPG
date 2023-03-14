@@ -162,7 +162,7 @@ class PGExplainer(BaseExplainer):
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
 
         # Start training loop
-        with tqdm(range(0, self.epochs), desc="[PGExplainer]> ...training") as epochs_bar:
+        with tqdm(range(0, self.epochs), desc="[PGE]> ...training") as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
                 loss = torch.FloatTensor([0]).detach().to(self.device)

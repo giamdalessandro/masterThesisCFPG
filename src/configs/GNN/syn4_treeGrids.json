@@ -12,6 +12,7 @@
         "eval_enabled" : true
     },
     "expl_params" : {
+        "lr" : 0.003,
         "epochs" : 20,
         "reg_ent" : 1.0,
         "reg_size" : 1.0,

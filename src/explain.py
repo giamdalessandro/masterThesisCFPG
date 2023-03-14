@@ -20,11 +20,11 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
 CUDA = True
 SEED   = 42
-EPOCHS = 10  # explainer epochs
-TRAIN_NODES = False
+EPOCHS = 5           # explainer epochs
+TRAIN_NODES = True
 STORE_ADV = False
 DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"   # "GNN", "CF-GNN" or "PGE"
+GNN_MODEL = "GNN"     # "GNN", "CF-GNN" or "PGE"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -127,15 +127,15 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> ...testing", miniters=1,
         #print("subg :", graph.size())
         #print("expl :", expl.size())
         #print("mask :", mask.size())
-        plot_graph(graph, expl_weights=expl, n_idx=idx, show=False)
-
+        if idx == test_idxs[-1]: plot_graph(graph, expl_weights=expl, n_idx=idx, show=True)
+        
         explanations.append((graph, expl))
         #exit(0)
 
 inference_eval.done_explaining()
 
 # compute AUC score for computed explanation
-print(Fore.RED + "\n[explain]> ...computing metrics on eplanations")
+print(Fore.RED + "\n[explain]> ...computing metrics on explanations")
 auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 print("\t>> AUC score:",f"{auc_score:.4f}")

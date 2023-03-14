@@ -35,7 +35,8 @@ def plot_graph(edge_index, expl_weights, n_idx: int, show: bool=True, verbose: b
     #G.add_nodes_from(nodes)
 
     pos = nx.spring_layout(G)
-    #nx.draw_networkx_nodes(G, pos, nodelist=[n_idx], node_color="orange")  # highlight explained node
     if show: 
-        nx.draw(G, pos=pos, with_labels=True, font_size=8)                 # draw grpah
+        nx.draw(G, pos=pos, with_labels=True, font_size=8)                     # draw grpah
+        #nx.draw_networkx_nodes(G, pos, nodelist=[n_idx], node_color="orange")  # highlight explained node
+        plt.title(f"Node {n_idx} expl")
         plt.show()

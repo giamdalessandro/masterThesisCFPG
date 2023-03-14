@@ -13,6 +13,7 @@
     },
     "expl_params" : {
         "epochs" : 20,
+        "lr" : 0.003,
         "reg_ent" : 1.0,
         "reg_size" : 0.5,
         "reg_cf" : 5.0,
