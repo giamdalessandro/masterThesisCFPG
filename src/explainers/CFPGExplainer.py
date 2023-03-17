@@ -161,7 +161,8 @@ class CFPGExplainer(BaseExplainer):
         # Explanation loss
         pred_same = (masked_pred.argmax() == original_pred).float()
         #if not pred_same: print("pred_same_:", pred_same)
-        cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
+        #cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
+        cce_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
         pred_loss = pred_same * (-cce_loss) * reg_cf
 
         # ZAVVE: TODO tryin' to optimize objective function for cf case
@@ -190,12 +191,13 @@ class CFPGExplainer(BaseExplainer):
         if self.type == 'node':
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
 
-        # use NeighborLoader to consider batch_size nodes and their respective neighborhood
+        # use NeighborLoader to sample batch_size nodes and their respective 3-hop neighborhood
+        gnn_iter = 3               # GCN model has 3 mp iteration
+        num_neighbors = -1         # -1 for all neighbors
         loader = NeighborLoader(
             self.data_graph,
-            # Sample n neighbors for each node for 3 GNN iterations, 
-            num_neighbors=[-1] * 3,          # -1 for all neighbors
-            batch_size=NODE_BATCH_SIZE,      # num of nodes in the batch
+            num_neighbors=[num_neighbors] * gnn_iter,          
+            batch_size=NODE_BATCH_SIZE, 
             input_nodes=indices.cpu(),
             disjoint=False,
         )
@@ -213,18 +215,6 @@ class CFPGExplainer(BaseExplainer):
                 ent_total  = torch.FloatTensor([0]).detach().to(self.device)
                 pred_total = torch.FloatTensor([0]).detach().to(self.device)
                 t = temp_schedule(e)
-
-                #for idx in indices:
-                #    idx = int(idx)
-                #    #print(idx)
-                #    if self.type == 'node':
-                #        # Similar to the original paper we only consider a subgraph for explaining
-                #        feats = self.features
-                #        sub_graph = k_hop_subgraph(idx, 3, self.adj)[1]
-                #    else:
-                #        feats = self.features[idx].detach()
-                #        graph = self.adj[idx].detach()
-                #        embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
                 
                 b_id = 0
                 for node_batch in loader:
@@ -286,7 +276,7 @@ class CFPGExplainer(BaseExplainer):
 
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                     original_pred=original_pred, 
-                                                                    mask=mask)  #mask
+                                                                    mask=cf_adj)  #mask
 
                         # if original prediction changes save the CF example
                         if pred_same == 0:

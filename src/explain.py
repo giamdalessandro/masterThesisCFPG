@@ -21,10 +21,10 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 CUDA = True
 SEED   = 42
 EPOCHS = 5           # explainer epochs
-TRAIN_NODES = True
+TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"     # "GNN", "CF-GNN" or "PGE"
+DATASET   = "syn3"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "CF-GNN"     # "GNN", "CF-GNN" or "PGE"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -91,7 +91,7 @@ if torch.cuda.is_available() and CUDA:
 
 
 #### STEP 3: select explainer
-print(Fore.RED + "\n[explain]> ...loading explainer")
+print(Fore.MAGENTA + "\n[explain]>","...loading explainer")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
 if GNN_MODEL == "GNN":
     explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
@@ -135,7 +135,7 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> ...testing", miniters=1,
 inference_eval.done_explaining()
 
 # compute AUC score for computed explanation
-print(Fore.RED + "\n[explain]> ...computing metrics on explanations")
+print(Fore.MAGENTA + "\n[explain]>","...computing metrics on explanations")
 auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 print("\t>> AUC score:",f"{auc_score:.4f}")
@@ -144,7 +144,7 @@ print("\t>> time_elapsed:",f"{time_score:.4f}")
 if GNN_MODEL != "PGE":      # PGE does not produce CF examples
     cf_examples = explainer.cf_examples
     max_cf_ex = len(train_idxs)
-    print(Fore.RED + "[explain]> test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{max_cf_ex}")
+    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{max_cf_ex}")
     #print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
 
 

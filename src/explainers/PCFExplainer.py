@@ -385,6 +385,9 @@ class PCFExplainer(BaseExplainer):
         sampling_weights = self.explainer_mlp(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
 
+        cf_adj = torch.ones(mask.size()).to(self.device) 
+        mask = (cf_adj - mask).abs()
+
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):
             pair = graph.T[i]
