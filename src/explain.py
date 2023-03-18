@@ -23,8 +23,8 @@ SEED   = 42
 EPOCHS = 5           # explainer epochs
 TRAIN_NODES = False
 STORE_ADV = False
-DATASET   = "syn3"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "CF-GNN"     # "GNN", "CF-GNN" or "PGE"
+DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = "GNN"     # "GNN", "CF-GNN" or "PGE"
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -53,18 +53,19 @@ cfg = parse_config(config_path=cfg_path)
 DATASET = cfg["dataset"]
 dataset, test_idxs = load_dataset(dataset=DATASET)
 train_idxs = dataset.train_mask
-# add dataset info to config 
+# add some dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
     "num_node_features": dataset.num_node_features})
 
 graph = dataset.get(0)
-print(Fore.GREEN + "[dataset]>",f"{dataset} dataset graph...")
+print(Fore.GREEN + "[dataset]> data graph from",f"{dataset}")
 print("\t>>", graph)
 class_labels = graph.y
 class_labels = torch.argmax(class_labels, dim=1)
 x = graph.x
 edge_index = graph.edge_index
+
 
 #### STEP 2: instantiate GNN model, one of GNN or CF-GNN
 if GNN_MODEL == "CF-GNN":
@@ -91,7 +92,7 @@ if torch.cuda.is_available() and CUDA:
 
 
 #### STEP 3: select explainer
-print(Fore.MAGENTA + "\n[explain]>","...loading explainer")
+print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
 if GNN_MODEL == "GNN":
     explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
@@ -99,6 +100,7 @@ elif GNN_MODEL == "CF-GNN":
     explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 elif GNN_MODEL == "PGE":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
+
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
@@ -120,7 +122,7 @@ explainer.prepare(indices=train_idxs)
 # actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
 explanations = []
-with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> ...testing", miniters=1, disable=False) as test_epoch:
+with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
 
@@ -135,17 +137,19 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> ...testing", miniters=1,
 inference_eval.done_explaining()
 
 # compute AUC score for computed explanation
-print(Fore.MAGENTA + "\n[explain]>","...computing metrics on explanations")
+print(Fore.MAGENTA + "\n[explain]> explanation metrics")
 auc_score = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
-print("\t>> AUC score:",f"{auc_score:.4f}")
-print("\t>> time_elapsed:",f"{time_score:.4f}")
+print("\t>> final score:",f"{auc_score:.4f}")
+print("\t>> time elapsed:",f"{time_score:.4f}")
 
 if GNN_MODEL != "PGE":      # PGE does not produce CF examples
     cf_examples = explainer.cf_examples
     max_cf_ex = len(train_idxs)
     print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{max_cf_ex}")
-    #print(Fore.RED + "[explain]> cf ex. for nodes :",f"{explainer.cf_examples.keys()}")
+    perc_cf = (len(cf_examples.keys())/max_cf_ex)
+    print("\t>> with CF:",f"{perc_cf*100:.2f} %")
+    #print("\t>> w/o CF :",f"{(1-perc_cf)*100:.2f} %")
 
 
 

@@ -142,7 +142,7 @@ def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproc
     Returns:    
         A couple (`torch_geometric.data.Dataset`,list). 
     """
-    print(Fore.GREEN + f"[dataset]> loading {dataset} dataset...")
+    print(Fore.GREEN + f"[dataset]> loading dataset...")
     if dataset[:3] == "syn": 
         # Load node-classification datasets
         if dataset == "syn1" or dataset == "syn2":
@@ -153,13 +153,13 @@ def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproc
             test_indices = range(511,800,1)
 
         filename = dataset + ".pkl"
-        print(Fore.GREEN + f"[dataset]> node dataset from file '{filename}'...")
+        print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
 
         # create dataset class with loaded data
         pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv)
-        print("\t#graphs:       ", len(pyg_dataset))
-        print("\t#classes:      ", pyg_dataset.num_classes)
-        print("\t#node_features:", pyg_dataset.num_node_features)
+        print("\t>> #graphs:       ", len(pyg_dataset))
+        print("\t>> #classes:      ", pyg_dataset.num_classes)
+        print("\t>> #node_features:", pyg_dataset.num_node_features)
 
         return pyg_dataset, test_indices
         

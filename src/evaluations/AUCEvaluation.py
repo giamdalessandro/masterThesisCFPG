@@ -23,7 +23,7 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=True):
     #pred_scores = explanations[1]
     #print("[AUC]> pred scores:", (pred_scores > 0.5).sum())
 
-    with tqdm(explanations, desc="[explain]> ...metrics", disable=False) as eval_step:
+    with tqdm(explanations, desc="[metrics]> AUC score", disable=False) as eval_step:
         for expl in eval_step: # Loop over the explanations for each node
             #print("[AUC]> expl graph (expl[0]):", expl[0].size())    # edge index
             pred_scores = expl[1]
