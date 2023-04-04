@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 
 from .BaseEvaluation import BaseEvaluation
 
@@ -10,11 +10,15 @@ from .BaseEvaluation import BaseEvaluation
 def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=True):
     """Evaluate the auc score given explaination and ground truth labels.
 
-    Args
-    - `explanations`(list): predicted labels, list of tuples (edge,edge_labels);
-    - `explanation_lables`(sparse COO Tensor): explanation ground truth labels.
-    - `indices` : Which indices to evaluate. We ignore all others.
-    :returns: area under curve score.
+    ### Args
+    `explanations` : list
+        predicted labels, list of tuples (edge,edge_labels);
+    
+    `explanation_lables` : sparse COO Tensor
+        explanation ground truth labels.
+    
+    ### Returns
+    Area Under Curve (AUC) score for node classification.
     """
     ground_truth = []
     predictions = []
@@ -63,6 +67,8 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=True):
             ground_truth.extend(ground_truth_node)
             predictions.extend(prediction_node)
 
+    #fpr, tpr, thres = roc_curve(ground_truth, predictions)
+    #print("[eval]> ROC thresholds:", len(thres)) 
     score = roc_auc_score(ground_truth, predictions)
 
     if plot_roc:
