@@ -1,4 +1,5 @@
 import os
+import argparse
 import numpy as np
 from tqdm import tqdm
 from colorama import init, Fore 
@@ -10,24 +11,40 @@ from utils.models import model_selector
 from utils.evaluation import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
-MODE = ""   # "" for normal training, "adv" for adversarial
-TRAIN = False
-STORE = False
-DATASET   = "syn4"       #"BAshapes", "BAcommunities", "treeGrids", "treeGrids"
-GNN_MODEL = "PGE"        # "GNN", "CF-GNN", "PGE"
 
 CUDA = True
-SEED = 42
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--gnn", "-G", type=str, default='GNN')
+parser.add_argument("--dataset", "-D", type=str, default='syn1')
+parser.add_argument("--epochs", "-e", type=int, default=5, help='Number of explainer epochs.')
+parser.add_argument("--seed", "-s", type=int, default=42, help='Random seed.')
+parser.add_argument('--adv', type=str, default="")
+
+parser.add_argument('--train', default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument('--store', default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
+
+args = parser.parse_args()
+#print(">>", args)
+DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = args.gnn          # "GNN", "CF-GNN" or "PGE"
+EPOCHS    = args.epochs       # explainer epochs
+SEED  = args.seed
+MODE  = args.adv              # "" for normal training, "adv" for adversarial
+TRAIN = args.train
+STORE = args.store
+
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 np.random.seed(SEED)
 
-device = "cpu"
-if torch.cuda.is_available() and CUDA:
-    device =  torch.cuda.device("cuda")
-    print(">> cuda available", device)
-    print(">> device: ", torch.cuda.get_device_name(device),"\n")
-    device = "cuda"
+device = args.device
+if torch.cuda.is_available() and device == "cuda" and CUDA:
+    cuda_dev =  torch.cuda.device("cuda")
+    print(">> cuda available", cuda_dev)
+    print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
+
 
 
 if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"

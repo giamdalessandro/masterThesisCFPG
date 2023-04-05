@@ -53,6 +53,8 @@ class PGExplainer(BaseExplainer):
         self.lr = lr
         for k,v in coeffs.items():
             self.coeffs[k] = v
+        print("\t>> explainer:", self.expl_name)
+        print("\t>> coeffs:", self.coeffs)
 
         if self.type == "graph":
             self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -65,6 +67,15 @@ class PGExplainer(BaseExplainer):
             nn.ReLU(),
             nn.Linear(64, 1),
         ).to(self.device)
+
+        #n_heads = 3
+        #self.explainer_model = nn.Sequential(
+        #    nn.Linear(self.expl_embedding, n_heads),
+        #    nn.LeakyReLU(),
+        #    nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)
+
 
     def _create_explainer_input(self, pair, embeds, node_id):
         """
@@ -202,8 +213,8 @@ class PGExplainer(BaseExplainer):
                     size_total += size_loss
                     ent_total += ent_loss
 
-                epochs_bar.set_postfix(loss=f"{loss.item():.4f}", size_loss=f"{size_total.item():.4f}",
-                                ent_loss=f"{ent_total.item():.4f}", pred_loss=f"{pred_total.item():.4f}")
+                epochs_bar.set_postfix(loss=f"{loss.item():.4f}", l_size=f"{size_total.item():.4f}",
+                                l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
 
                 loss.backward()
                 optimizer.step()
@@ -247,6 +258,7 @@ class PGExplainer(BaseExplainer):
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
         sampling_weights = self.explainer_model(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
+        #print("[explain]> cf mask:", torch.sum(mask > mask.mean()))
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

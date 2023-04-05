@@ -48,7 +48,7 @@ class PCFExplainer(BaseExplainer):
             coeffs: dict= None
         ):
         super().__init__(model, data_graph, task, device)
-        self.expl_name = "PCFExplainer"
+        self.expl_name = "PCF"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
         self.norm_adj = norm_adj.to(device)
@@ -59,6 +59,7 @@ class PCFExplainer(BaseExplainer):
         self.lr     = lr
         for k,v in coeffs.items():
             self.coeffs[k] = v
+        print("\t>> explainer:", self.expl_name)
         print("\t>> coeffs:", self.coeffs)
 
         gcn_layers = 3
@@ -188,8 +189,9 @@ class PCFExplainer(BaseExplainer):
 
         # Regularization losses
         #mask = torch.sigmoid(mask)
-        mask_mean = mask.mean()
-        size_loss = -((mask.sigmoid() > mask_mean)).sum()
+        mask_mean = torch.mean(mask)
+        size_loss = -((mask > mask_mean)).sum()
+        #print("mask size:", size_loss)
         #size_loss = (torch.sum(self.adj) - torch.sum(mask)) * reg_size
         size_loss = size_loss * reg_size
         
@@ -204,7 +206,7 @@ class PCFExplainer(BaseExplainer):
         #print("cce_loss:", cce_loss, "\tpred_loss:", pred_loss)
         
         # ZAVVE: TODO tryin' to optimize objective function for cf case
-        loss_total = size_loss + mask_ent_loss + pred_loss 
+        loss_total = size_loss + pred_loss + mask_ent_loss
         return loss_total, size_loss, mask_ent_loss, pred_loss
 
     def _train(self, indices, original_preds: torch.Tensor, verbose: bool=False):
@@ -222,7 +224,7 @@ class PCFExplainer(BaseExplainer):
 
         # Create optimizer and temperature schedule
         optimizer = optim.Adam(self.explainer_mlp.parameters(), lr=lr)
-        #optimizer = optim.SGD(self.explainer_mlp.parameters(), lr=self.lr, momentum=0.9)
+        #optimizer = optim.SGD(self.explainer_mlp.parameters(), lr=self.lr, momentum=0.2)
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         # If we are explaining a graph, we can determine the embeddings before we run
@@ -244,7 +246,7 @@ class PCFExplainer(BaseExplainer):
         self.cf_examples = {}
         best_loss = np.inf
         # explainer training loop
-        with tqdm(range(0, self.epochs), desc="[PCF]> ...training", disable=False) as epochs_bar:
+        with tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False) as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
                 loss_total = torch.FloatTensor([0]).detach().to(self.device)
@@ -303,9 +305,9 @@ class PCFExplainer(BaseExplainer):
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias).squeeze()
                         
                         s = (n_nodes,n_nodes)
-                        cf_adj = torch.ones(mask.size()).to(self.device) 
-                        cf_adj = (cf_adj - mask).abs()
-                        dense_mask = torch.sparse_coo_tensor(indices=sub_index, values=cf_adj, size=s).to_dense()
+                        #cf_adj = torch.ones(mask.size()).to(self.device) 
+                        #cf_adj = (cf_adj - mask).abs()
+                        dense_mask = torch.sparse_coo_tensor(indices=sub_index, values=mask, size=s).to_dense()
                         
                         #original_pred = self.model_to_explain.forward(self.features, adj=self.norm_adj)
                         #batch_feats = batch_feats.to(self.device)
@@ -321,7 +323,7 @@ class PCFExplainer(BaseExplainer):
                             
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                 original_pred=original_pred, 
-                                                                mask=cf_adj)
+                                                                mask=mask) #mask
 
                         # if original prediction changes save the CF example
                         pred_same = (torch.argmax(masked_pred, dim=1) == original_pred)
@@ -341,8 +343,8 @@ class PCFExplainer(BaseExplainer):
                         pred_total += pred_loss
 
 
-                    epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", size_loss=f"{size_total.item():.4f}",
-                                            ent_loss=f"{ent_total.item():.4f}", pred_loss=f"{pred_total.item():.4f}")
+                    epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
+                                         l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
                 
                 loss_total.backward()
                 optimizer.step()
@@ -385,6 +387,7 @@ class PCFExplainer(BaseExplainer):
         sampling_weights = self.explainer_mlp(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
 
+        # to get opposite mask
         cf_adj = torch.ones(mask.size()).to(self.device) 
         mask = (cf_adj - mask).abs()
 

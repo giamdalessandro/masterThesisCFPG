@@ -17,7 +17,7 @@
     "expl_params" : {
         "lr" : 0.005,
         "reg_ent" : 1.0,
-        "reg_size" : 0.005,
+        "reg_size" : 0.05,
         "reg_cf" : 7.5,
         "temps" : [1.0, 1.0],
         "sample_bias" : 0.5

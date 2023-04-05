@@ -1,4 +1,5 @@
 import os
+import argparse
 import numpy as np
 from tqdm import tqdm
 from colorama import init, Fore 
@@ -17,27 +18,43 @@ from utils.plots import plot_graph
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvluation
 
-
 CUDA = True
-SEED   = 42
-EPOCHS = 5           # explainer epochs
-TRAIN_NODES = False
-STORE_ADV = False
-DATASET   = "syn1"    # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = "GNN"     # "GNN", "CF-GNN" or "PGE"
+
+# explainer training
+parser = argparse.ArgumentParser()
+parser.add_argument("--explainer", "-E", type=str, default="GNN")
+parser.add_argument("--dataset", "-D", type=str, default="syn1")
+parser.add_argument("--epochs", "-e", type=int, default=5, help="Number of explainer epochs.")
+parser.add_argument("--seed", "-s", type=int, default=42, help="Random seed.")
+parser.add_argument('--plot', default=False, action=argparse.BooleanOptionalAction)
+
+# other arguments
+parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
+
+args = parser.parse_args()
+print(">>", args)
+DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
+GNN_MODEL = args.explainer    # "GNN", "CF-GNN" or "PGE"
+EPOCHS    = args.epochs       # explainer epochs
+SEED      = args.seed
+PLOT      = args.plot
+TRAIN_NODES = args.train_nodes
+STORE_ADV   = args.store_adv
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 np.random.seed(SEED)
 
-device = "cpu"
-if torch.cuda.is_available() and CUDA:
-    device = torch.cuda.device("cuda")
-    print(">> cuda available", device)
-    print(">> device: ", torch.cuda.get_device_name(device),"\n")
-    device = "cuda"
+device = args.device
+if torch.cuda.is_available() and device == "cuda" and CUDA:
+    cuda_dev = torch.cuda.device("cuda")
+    print(">> cuda available", cuda_dev)
+    print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
     
+
 
 if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
 elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
@@ -69,7 +86,7 @@ edge_index = graph.edge_index
 
 #### STEP 2: instantiate GNN model, one of GNN or CF-GNN
 if GNN_MODEL == "CF-GNN":
-    # need dense adjacency matrix for GCNSynthetic model
+    # need dense-normalized adjacency matrix for GCNSynthetic model
     v = torch.ones(edge_index.size(1))
     s = (graph.num_nodes,graph.num_nodes)
     dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
@@ -123,15 +140,23 @@ explainer.prepare(indices=train_idxs)
 inference_eval.start_explaining()
 explanations = []
 with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
+    e_cap = 12
+    verbose = False
+    curr_id = 0
+    n_tests = len(test_epoch)
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
 
         #print("subg :", graph.size())
         #print("expl :", expl.size())
         #print("mask :", mask.size())
-        if idx == test_idxs[-1]: plot_graph(graph, expl_weights=expl, n_idx=idx, show=True)
+        if (curr_id%(n_tests//5)) == 0: 
+            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=e_cap, show=PLOT, verbose=verbose)
+        elif idx == test_idxs[-1]: 
+            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=e_cap, show=PLOT, verbose=verbose)
         
         explanations.append((graph, expl))
+        curr_id += 1
         #exit(0)
 
 inference_eval.done_explaining()
