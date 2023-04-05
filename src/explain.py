@@ -29,9 +29,9 @@ parser.add_argument("--seed", "-s", type=int, default=42, help="Random seed.")
 parser.add_argument('--plot', default=False, action=argparse.BooleanOptionalAction)
 
 # other arguments
+parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
 parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction)
 parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction)
-parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
 
 args = parser.parse_args()
 print(">>", args)

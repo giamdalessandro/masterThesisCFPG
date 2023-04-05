@@ -21,9 +21,9 @@ parser.add_argument("--epochs", "-e", type=int, default=5, help='Number of expla
 parser.add_argument("--seed", "-s", type=int, default=42, help='Random seed.')
 parser.add_argument('--adv', type=str, default="")
 
+parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
 parser.add_argument('--train', default=False, action=argparse.BooleanOptionalAction)
 parser.add_argument('--store', default=False, action=argparse.BooleanOptionalAction)
-parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
 
 args = parser.parse_args()
 #print(">>", args)
