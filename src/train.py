@@ -91,7 +91,7 @@ for g in range(dataset.len()):
         edge_index = normalize_adj(edge_index)
 
 
-    if torch.cuda.is_available() and CUDA:
+    if device == "cuda" and CUDA:
         print(">> loading tensors to cuda...")
         model = model.to(device)
         for p in model.parameters():

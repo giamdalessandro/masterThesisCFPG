@@ -96,7 +96,7 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, 
 
 
 # loading tensors for CUDA computation 
-if torch.cuda.is_available() and CUDA:
+if device == "cuda" and CUDA:
     print("\n>> loading tensors to cuda...")
     model = model.to(device)
     for p in model.parameters():
