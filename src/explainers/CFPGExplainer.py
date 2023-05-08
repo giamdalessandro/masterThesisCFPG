@@ -198,7 +198,6 @@ class CFPGExplainer(BaseExplainer):
 
         # Explanation loss
         pred_same = (masked_pred.argmax().item() == original_pred).float()
-        #print(">> pred_same_:", pred_same)
         #cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
         cce_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
         pred_loss = pred_same * (-1 * cce_loss) * reg_cf
@@ -224,6 +223,7 @@ class CFPGExplainer(BaseExplainer):
         # Create optimizer and temperature schedule
         optimizer = Adam(self.explainer_mlp.parameters(), lr=lr)
         #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr)
+        #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr, nesterov=True, momentum=0.9)
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         # If we are explaining a graph, we can determine the embeddings before we run
