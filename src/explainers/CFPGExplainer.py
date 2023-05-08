@@ -221,9 +221,13 @@ class CFPGExplainer(BaseExplainer):
         self.explainer_mlp.train()
 
         # Create optimizer and temperature schedule
-        optimizer = Adam(self.explainer_mlp.parameters(), lr=lr)
-        #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr)
-        #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr, nesterov=True, momentum=0.9)
+        opt = self.coeffs["opt"]
+        if opt == "Adam": 
+            optimizer = Adam(self.explainer_mlp.parameters(), lr=lr)
+        elif opt == "SGD":
+            #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr, nesterov=True, momentum=0.9)
+            optimizer = SGD(self.explainer_mlp.parameters(), lr=lr)
+
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         # If we are explaining a graph, we can determine the embeddings before we run

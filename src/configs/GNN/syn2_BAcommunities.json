@@ -12,6 +12,7 @@
         "eval_enabled" : true
     },
     "expl_params" : {
+        "opt" : "Adam",
         "lr" : 0.005,
         "reg_ent" : 5.0,
         "reg_size" : 0.05,
