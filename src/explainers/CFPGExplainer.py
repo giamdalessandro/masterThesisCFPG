@@ -17,7 +17,7 @@ NODE_BATCH_SIZE = 32
 
 
 class CFPGExplainer(BaseExplainer):
-    """A class encaptulating CF-PGExplainer (Parametrized-CFExplainer).
+    """A class encaptulating CF-PGExplainer (Counterfactual-PGExplainer).
     
     Methods:
         `prepare`: prepare the explanation method for explaining;
@@ -31,7 +31,6 @@ class CFPGExplainer(BaseExplainer):
         "reg_cf"  : 5.0, 
         "temps": [5.0, 2.0],
         "sample_bias": 0.0,
-        #"budget" : -1,
     }
 
     def __init__(self, 
@@ -72,14 +71,14 @@ class CFPGExplainer(BaseExplainer):
             self.expl_embedding = self.model_to_explain.embedding_size * 3
 
         # Instantiate the explainer model
-        self.explainer_mlp = nn.Sequential(
+        self.explainer_mlp = nn.Sequential(         # PGE default
             nn.Linear(self.expl_embedding, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
         ).to(self.device)
 
         n_heads = 7
-        #self.explainer_mlp = nn.Sequential(
+        #self.explainer_mlp = nn.Sequential(        # ZAVVE
         #    nn.Linear(self.expl_embedding, 64),
         #    nn.ReLU(),
         #    nn.Linear(64, n_heads),

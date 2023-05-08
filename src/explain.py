@@ -55,19 +55,8 @@ if torch.cuda.is_available() and device == "cuda" and CUDA:
     print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
     
 
-
-if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
-elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
-elif DATASET == "syn3": data_cfg = DATASET + "_treeCycles"
-elif DATASET == "syn4": data_cfg = DATASET + "_treeGrids"
-
-rel_path = f"/configs/{GNN_MODEL}/{data_cfg}.json"
-cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
-cfg = parse_config(config_path=cfg_path)
-
-
 #### STEP 1: load a BAshapes dataset
-DATASET = cfg["dataset"]
+cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
 dataset, test_idxs = load_dataset(dataset=DATASET)
 train_idxs = dataset.train_mask
 # add some dataset info to config 
@@ -124,7 +113,6 @@ elif GNN_MODEL == "PGE":
 gt = (graph.edge_index,graph.edge_label)
 auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
 inference_eval = EfficiencyEvluation()
-
 inference_eval.reset()
 
 # prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)

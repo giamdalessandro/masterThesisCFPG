@@ -46,19 +46,8 @@ if torch.cuda.is_available() and device == "cuda" and CUDA:
     print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
 
 
-
-if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
-elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
-elif DATASET == "syn3": data_cfg = DATASET + "_treeCycles"
-elif DATASET == "syn4": data_cfg = DATASET + "_treeGrids"
-
-rel_path = f"/configs/{GNN_MODEL}/{data_cfg}.json"
-cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
-cfg = parse_config(config_path=cfg_path)
-
-
 ## load a BAshapes dataset
-DATASET = cfg["dataset"]
+cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
 dataset, test_indices = load_dataset(dataset=DATASET, load_adv=(MODE=="adv"))
 # add dataset info to config 
 cfg.update({
@@ -107,7 +96,7 @@ for g in range(dataset.len()):
 
 
     if TRAIN:
-        print(Fore.RED + "\n[training]> starting train...")
+        print(Fore.MAGENTA + "\n[training]> starting train...")
         train_params = cfg["train_params"]
         optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])#, weisght_decay=train_params["weight_decay"])
         #optimizer = torch.optim.SGD(model.parameters(), lr=train_params["lr"], nesterov=True, momentum=0.9)
@@ -156,6 +145,7 @@ for g in range(dataset.len()):
                 if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                     break
 
+        best_epoch = best_epoch if STORE else -1
         model = load_best_model(model=model, 
                     best_epoch=best_epoch,
                     gnn=GNN_MODEL, 
@@ -169,10 +159,9 @@ for g in range(dataset.len()):
         train_acc = evaluate(out[idx_train], labels[idx_train])
         test_acc  = evaluate(out[idx_test], labels[idx_test])
         val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-        print(Fore.RED + "\n[results]> training final results", 
-                f"\n\ttrain_acc: {train_acc:.4f}",
-                f"val_acc: {val_acc:.4f}",
-                f"test_acc: {test_acc:.4f}")
+        print(Fore.MAGENTA + "\n[results]> training final results - Accuracy")
+        if best_epoch == -1: print(Fore.RED+"[DEBUG]> training ckpts not stored, showing default results...")
+        print(f"\t>> train: {train_acc:.4f}  val: {val_acc:.4f}  test: {test_acc:.4f}")
 
 
 if STORE:
