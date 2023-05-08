@@ -31,6 +31,7 @@ class CFPGExplainer(BaseExplainer):
         "reg_cf"  : 5.0, 
         "temps": [5.0, 2.0],
         "sample_bias": 0.0,
+        "lr": 0.003,
     }
 
     def __init__(self, 
@@ -38,7 +39,7 @@ class CFPGExplainer(BaseExplainer):
             data_graph: torch_geometric.data.Data,
             task: str="node", 
             epochs: int=30, 
-            lr: float=0.005, 
+            lr: float=0.003, 
             device: str="cpu",
             coeffs: dict=None
         ):

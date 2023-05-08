@@ -258,7 +258,7 @@ class PGExplainer(BaseExplainer):
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
         sampling_weights = self.explainer_model(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
-        #print("[explain]> cf mask:", torch.sum(mask > mask.mean()))
+        #print("[explain]> mask:", torch.sum(mask > mask.mean()))
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

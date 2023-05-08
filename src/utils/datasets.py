@@ -12,12 +12,13 @@ DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
 
 
 def parse_config(dataset: str, gnn: str):
-    """Parse config file (.json) at `config_path` into a dictionary"""
+    """Parse config file (.json) for chosen `dataset` and `gnn` into a dictionary."""
     if dataset == "syn1": data_cfg = dataset + "_BAshapes"
     elif dataset == "syn2": data_cfg = dataset + "_BAcommunities"
     elif dataset == "syn3": data_cfg = dataset + "_treeCycles"
     elif dataset == "syn4": data_cfg = dataset + "_treeGrids"
 
+    #gnn = "PGE" # to force PGE params
     rel_path = f"/../configs/{gnn}/{data_cfg}.json"
     cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 
@@ -28,7 +29,6 @@ def parse_config(dataset: str, gnn: str):
     except FileNotFoundError:
         print(f"No config found for '{cfg_path}'")
         exit(0)
-
 
 
 class BAGraphDataset(Dataset):
