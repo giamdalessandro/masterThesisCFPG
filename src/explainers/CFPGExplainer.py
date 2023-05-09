@@ -26,12 +26,12 @@ class CFPGExplainer(BaseExplainer):
     """
     ## default values for explainer parameters
     coeffs = {
+        "lr": 0.003,
         "reg_size": 0.5,
         "reg_ent" : 1.0,
         "reg_cf"  : 5.0, 
         "temps": [5.0, 2.0],
         "sample_bias": 0.0,
-        "lr": 0.003,
     }
 
     def __init__(self, 
@@ -39,28 +39,31 @@ class CFPGExplainer(BaseExplainer):
             data_graph: torch_geometric.data.Data,
             task: str="node", 
             epochs: int=30, 
-            lr: float=0.003, 
             device: str="cpu",
             coeffs: dict=None
         ):
         """### Args
         `model_to_explain` : torch.nn.Module
             GNN model who's predictions we wish to explain.
+
         `data_graph` : torch_geometric.data.Data
             the collections of edge_indices representing the graphs.
+
         `task` : string
             classification task, "node" or "graph".
+
         `epochs` : int
             amount of epochs to train our explainer.
-        `lr` : float
-            learning rate used in the training of the explainer.
+
+        `coeffs` : dict
+            a dict containing parameters for training the explainer (e.g.
+            lr, temprature, etc..).
         """
         super().__init__(model_to_explain, data_graph, task, device)
         self.expl_name = "CFPG"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
-        self.lr = lr
         for k,v in coeffs.items():
             self.coeffs[k] = v
         print("\t>> explainer:", self.expl_name)

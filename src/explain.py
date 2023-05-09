@@ -128,7 +128,7 @@ explainer.prepare(indices=train_idxs)
 inference_eval.start_explaining()
 explanations = []
 with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
-    e_cap = 12
+    top_k = 12 if DATASET != "syn4" else 24
     verbose = False
     curr_id = 0
     n_tests = len(test_epoch)
@@ -139,9 +139,9 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
         #print("expl :", expl.size())
         #print("mask :", mask.size())
         if (curr_id%(n_tests//5)) == 0: 
-            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=e_cap, show=PLOT, verbose=verbose)
+            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         elif idx == test_idxs[-1]: 
-            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=e_cap, show=PLOT, verbose=verbose)
+            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         
         explanations.append((graph, expl))
         curr_id += 1

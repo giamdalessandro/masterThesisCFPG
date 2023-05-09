@@ -14,9 +14,9 @@
     "expl_params" : {
         "opt" : "SGD",
         "lr" : 0.001,
-        "reg_ent" : 5.0,
+        "reg_ent" : 10.0,
         "reg_size" : 0.5,
-        "reg_cf" : 10.0,
+        "reg_cf" : 5.0,
         "temps" : [1.0, 1.0],
         "sample_bias" : 0.5
     }

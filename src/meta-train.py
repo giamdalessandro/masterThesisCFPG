@@ -18,6 +18,10 @@ from utils.graphs import normalize_adj
 from utils.meta_learn import init_mask, clear_mask, set_mask, meta_update_weights
 
 
+## TODO sistemare i parametri con argparse
+#   e aggoirnare la versione di parse_config()
+
+
 MODE = "meta"
 EPOCHS = 500
 TRAIN  = True
