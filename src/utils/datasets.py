@@ -5,31 +5,47 @@ from colorama import init, Fore
 init(autoreset=True) # initializes Colorama
 
 import torch
-from torch_geometric.data import Data, InMemoryDataset
+from torch_geometric.data import Data, InMemoryDataset, Dataset
 
 path_to_data = "/../../datasets/"
 DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
 
 
-def parse_config(config_path: str):
-    """Parse config file (.json) at `config_path` into a dictionary"""
+def parse_config(dataset: str, gnn: str):
+    """Parse config file (.json) for chosen `dataset` and `gnn` into a dictionary."""
+    if dataset == "syn1": data_cfg = dataset + "_BAshapes"
+    elif dataset == "syn2": data_cfg = dataset + "_BAcommunities"
+    elif dataset == "syn3": data_cfg = dataset + "_treeCycles"
+    elif dataset == "syn4": data_cfg = dataset + "_treeGrids"
+
+    #gnn = "PGE" # to force PGE params
+    rel_path = f"/../configs/{gnn}/{data_cfg}.json"
+    cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
+
     try:    
-        with open(config_path) as config_parser:
+        with open(cfg_path) as config_parser:
             config = json.loads(json.dumps(json.load(config_parser)))
         return config
     except FileNotFoundError:
-        print("No config found")
-        return None
+        print(f"No config found for '{cfg_path}'")
+        exit(0)
 
 
-
-class BAGraphDataset(InMemoryDataset):
+class BAGraphDataset(Dataset):
     r"""PyG dataset class to wrap the synthetic BA-Shapes datasets from the 
     `"GNNExplainer: Generating Explanations for Graph Neural Networks"` 
     <https://arxiv.org/pdf/1903.03894.pdf> paper.
     """
-    def __init__(self, dataset: str="syn1", data_dir: str=DATA_DIR, transform=None, pre_transform=None, verbose: bool=False):
-        r"""The data are loaded from a stored `.pkl` file representing one of 
+
+    def __init__(self, 
+            dataset  : str="syn1", 
+            data_dir : str=DATA_DIR,
+            load_adv : bool=False, 
+            transform=None, 
+            pre_transform=None, 
+            verbose  : bool=False
+        ):
+        """The data are loaded from a stored `.pkl` file representing one of 
         the synthetic Barabasi-Albert graph datasets from the paper mentioned above. 
         
         Args:
@@ -72,47 +88,69 @@ class BAGraphDataset(InMemoryDataset):
             edge_index=edge_index.indices(), 
             edge_label=edge_label, #.indices(),  
             y=labels, 
-            expl_mask=expl_mask)
+            expl_mask=expl_mask,
+            n_id=torch.arange(num_nodes))
 
-        self.data, self.slices = self.collate([data])
+        # collate function needs a list of Data objects
+        data_list = [data]
+
+        # load raw adversarial examples
+        if load_adv:
+            adv_file = dataset + "_adv_train_CF-GNN.pt"
+            adv_path = data_dir + "pkls/" + adv_file
+
+            with open(adv_path, 'rb') as fin:
+                adv_dict = torch.load(fin)
+                adv_feats = adv_dict["node_feats"] #.clone().detach()
+
+                if verbose:
+                    print("[DEBUG]> adv_feat:", adv_feats.size())
+                    for k,v in adv_dict.items():
+                        print("[DEBUG]> key:",k,"item:",v)
+
+            adv_data = Data(
+                x=adv_feats,
+                edge_index=edge_index.indices(), 
+                edge_label=edge_label,  
+                y=labels, 
+                expl_mask=expl_mask)            
+
+            data_list.append(adv_data)
+        
+        if verbose:
+            for d in data_list:
+                print("[DEBUG]> data_list:", d)
+
+        #self.data, self.slices = self.collate(data_list)   # if using pyg InMemoryDataset
+        self.data = data_list
+
+    def len(self):
+        """Returns the number of examples in your dataset."""
+        return len(self.data)
+
+    def get(self, idx):
+        """Implements the logic to load a single graph."""
+        #data = torch.load(osp.join(self.processed_dir, f'data_{idx}.pt'))
+        return self.data[idx]
 
 
-def _load_node_dataset(dataset: str):
-    r"""Load a graph dataset for graph node classification task.
 
-    Args
-    - `dataset`: Which dataset to load. Choose from "syn1", "syn2", "syn3" or "syn4"
-    
-    Returns
-        `torch_geometric.data.Dataset`
-    """
-    filename = dataset + ".pkl"
-    print(Fore.GREEN + f"[dataset]> node dataset from file '{filename}'...")
-
-    # create dataset class with loaded data
-    pyg_dataset = BAGraphDataset(dataset=dataset)
-
-    print("\t#graphs:       ", len(pyg_dataset))
-    print("\t#classes:      ", pyg_dataset.num_classes)
-    print("\t#node_features:", pyg_dataset.num_node_features)
-
-    return pyg_dataset
-
-def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, shuffle: bool=True):
+def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproccessing: bool=False, shuffle: bool=True):
     r"""High level function which loads the dataset by calling the proper method 
     for node-classification or graph-classification datasets.
 
     Args:
-    - `_dataset`: Which dataset to load. Choose from "syn1", "syn2", "syn3", 
+    - `_dataset`(str): Which dataset to load. Choose from "syn1", "syn2", "syn3", 
         "syn4", "ba2" or "mutag";
-    - `skip_preproccessing`: Whether or not to convert the adjacency matrix 
+    - `load_adv`(bool): whether or not to load the adversarial example graph;
+    - `skip_preproccessing`(bool): Whether or not to convert the adjacency matrix 
         to an edge matrix.
-    - `shuffle`: Should the returned dataset be shuffled or not.
+    - `shuffle`(bool): Should the returned dataset be shuffled or not.
     
     Returns:    
-        A couple (`BAGraphdataset()`,list). 
+        A couple (`torch_geometric.data.Dataset`,list). 
     """
-    print(Fore.GREEN + f"[dataset]> loading {dataset} dataset...")
+    print(Fore.GREEN + f"[dataset]> loading dataset...")
     if dataset[:3] == "syn": 
         # Load node-classification datasets
         if dataset == "syn1" or dataset == "syn2":
@@ -122,7 +160,16 @@ def load_dataset(dataset: str, paper: str="", skip_preproccessing: bool=False, s
         elif dataset == "syn4":
             test_indices = range(511,800,1)
 
-        return _load_node_dataset(dataset), test_indices
+        filename = dataset + ".pkl"
+        print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
+
+        # create dataset class with loaded data
+        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv)
+        print("\t>> #graphs:       ", len(pyg_dataset))
+        print("\t>> #classes:      ", pyg_dataset.num_classes)
+        print("\t>> #node_features:", pyg_dataset.num_node_features)
+
+        return pyg_dataset, test_indices
         
     else: 
         # TODO Load graph-classification datasets

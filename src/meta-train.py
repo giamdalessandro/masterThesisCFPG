@@ -1,6 +1,6 @@
 import os
 import higher
-import numpy as np
+import argparse
 from tqdm import tqdm
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
@@ -18,20 +18,35 @@ from utils.graphs import normalize_adj
 from utils.meta_learn import init_mask, clear_mask, set_mask, meta_update_weights
 
 
-TRAIN  = True
-STORE  = False
-DEVICE = "cpu"
-DATASET   = "BAshapes"
-GNN_MODEL = "CF-GNN"
+## TODO sistemare i parametri con argparse
+#   e aggoirnare la versione di parse_config()
+CUDA = True
 
-rel_path = f"/configs/{GNN_MODEL}/{DATASET}.json"
-cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
-cfg = parse_config(config_path=cfg_path)
+parser = argparse.ArgumentParser()
+parser.add_argument("--gnn", "-G", type=str, default='GNN')
+parser.add_argument("--dataset", "-D", type=str, default='syn1')
+parser.add_argument("--epochs", "-e", type=int, default=5, help='Number of explainer epochs.')
+parser.add_argument("--seed", "-s", type=int, default=42, help='Random seed.')
+parser.add_argument('--mode', type=str, default="meta")
 
+parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
+parser.add_argument('--train', default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument('--store', default=False, action=argparse.BooleanOptionalAction)
+
+args = parser.parse_args()
+#print(">>", args)
+GNN_MODEL = args.gnn          # "GNN", "CF-GNN" or "PGE"
+DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
+EPOCHS    = args.epochs       # explainer epochs
+SEED  = args.seed
+MODE  = args.mode              # "" for normal training, "adv" for adversarial
+TRAIN = args.train
+STORE = args.store
+DEVICE = args.device
 
 
 ## STEP 1: load a BAshapes dataset
-DATASET = cfg["dataset"]
+cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
 dataset, test_indices = load_dataset(dataset=DATASET)
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -44,11 +59,9 @@ idx_test  = dataset.test_mask
 graph = dataset[0]
 print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
-labels = graph.y
-labels = np.argmax(labels, axis=1)
-#print("\t#nodes:", graph.num_nodes)
-#print("\t#edges:", graph.num_edges)args
 
+labels = graph.y
+labels = torch.argmax(labels, dim=1)
 x = graph.x
 edge_index = graph.edge_index #.indices()
 
@@ -61,13 +74,15 @@ if GNN_MODEL == "CF-GNN":
     dense_edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     norm_edge_index = normalize_adj(dense_edge_index)
 
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg)
+model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), config=cfg)
+
 
 # extract explainer loss function for meta-train loop
+print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, edge_index, x)
+    explainer = CFPGExplainer(model, graph, coeffs=cfg["expl_params"])
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, edge_index, None, x)
+    explainer = PCFExplainer(model, graph, norm_edge_index, coeffs=cfg["expl_params"])
 expl_loss_fn = explainer.loss
 
 
@@ -75,10 +90,10 @@ expl_loss_fn = explainer.loss
 TODO Meta-training loop to be implemented
 """
 #### STEP 3: Meta-training
+train_params = cfg["train_params"]
+expl_params = cfg["expl_params"]
 if TRAIN:
-    print(Fore.RED + "\n[meta-training]> starting train...")
-    train_params = cfg["train_params"]
-
+    print(Fore.MAGENTA + "\n[meta-training]> starting train...")
     for p in model.parameters():
         p.to(DEVICE)
 
@@ -88,7 +103,7 @@ if TRAIN:
 
     best_val_acc = 0.0
     best_epoch = 0
-    with tqdm(range(0, train_params["epochs"]), desc="[meta-training]> Epoch") as epochs_bar:
+    with tqdm(range(0, EPOCHS), desc="[meta-training]> Epoch") as epochs_bar:
         for epoch in epochs_bar:
             # extract a random node to train on
             idx = torch.randint(0, len(test_indices), (1,))
@@ -164,20 +179,22 @@ if TRAIN:
                     store_checkpoint(
                         model=model, 
                         gnn=GNN_MODEL, 
-                        paper="", 
                         dataset=DATASET,
                         train_acc=train_acc, 
                         val_acc=val_acc, 
                         test_acc=test_acc, 
-                        epoch=epoch)
+                        epoch=epoch,
+                        mode=MODE) 
 
             if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                 break
 
+    best_epoch = best_epoch if STORE else -1
     model = load_best_model(model=model, 
                 best_epoch=best_epoch,
-                paper=GNN_MODEL, 
+                gnn=GNN_MODEL, 
                 dataset=DATASET, 
+                mode=MODE,
                 eval_enabled=train_params["eval_enabled"])
     out = model(x, edge_idx)
 
@@ -185,19 +202,18 @@ if TRAIN:
     train_acc = evaluate(out[idx_train], labels[idx_train])
     test_acc  = evaluate(out[idx_test], labels[idx_test])
     val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-    print(Fore.MAGENTA + "[results]> training final results", 
-            f"\n\ttrain_acc: {train_acc:.4f}",
-            f"val_acc: {val_acc:.4f}",
-            f"test_acc: {test_acc:.4f}")
+    print(Fore.MAGENTA + "\n[results]> training final results - Accuracy")
+    if best_epoch == -1: print(Fore.RED+"[DEBUG]> training ckpts not stored, showing default results...")
+    print(f"\t>> train: {train_acc:.4f}  val: {val_acc:.4f}  test: {test_acc:.4f}")
 
 #### STEP 4: Store results
 if STORE:
     store_checkpoint(
         model=model, 
         gnn=GNN_MODEL, 
-        paper="", 
         dataset=DATASET,
         train_acc=train_acc, 
         val_acc=val_acc, 
-        test_acc=test_acc)
+        test_acc=test_acc,
+        mode=MODE)
     #store_train_results(_paper, _dataset, model, train_acc, val_acc, test_acc, desc=desc, meta=False)

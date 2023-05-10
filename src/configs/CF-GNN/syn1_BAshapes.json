@@ -6,11 +6,19 @@
     "dropout" : 0.2,
     "train_params" : {
         "lr" : 0.005,
-        "epochs" : 1000,
+        "epochs" : [700,400],
         "early_stop" : 100,
         "clip_max" : 2.0,
         "eval_enabled" : true,
         "T" : 5,
         "inner_lr" : 0.0001
+    },
+    "expl_params" : {
+        "lr" : 0.005,
+        "reg_ent" : 10.0,
+        "reg_size" : 0.05,
+        "reg_cf" : 7.5,
+        "temps" : [5.0, 2.0],
+        "sample_bias" : 0.0
     }
 }

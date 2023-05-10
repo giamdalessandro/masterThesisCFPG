@@ -1,8 +1,10 @@
 # ZAVVE: to install pytorch-geometric (PyG) 2.2.0 with torch-1.13.* and cuda-11.7 use following command: 
 # pip install pyg-lib torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.13.0+cu117.html
-torch==1.13.1        # pytorch-1.13.1 + cuda-11.7
-torchvision==0.14.1  # pytorch-1.13.1 + cuda-11.7
-torchaudio==0.13.1   # pytorch-1.13.1 + cuda-11.7
+torch==1.13.1        # dependency of pytorch-1.13.1 + cuda-11.7
+torchvision==0.14.1  # dependency of pytorch-1.13.1 + cuda-11.7
+torchaudio==0.13.1   # dependency of pytorch-1.13.1 + cuda-11.7
 numpy==1.24.1
 tqdm==4.64.1
 colorama==0.4.6
+matplotlib==3.7.1
+networkx==3.0

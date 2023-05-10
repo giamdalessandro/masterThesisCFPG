@@ -1,39 +1,47 @@
 import numpy as np
 from tqdm import tqdm
 
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 
 from .BaseEvaluation import BaseEvaluation
 
 
 
-def _eval_AUC_node(explanations, explanation_labels):
+def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=True):
     """Evaluate the auc score given explaination and ground truth labels.
 
-    Args
-    - `explanations`(list): predicted labels, list of tuples (graph,graph_labels);
-    - `explanation_lables`(sparse COO Tensor): explanation ground truth labels.
-    - `indices` : Which indices to evaluate. We ignore all others.
-    :returns: area under curve score.
+    ### Args
+    `explanations` : list
+        predicted labels, list of tuples (edge,edge_labels);
+    
+    `explanation_lables` : sparse COO Tensor
+        explanation ground truth labels.
+    
+    ### Returns
+    Area Under Curve (AUC) score for node classification.
     """
     ground_truth = []
     predictions = []
     # for easier access densify explanation labels matrix
     expl_lab_dense = explanation_labels[1].to_dense()
-    #print("expl labels dense:", expl_lab_dense.size())
+    #pred_scores = explanations[1]
+    #print("[AUC]> pred scores:", (pred_scores > 0.5).sum())
 
-    with tqdm(explanations, desc="[explain]> ...metrics", disable=False) as eval_step:
+    with tqdm(explanations, desc="[metrics]> AUC score", disable=False) as eval_step:
         for expl in eval_step: # Loop over the explanations for each node
-            #print("expl[0]:", expl[0].size()) # edge index
-            #print("expl[1]:", expl[1].size()) # predicted edge labels
-            #print("expl labels[0]:", explanation_labels[0].size())
-            #print("expl labels[1]:", explanation_labels[1].size())
+            #print("[AUC]> expl graph (expl[0]):", expl[0].size())    # edge index
+            pred_scores = expl[1]
+            pred_mean = expl[1].mean()
+            #print("[AUC]> expl preds (expl[1]):", (expl[1] > pred_mean.item()).sum())    # predicted edge labels
+            #print("[AUC]> gt edges :", explanation_labels[0].size())
+            #print("[AUC]> gt labels:", explanation_labels[1].size())
 
             ground_truth_node = []
             prediction_node = []
             
             for i in range(0, expl[0].size(1)): # Loop over all edges in the explanation sub-graph
                 prediction_node.append(expl[1][i].item())
+                #print(f"[AUC] prediction: {expl[1][i].item():.4f}")
 
                 # Graphs are defined bidirectional, so we need to retrieve both edges
                 pair = expl[0].T[i].long() #.numpy()
@@ -54,12 +62,33 @@ def _eval_AUC_node(explanations, explanation_labels):
                 else:
                     ground_truth_node.append(1)
 
-                #raise NotImplementedError("[DEBUG]: sto a debbuggà, stacce.")
+                #exit("\n[DEBUG]: sto a debbuggà, stacce.")            
 
             ground_truth.extend(ground_truth_node)
             predictions.extend(prediction_node)
 
+    #fpr, tpr, thres = roc_curve(ground_truth, predictions)
+    #print("[eval]> ROC thresholds:", len(thres)) 
     score = roc_auc_score(ground_truth, predictions)
+
+    if plot_roc:
+        import matplotlib.pyplot as plt
+        from sklearn.metrics import RocCurveDisplay
+
+        RocCurveDisplay.from_predictions(
+            ground_truth,
+            predictions,
+            name=f"expl.edges vs the rest",
+            color="darkorange",
+        )
+        plt.plot([0, 1], [0, 1], "k--", label="chance level (AUC = 0.5)")
+        plt.axis("square")
+        plt.xlabel("FP rate")
+        plt.ylabel("TP rate")
+        plt.title("ROC curve")
+        plt.legend()
+        plt.show()
+
     return score
 
 

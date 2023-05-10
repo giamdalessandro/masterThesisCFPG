@@ -23,39 +23,39 @@ def evaluate(out, labels):
     acc = int(correct.sum()) / int(correct.size(0))
     return acc
 
-def store_checkpoint(model, gnn: str, paper: str, dataset: str, train_acc, val_acc, test_acc, 
-                    epoch=-1, meta: bool=False):
+def store_checkpoint(model, gnn: str, dataset: str, train_acc, val_acc, test_acc, 
+                    epoch=-1, mode: str=""):
     """
     Store the model weights at a predifined location.
 
     Args
     - `model`     : the model who's parameters we whish to save;
     - `gnn  `     : str, the gnn model;
-    - `paper`     : str, the explainer;
     - `dataset`   : str, the dataset;
     - `train_acc` : training accuracy obtained by the model;
     - `val_acc`   : validation accuracy obtained by the model;
     - `test_acc`  : test accuracy obtained by the model;
     - `epoch`     : the current epoch of the training process;
     """
-    if meta:
-        save_dir = SAVES_DIR + f"{gnn}/{paper}/{dataset}" 
+    if mode != "":
+        save_path = SAVES_DIR + f"{gnn}/{mode}/{dataset}" 
     else:
-        save_dir = SAVES_DIR + f"{gnn}/{dataset}" 
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
+        save_path = SAVES_DIR + f"{gnn}/{dataset}" 
+
+    if not os.path.isdir(save_path):
+        os.makedirs(save_path)
 
     checkpoint = {'model_state_dict': model.state_dict(),
                   'train_acc': train_acc,
                   'val_acc': val_acc,
                   'test_acc': test_acc}
     if epoch == -1:
-        torch.save(checkpoint, os.path.join(save_dir, f"best_model"))
+        torch.save(checkpoint, os.path.join(save_path, f"best_model"))
     else:
-        torch.save(checkpoint, os.path.join(save_dir, f"epoch_{epoch}"))
+        torch.save(checkpoint, os.path.join(save_path, f"epoch_{epoch}"))
 
-def load_best_model(model, best_epoch: int, paper: str, dataset: str, explainer: str="",
-                    eval_enabled: bool=True, meta: bool=False):
+def load_best_model(model, best_epoch: int, gnn: str, dataset: str, explainer: str="",
+                    eval_enabled: bool=True, mode: str=""):
     """
     Load the model parameters from a checkpoint into a model
     
@@ -63,20 +63,21 @@ def load_best_model(model, best_epoch: int, paper: str, dataset: str, explainer:
     - `model`       : the model who's parameters overide
     - `best_epoch`  : the epoch which obtained the best result. 
             Use -1 to chose the "best model"
-    - `paper`       : str, the paper 
+    - `gnn`         : str, the gnn 
     - `dataset`     : str, the dataset
     - `eval_enabled`: wheater to activate evaluation mode on the model or not
+    - `mode`(str) : on of {"adv", "meta", ""}
     
     Returns 
         model with paramaters taken from the checkpoint
     """
-    print(Fore.RED + "\n[results]> best result at epoch", best_epoch)
+    #print(Fore.RED + "\n[results]> best result at epoch", best_epoch)
     to_load = "best_model" if best_epoch == -1 else f"epoch_{best_epoch}"
 
-    if meta:
-        checkpoint = torch.load(SAVES_DIR + f"meta/{paper}/{dataset}/{to_load}")
+    if mode != "":
+        checkpoint = torch.load(SAVES_DIR + f"{gnn}/{mode}/{dataset}/{to_load}")
     else:
-        checkpoint = torch.load(SAVES_DIR + f"{paper}/{dataset}/{to_load}")
+        checkpoint = torch.load(SAVES_DIR + f"{gnn}/{dataset}/{to_load}")
     
     model.load_state_dict(checkpoint['model_state_dict'])
     #print(Fore.MAGENTA + "[results]: best model", model)

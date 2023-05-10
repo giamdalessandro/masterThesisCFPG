@@ -26,7 +26,7 @@ def string_to_model(paper: str, dataset: str, device: str, config):
     n_hid   = config["num_hidden"]
     n_class = config["num_classes"]
 
-    if paper == "GNN":  # GNNExplainer gnn model
+    if paper == "GNN" or paper == "PGE":  # GNNExplainer and PGExplainer gnn model
         if dataset in ['syn1','syn2','syn3','syn4']:
             # node classification datasets
             return NodeGCN(n_feat, n_class, device)
@@ -70,6 +70,8 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
 
     if explainer == "":
         rel_path = f"{paper}/{dataset}/{model_name}"
+    elif explainer == "adv":
+        rel_path = f"{paper}/adv/{dataset}/{model_name}"
     else:
         rel_path = f"meta/{paper}/{explainer}/{dataset}/{model_name}"
 
@@ -78,11 +80,11 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
     checkpoint = torch.load(SAVES_DIR + rel_path)
     if paper == "CF-GNN_old":
         model.load_state_dict(checkpoint)
-        print(Fore.CYAN + f"[models]> Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
+        print(Fore.CYAN + f"[models]>","Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
     else:
         model.load_state_dict(checkpoint['model_state_dict'])
-        print(Fore.CYAN + "[models]> This model obtained:",
-            f"train_acc: {checkpoint['train_acc']:.4f}",
+        print(Fore.CYAN + "[models]>","This model obtained:\n",
+            f"\ttrain_acc: {checkpoint['train_acc']:.4f}",
             f"val_acc: {checkpoint['val_acc']:.4f}",
             f"test_acc: {checkpoint['test_acc']:.4f}.")
 

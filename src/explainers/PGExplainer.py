@@ -32,24 +32,29 @@ class PGExplainer(BaseExplainer):
     coeffs = {
         "reg_size": 0.05,
         "reg_ent" : 1.0,
-        "temp": [5.0, 2.0],
+        "temps": [5.0, 2.0],
         "sample_bias": 0.0,
     }
 
     def __init__(self, 
             model_to_explain: torch.nn.Module, 
-            edge_index: torch.Tensor, 
-            features: torch.Tensor, 
+            data_graph: ptgeom.data.Data,
             task: str="node", 
             epochs: int=30, 
             lr: float=0.003, 
-            **kwargs
+            device: str="cpu",
+            coeffs: dict=None
         ):
-        super().__init__(model_to_explain, edge_index, features, task)
-
+        super().__init__(model_to_explain, data_graph, task, device)
+        self.expl_name = "PGExplainer"
+        self.features = self.data_graph.x.to(self.device)
+        self.adj = self.data_graph.edge_index.to(self.device)
         self.epochs = epochs
         self.lr = lr
-        self.coeffs.update(kwargs)
+        for k,v in coeffs.items():
+            self.coeffs[k] = v
+        print("\t>> explainer:", self.expl_name)
+        print("\t>> coeffs:", self.coeffs)
 
         if self.type == "graph":
             self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -61,7 +66,16 @@ class PGExplainer(BaseExplainer):
             nn.Linear(self.expl_embedding, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
-        )
+        ).to(self.device)
+
+        #n_heads = 3
+        #self.explainer_model = nn.Sequential(
+        #    nn.Linear(self.expl_embedding, n_heads),
+        #    nn.LeakyReLU(),
+        #    nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)
+
 
     def _create_explainer_input(self, pair, embeds, node_id):
         """
@@ -80,11 +94,11 @@ class PGExplainer(BaseExplainer):
         row_embeds = embeds[rows]
         col_embeds = embeds[cols]
         if self.type == 'node':
-            node_embed = embeds[node_id].repeat(rows.size(0), 1)
-            input_expl = torch.cat([row_embeds, col_embeds, node_embed], 1)
+            node_embed = embeds[node_id].repeat(rows.size(0), 1)#.to(self.device)
+            input_expl = torch.cat([row_embeds, col_embeds, node_embed], 1)#.to(self.device)
         else:
             # Node id is not used in this case
-            input_expl = torch.cat([row_embeds, col_embeds], 1)
+            input_expl = torch.cat([row_embeds, col_embeds], 1)#.to(self.device)
         return input_expl
 
     def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
@@ -104,14 +118,14 @@ class PGExplainer(BaseExplainer):
         if training:
             bias = bias + 0.0001  # If bias is 0, we run into problems
             eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
-            gate_inputs = torch.log(eps) - torch.log(1 - eps)
+            gate_inputs = (torch.log(eps) - torch.log(1 - eps)).to(self.device)
             gate_inputs = (gate_inputs + sampling_weights) / temperature
             graph =  torch.sigmoid(gate_inputs)
         else:
             graph = torch.sigmoid(sampling_weights)
         return graph
 
-    def _loss(self, masked_pred, original_pred, mask):
+    def loss(self, masked_pred, original_pred, mask):
         """
         Returns the loss score based on the given mask.
 
@@ -134,7 +148,8 @@ class PGExplainer(BaseExplainer):
         # Explanation loss
         cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
 
-        return cce_loss + size_loss + mask_ent_loss
+        total_loss = cce_loss + size_loss + mask_ent_loss 
+        return total_loss, cce_loss, size_loss, mask_ent_loss
 
     def _train(self, indices = None):
         """
@@ -143,7 +158,7 @@ class PGExplainer(BaseExplainer):
         Args: 
         - indices: Indices that we want to use for training.
         """
-        temp = self.coeffs["temp"]
+        temp = self.coeffs["temps"]
         sample_bias = self.coeffs["sample_bias"]
 
         # Make sure the explainer model can be trained
@@ -155,13 +170,16 @@ class PGExplainer(BaseExplainer):
 
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
 
         # Start training loop
-        with tqdm(range(0, self.epochs), desc="[PGExplainer]> ...training") as epochs_bar:
+        with tqdm(range(0, self.epochs), desc="[PGE]> ...training") as epochs_bar:
             for e in epochs_bar:
                 optimizer.zero_grad()
-                loss = torch.FloatTensor([0]).detach()
+                loss = torch.FloatTensor([0]).detach().to(self.device)
+                pred_total = torch.FloatTensor([0]).detach().to(self.device)
+                size_total = torch.FloatTensor([0]).detach().to(self.device)
+                ent_total = torch.FloatTensor([0]).detach().to(self.device)
                 t = temp_schedule(e)
 
                 for n in indices:
@@ -169,7 +187,7 @@ class PGExplainer(BaseExplainer):
                     if self.type == 'node':
                         # Similar to the original paper we only consider a subgraph for explaining
                         feats = self.features
-                        graph = ptgeom.utils.k_hop_subgraph(n, 3, self.adj)[1]
+                        graph = ptgeom.utils.k_hop_subgraph(n, 3, self.adj)[1].to(self.device)
                     else:
                         feats = self.features[n].detach()
                         graph = self.adj[n].detach()
@@ -187,10 +205,16 @@ class PGExplainer(BaseExplainer):
                         masked_pred = masked_pred[n].unsqueeze(dim=0)
                         original_pred = original_pred[n]
 
-                    id_loss = self._loss(masked_pred, torch.argmax(original_pred).unsqueeze(0), mask)
+                    id_loss, pred_loss, size_loss, ent_loss = self.loss(masked_pred=masked_pred, 
+                                                        original_pred=torch.argmax(original_pred).unsqueeze(0),
+                                                        mask=mask)
                     loss += id_loss
+                    pred_total += pred_loss
+                    size_total += size_loss
+                    ent_total += ent_loss
 
-                epochs_bar.set_postfix(loss=f"{loss.item():.4f}")
+                epochs_bar.set_postfix(loss=f"{loss.item():.4f}", l_size=f"{size_total.item():.4f}",
+                                l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
 
                 loss.backward()
                 optimizer.step()
@@ -206,6 +230,7 @@ class PGExplainer(BaseExplainer):
         if indices is None: # Consider all indices
             indices = range(0, self.adj.size(0))
 
+        indices = torch.LongTensor(indices).to(self.device)
         self._train(indices=indices)
 
     def explain(self, index):
@@ -223,7 +248,7 @@ class PGExplainer(BaseExplainer):
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
             graph = ptgeom.utils.k_hop_subgraph(index, 3, self.adj)[1]
-            embeds = self.model_to_explain.embedding(self.features, self.adj).detach()
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
             graph = self.adj[index].clone().detach()
@@ -233,6 +258,7 @@ class PGExplainer(BaseExplainer):
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
         sampling_weights = self.explainer_model(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
+        #print("[explain]> mask:", torch.sum(mask > mask.mean()))
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

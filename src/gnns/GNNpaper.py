@@ -102,7 +102,9 @@ class GraphGCN(torch.nn.Module):
         out3 = self.conv3(out2, edge_index, edge_weights)
         out3 = torch.nn.functional.normalize(out3, p=2, dim=1)
         out3 = self.relu3(out3)
+        stack.append(out3)
 
+        # TODO: use concatenation of outs in stack instead of out3
         input_lin = out3
 
         return input_lin

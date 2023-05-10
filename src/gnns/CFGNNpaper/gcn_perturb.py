@@ -41,10 +41,11 @@ class GCNSyntheticPerturb(nn.Module):
 			nhid: int, 
 			nout: int, 
 			nclass: int, 
-			adj, 
+			adj: torch.Tensor, 
 			dropout: float, 
 			beta: float, 
-			edge_additions: bool=False
+			edge_additions: bool=False,
+			device: str="cpu"
 		):
 		super(GCNSyntheticPerturb, self).__init__()
 		self.adj       = adj
@@ -52,15 +53,16 @@ class GCNSyntheticPerturb(nn.Module):
 		self.beta      = beta
 		self.num_nodes = self.adj.shape[0]
 		self.edge_additions = edge_additions    # are edge additions included in perturbed matrix
+		self.device = device
 
 		# P_hat needs to be symmetric ==> learn vector representing entries in 
 		# upper/lower triangular matrix and use to populate P_hat later
 		self.P_vec_size = int((self.num_nodes * self.num_nodes - self.num_nodes) / 2) + self.num_nodes
 
 		if self.edge_additions:
-			self.P_vec = Parameter(torch.FloatTensor(torch.zeros(self.P_vec_size)))
+			self.P_vec = Parameter(torch.FloatTensor(torch.zeros(self.P_vec_size))).to(self.device)
 		else:
-			self.P_vec = Parameter(torch.FloatTensor(torch.ones(self.P_vec_size)))
+			self.P_vec = Parameter(torch.FloatTensor(torch.ones(self.P_vec_size))).to(self.device)
 
 		self.reset_parameters()
     
@@ -71,6 +73,19 @@ class GCNSyntheticPerturb(nn.Module):
 		self.dropout = dropout
 
 	def reset_parameters(self, eps: float=10**-4):
+		"""New version of reset_parameters for CUDA processing."""
+		with torch.no_grad():
+			if self.edge_additions:
+				adj_vec = create_vec_from_symm_matrix(self.adj, self.P_vec_size) #.numpy()
+				first = adj_vec[0] - eps
+				adj_vec = torch.add(adj_vec,eps)
+				adj_vec[0] = first
+
+				torch.add(self.P_vec, adj_vec)       #self.P_vec is all 0s
+			else:
+				torch.sub(self.P_vec, eps)
+
+	def _old_reset_parameters(self, eps: float=10**-4):
 		# Think more about how to initialize this
 		with torch.no_grad():
 			if self.edge_additions:
@@ -102,7 +117,7 @@ class GCNSyntheticPerturb(nn.Module):
 
 		D_tilde = torch.diag(sum(A_tilde)).detach()   # Don't need gradient of this
 		# Raise to power -1/2, set all infs to 0s
-		D_tilde_exp = D_tilde ** (-1 / 2)
+		D_tilde_exp = D_tilde.pow(-0.5)               #D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
 
 		# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
@@ -126,18 +141,19 @@ class GCNSyntheticPerturb(nn.Module):
 			self.P = (torch.sigmoid(self.P_hat_symm) >= 0.5).float()   # threshold P_hat
 		else:
 			self.P = (P_mask.sigmoid() >= 0.5).float()
+		self.P = self.P.to(self.device)
 
 
 		if self.edge_additions:
-			A_tilde = self.P + torch.eye(self.num_nodes)
+			A_tilde = self.P + torch.eye(self.num_nodes).to(self.device)  # ZAVVE cuda test
 		else:
-			A_tilde = self.P * self.adj + torch.eye(self.num_nodes)
+			A_tilde = self.P * self.adj + torch.eye(self.num_nodes).to(self.device)  # ZAVVE cuda test
 
 		#print("P matrix:", self.P.size())
 		#print("A_tilde:", A_tilde.size())
 		D_tilde = torch.diag(sum(A_tilde))
 		# Raise to power -1/2, set all infs to 0s
-		D_tilde_exp = D_tilde ** (-1 / 2)
+		D_tilde_exp = D_tilde.pow(-0.5)     #D_tilde ** (-1 / 2)
 		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
 
 		# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
@@ -167,8 +183,8 @@ class GCNSyntheticPerturb(nn.Module):
 		cf_adj.requires_grad = True  # Need to change this otherwise loss_graph_dist has no gradient
 
 		# Want negative in front to maximize loss instead of minimizing it to find CFs
-		loss_pred = F.nll_loss(output, y_pred_orig)              #F.nll_loss(output, y_pred_orig)
-		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2    # num of edges changed (symmetrical)
+		loss_pred = F.cross_entropy(output, y_pred_orig)              #-F.nll_loss(output, y_pred_orig)
+		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2   # num of edges changed (symmetrical)
 
 		# Zero-out loss_pred with pred_same if prediction flips
 		loss_total = loss_pred + self.beta * loss_graph_dist
