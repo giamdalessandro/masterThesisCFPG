@@ -1,6 +1,6 @@
 import os
 import higher
-import numpy as np
+import argparse
 from tqdm import tqdm
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
@@ -20,28 +20,33 @@ from utils.meta_learn import init_mask, clear_mask, set_mask, meta_update_weight
 
 ## TODO sistemare i parametri con argparse
 #   e aggoirnare la versione di parse_config()
+CUDA = True
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--gnn", "-G", type=str, default='GNN')
+parser.add_argument("--dataset", "-D", type=str, default='syn1')
+parser.add_argument("--epochs", "-e", type=int, default=5, help='Number of explainer epochs.')
+parser.add_argument("--seed", "-s", type=int, default=42, help='Random seed.')
+parser.add_argument('--mode', type=str, default="meta")
 
-MODE = "meta"
-EPOCHS = 500
-TRAIN  = True
-STORE  = True
-DATASET   = "syn2"
-GNN_MODEL = "GNN"
-DEVICE = "cpu"
+parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
+parser.add_argument('--train', default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument('--store', default=False, action=argparse.BooleanOptionalAction)
 
+args = parser.parse_args()
+#print(">>", args)
+GNN_MODEL = args.gnn          # "GNN", "CF-GNN" or "PGE"
+DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
+EPOCHS    = args.epochs       # explainer epochs
+SEED  = args.seed
+MODE  = args.mode              # "" for normal training, "adv" for adversarial
+TRAIN = args.train
+STORE = args.store
+DEVICE = args.device
 
-if DATASET == "syn1": data_cfg = DATASET + "_BAshapes"
-elif DATASET == "syn2": data_cfg = DATASET + "_BAcommunities"
-elif DATASET == "syn3": data_cfg = DATASET + "_treeCycles"
-elif DATASET == "syn4": data_cfg = DATASET + "_treeGrids"
-
-rel_path = f"/configs/{GNN_MODEL}/{data_cfg}.json"
-cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
-cfg = parse_config(config_path=cfg_path)
 
 ## STEP 1: load a BAshapes dataset
-DATASET = cfg["dataset"]
+cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
 dataset, test_indices = load_dataset(dataset=DATASET)
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -73,10 +78,11 @@ model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TR
 
 
 # extract explainer loss function for meta-train loop
+print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, graph, kwargs=cfg["expl_params"])
+    explainer = CFPGExplainer(model, graph, coeffs=cfg["expl_params"])
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, graph, None, kwargs=cfg["expl_params"])
+    explainer = PCFExplainer(model, graph, None, coeffs=cfg["expl_params"])
 expl_loss_fn = explainer.loss
 
 
@@ -87,7 +93,7 @@ TODO Meta-training loop to be implemented
 train_params = cfg["train_params"]
 expl_params = cfg["expl_params"]
 if TRAIN:
-    print(Fore.RED + "\n[meta-training]> starting train...")
+    print(Fore.MAGENTA + "\n[meta-training]> starting train...")
     for p in model.parameters():
         p.to(DEVICE)
 
@@ -183,7 +189,7 @@ if TRAIN:
             if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                 break
 
-
+    best_epoch = best_epoch if STORE else -1
     model = load_best_model(model=model, 
                 best_epoch=best_epoch,
                 gnn=GNN_MODEL, 
@@ -196,10 +202,9 @@ if TRAIN:
     train_acc = evaluate(out[idx_train], labels[idx_train])
     test_acc  = evaluate(out[idx_test], labels[idx_test])
     val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-    print(Fore.RED + "\n[results]> training final results", 
-            f"\n\ttrain_acc: {train_acc:.4f}",
-            f"val_acc: {val_acc:.4f}",
-            f"test_acc: {test_acc:.4f}")
+    print(Fore.MAGENTA + "\n[results]> training final results - Accuracy")
+    if best_epoch == -1: print(Fore.RED+"[DEBUG]> training ckpts not stored, showing default results...")
+    print(f"\t>> train: {train_acc:.4f}  val: {val_acc:.4f}  test: {test_acc:.4f}")
 
 #### STEP 4: Store results
 if STORE:
