@@ -82,7 +82,7 @@ print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 if GNN_MODEL == "GNN":
     explainer = CFPGExplainer(model, graph, coeffs=cfg["expl_params"])
 elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, graph, None, coeffs=cfg["expl_params"])
+    explainer = PCFExplainer(model, graph, norm_edge_index, coeffs=cfg["expl_params"])
 expl_loss_fn = explainer.loss
 
 
