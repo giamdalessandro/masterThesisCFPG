@@ -157,8 +157,8 @@ for g in range(dataset.len()):
 
         # Train eval
         train_acc = evaluate(out[idx_train], labels[idx_train])
-        test_acc  = evaluate(out[idx_test], labels[idx_test])
         val_acc   = evaluate(out[idx_eval], labels[idx_eval])
+        test_acc  = evaluate(out[idx_test], labels[idx_test])
         print(Fore.MAGENTA + "\n[results]> training final results - Accuracy")
         if best_epoch == -1: print(Fore.RED+"[DEBUG]> training ckpts not stored, showing default results...")
         print(f"\t>> train: {train_acc:.4f}  val: {val_acc:.4f}  test: {test_acc:.4f}")

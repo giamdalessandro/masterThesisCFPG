@@ -8,6 +8,7 @@ from torch.optim import Adam, SGD
 import torch_geometric
 from torch_geometric.utils import k_hop_subgraph 
 from torch_geometric.loader import NeighborLoader
+from torch_geometric.nn import GCNConv
 
 from .BaseExplainer import BaseExplainer
 from utils.graphs import index_edge
@@ -16,14 +17,100 @@ from utils.graphs import index_edge
 NODE_BATCH_SIZE = 32
 
 
-class CFPGExplainer(BaseExplainer):
-    """A class encaptulating CF-PGExplainer (Counterfactual-PGExplainer).
+class CFPGv2ExplModule(torch.nn.Module):
+    """Class for the explanation module of CFPG-v.2"""
+    def __init__(self, in_feats: int, enc_hidden: int=20, dec_hidden: int=64, device: str="cpu") -> None:
+        super().__init__()
+        self.device = device
+        self.in_feats = in_feats
+        self.enc_h = enc_hidden
+        self.dec_h = dec_hidden
+
+        self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
+
+        self.latent_dim = self.enc_h*3
+        self.decoder = nn.Sequential(
+            nn.Linear(self.latent_dim, self.dec_h),
+            nn.ReLU(),
+            nn.Linear(self.dec_h, 1),
+        ).to(self.device)
+
+    def forward(self, x, edge_index, node_id):
+        # encoder step
+        x1 = nn.functional.relu(self.enc_gc1(x, edge_index))
+
+        # parse latent representation
+        z = self._parse_latent_rep(edge_index, x1, node_id)
+
+        # decoder step
+        x2 = self.decoder(z)
+        sampled_mask = self._sample_graph(x2)
+
+        return sampled_mask
+
+    def _parse_latent_rep(self, sub_index, enc_embeds, node_id):
+        """Use encoder node embeddings to create encoder edge embeddings,
+        getting each edge embed by concatenating the embeddings of the nodes 
+        adjacent ot it with the embeddig of `node_id`, the node which we 
+        wish to explain.   
+
+        ### Args
+        `sub_index`: `torch.Tensor`
+            edge_index of the neighborhood subgraph of `node_id`;
+
+        `enc_embeds`: `torch.Tensor`
+            embedding of all nodes in `node_id` neighborhood
+        
+        `node_id`: int
+            id of the node we wish to explain
+        
+        ### Returns
+            Concatenated encoder edge embeddings
+        """
+        rows = sub_index[0]
+        cols = sub_index[1]
+        row_embeds = enc_embeds[rows]
+        col_embeds = enc_embeds[cols]
+
+        node_embed = enc_embeds[node_id].repeat(rows.size(0), 1).to(self.device)
+        parsed_rep = torch.cat([row_embeds, col_embeds, node_embed], 1).to(self.device)
+        
+        return parsed_rep
     
-    Methods:
-        `prepare`: prepare the explanation method for explaining;
-        `explain`: search for the subgraph which contributes most to the clasification
-             decision of the model-to-be-explained.
-    """
+    def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
+        r"""Implementation of the reparamerization trick to obtain a sample 
+        graph while maintaining the posibility to backprop.
+        
+        ### Args
+        sampling_weights : `torch.Tensor`
+            Weights provided by the mlp;
+
+        temperature : `float`
+            annealing temperature to make the procedure more deterministic;
+
+        bias : `float`
+            Bias on the weights to make samplign less deterministic;
+
+        training : `bool`
+            If set to false, the samplign will be entirely deterministic;
+        
+        ### Return 
+            sampled graph.
+        """
+        if training:
+            bias = bias + 0.0001  # If bias is 0, we run into problems
+            eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
+            gate_inputs = (torch.log(eps) - torch.log(1 - eps)).to(self.device)
+            gate_inputs = (gate_inputs + sampling_weights) / temperature
+            graph =  torch.sigmoid(gate_inputs)
+        else:
+            graph = torch.sigmoid(sampling_weights)
+        return graph
+
+
+
+class CFPGv2(BaseExplainer):
+    """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer)"""
     ## default values for explainer parameters
     coeffs = {
         "lr": 0.003,
@@ -60,7 +147,7 @@ class CFPGExplainer(BaseExplainer):
             lr, temprature, etc..).
         """
         super().__init__(model_to_explain, data_graph, task, device)
-        self.expl_name = "CFPG"
+        self.expl_name = "CFPG-v2"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
@@ -75,72 +162,25 @@ class CFPGExplainer(BaseExplainer):
             self.expl_embedding = self.model_to_explain.embedding_size * 3
 
         # Instantiate the explainer model
-        self.explainer_mlp = nn.Sequential(         # PGE default
-            nn.Linear(self.expl_embedding, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1),
-        ).to(self.device)
+        in_feats = self.features.size(1)
+        self.explainer_module = CFPGv2ExplModule(in_feats,10,32,device)
 
+        n_heads = 7
+        #self.explainer_mlp = nn.Sequential(        # ZAVVE
+        #    nn.Linear(self.expl_embedding, 64),
+        #    nn.ReLU(),
+        #    nn.Linear(64, n_heads),
+        #    nn.LeakyReLU(),
+        #    #nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)
 
-    def _create_explainer_input(self, pair, embeds, node_id):
-        """
-        Given the embeddign of the sample by the model that we wish to explain, 
-        this method construct the input to the mlp explainer model. Depending on
-        if the task is to explain a graph or a sample, this is done by either 
-        concatenating two or three embeddings.
-        
-        ### Args
-        `pair`: edge pair;
-
-        `embeds`: embedding of all nodes in the graph
-        
-        `node_id`: id of the node, not used for graph datasets
-        
-        ### Returns
-            Concatenated embedding
-        """
-        rows = pair[0]
-        cols = pair[1]
-        row_embeds = embeds[rows]
-        col_embeds = embeds[cols]
-
-        if self.type == 'node':
-            node_embed = embeds[node_id].repeat(rows.size(0), 1).to(self.device)
-            input_expl = torch.cat([row_embeds, col_embeds, node_embed], 1).to(self.device)
-        else:
-            # Node id is not used in this case
-            input_expl = torch.cat([row_embeds, col_embeds], 1).to(self.device)
-        return input_expl
-
-    def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
-        r"""Implementation of the reparamerization trick to obtain a sample 
-        graph while maintaining the posibility to backprop.
-        
-        ### Args
-        sampling_weights : `torch.Tensor`
-            Weights provided by the mlp;
-
-        temperature : `float`
-            annealing temperature to make the procedure more deterministic;
-
-        bias : `float`
-            Bias on the weights to make samplign less deterministic;
-
-        training : `bool`
-            If set to false, the samplign will be entirely deterministic;
-        
-        ### Return 
-            sampled graph.
-        """
-        if training:
-            bias = bias + 0.0001  # If bias is 0, we run into problems
-            eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
-            gate_inputs = (torch.log(eps) - torch.log(1 - eps)).to(self.device)
-            gate_inputs = (gate_inputs + sampling_weights) / temperature
-            graph =  torch.sigmoid(gate_inputs)
-        else:
-            graph = torch.sigmoid(sampling_weights)
-        return graph
+        #self.explainer_mlp = nn.Sequential(
+        #    nn.Linear(self.expl_embedding, n_heads),
+        #    nn.LeakyReLU(),
+        #    nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """
@@ -196,7 +236,7 @@ class CFPGExplainer(BaseExplainer):
 
     def _train(self, indices=None):
         """
-        Main method to train the model
+        Main method to train the modeledge_weights=None
         
         Args: 
         - indices: Indices that we want to use for training.
@@ -206,21 +246,21 @@ class CFPGExplainer(BaseExplainer):
         sample_bias = self.coeffs["sample_bias"]
 
         # Make sure the explainer model can be trained
-        self.explainer_mlp.train()
+        self.explainer_module.train()
 
         # Create optimizer and temperature schedule
         opt = self.coeffs["opt"]
         if opt == "Adam": 
-            optimizer = Adam(self.explainer_mlp.parameters(), lr=lr)
+            optimizer = Adam(self.explainer_module.parameters(), lr=lr)
         elif opt == "SGD":
             #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr, nesterov=True, momentum=0.9)
-            optimizer = SGD(self.explainer_mlp.parameters(), lr=lr)
+            optimizer = SGD(self.explainer_module.parameters(), lr=lr)
 
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
-        # If we are explaining a graph, we can determine the embeddings before we run
-        if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
+        ## If we are explaining a graph, we can determine the embeddings before we run
+        #if self.type == 'node':
+        #    embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
 
         # use NeighborLoader to sample batch_size nodes and their respective 3-hop neighborhood
         gnn_iter = 3               # GCN model has 3 mp iteration
@@ -264,28 +304,16 @@ class CFPGExplainer(BaseExplainer):
                     for b_n_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
                         global_idx = global_n_ids[b_n_idx].to(self.device)
-                        #print("\n------- node (global_id)", global_idx, f"(local id {b_n_idx})")
 
                         sub_nodes, sub_index, n_map, _ = k_hop_subgraph(b_n_idx, 3, batch_graph, relabel_nodes=True)
                         sub_index = sub_index.to(self.device)
                         sub_feats = batch_feats[sub_nodes, :].to(self.device)
-                        #print("\t>> sub_feats:", sub_feats.size())
 
                         global_n_ids = global_n_ids.to(self.device)
                         sub_graph = torch.take(global_n_ids,sub_index)    # global node indices to sub-graph
-                        #print("\t>> sub_index:", sub_index.size())
                         
-                        # compute edge embeddings to be fed to the explainer
-                        input_expl = self._create_explainer_input(sub_graph, embeds, global_idx).unsqueeze(0)
-                        
-                        sampling_weights = self.explainer_mlp(input_expl)
-                        mask = self._sample_graph(sampling_weights, t, bias=sample_bias, training=False).squeeze()
-                        
-                        # to get opposite of cf-mask, i.e. explanation
-                        cf_adj = torch.ones(mask.size()).to(self.device) 
-                        cf_adj = (cf_adj - mask).abs()
-                        #print("\t>> cf_adj:", cf_adj.size())
-                        #exit(0)
+                        # compute explanation mask
+                        mask = self.explainer_module(sub_feats, sub_index, b_n_idx)
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
@@ -353,7 +381,7 @@ class CFPGExplainer(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            sub_nodes, graph, _, _ = k_hop_subgraph(index, 3, self.adj)
+            sub_nodes, graph, n_map, _ = k_hop_subgraph(index, 3, self.adj)
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
@@ -361,9 +389,11 @@ class CFPGExplainer(BaseExplainer):
             embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
         # Use explainer mlp to get an explanation
-        input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
-        sampling_weights = self.explainer_mlp(input_expl)
-        mask = self._sample_graph(sampling_weights, training=False).squeeze()
+        sub_feats = embeds[sub_nodes]
+        mask = self.explainer_module(sub_feats, graph, n_map)
+        #input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
+        #sampling_weights = self.explainer_module(input_expl)
+        #mask = self._sample_graph(sampling_weights, training=False).squeeze()
     
         # to get opposite of cf-mask, i.e. explanation
         cf_adj = torch.ones(mask.size()).to(self.device) 

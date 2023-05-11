@@ -26,7 +26,7 @@ def string_to_model(paper: str, dataset: str, device: str, config):
     n_hid   = config["num_hidden"]
     n_class = config["num_classes"]
 
-    if paper == "GNN" or paper == "PGE":  # GNNExplainer and PGExplainer gnn model
+    if paper == "GNN" or paper == "PGE" or paper == "CFPGv2":  # GNNExplainer and PGExplainer gnn model
         if dataset in ['syn1','syn2','syn3','syn4']:
             # node classification datasets
             return NodeGCN(n_feat, n_class, device)
@@ -61,6 +61,9 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
     Returns 
         The path (`str`) to the pre-trined model parameters.
     """
+    # to test CFPGv2, should remove it later
+    paper = "GNN" if paper == "CFPGv2" else paper
+
     # maybe wirte get_pretrained_model function
     if paper == "CF-GNN_old":
         # to load CFExpl paper pretrained models

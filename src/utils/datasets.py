@@ -19,6 +19,8 @@ def parse_config(dataset: str, gnn: str):
     elif dataset == "syn4": data_cfg = dataset + "_treeGrids"
 
     #gnn = "PGE" # to force PGE params
+    gnn = "GNN" if gnn == "CFPGv2" else gnn             # use GNN config for CFPGv2 
+    
     rel_path = f"/../configs/{gnn}/{data_cfg}.json"
     cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
 

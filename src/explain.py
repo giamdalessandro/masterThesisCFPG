@@ -9,6 +9,7 @@ import torch
 from explainers.PGExplainer import PGExplainer
 from explainers.CFPGExplainer import CFPGExplainer
 from explainers.PCFExplainer import PCFExplainer
+from explainers.CFPGv2 import CFPGv2
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
@@ -106,7 +107,8 @@ elif GNN_MODEL == "CF-GNN":
     explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 elif GNN_MODEL == "PGE":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
-
+elif GNN_MODEL == "CFPGv2":
+    explainer = CFPGv2(model, graph, epochs=EPOCHS, coeffs=cfg["expl_params"])
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
