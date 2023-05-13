@@ -75,7 +75,7 @@ class BAGraphDataset(Dataset):
 
         # pyg uses sparse matrix representation as default
         edge_index = torch.tensor(adj).to_sparse()
-        edge_label = torch.tensor(edge_label_matrix).to_sparse()
+        edge_label = torch.tensor(edge_label_matrix).to_sparse_coo()
 
         y_train[val_mask]  = y_val[val_mask]
         y_train[test_mask] = y_test[test_mask]
