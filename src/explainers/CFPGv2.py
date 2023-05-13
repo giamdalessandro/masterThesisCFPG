@@ -51,7 +51,7 @@ class CFPGv2ExplModule(torch.nn.Module):
     def _parse_latent_rep(self, sub_index, enc_embeds, node_id):
         """Use encoder node embeddings to create encoder edge embeddings,
         getting each edge embed by concatenating the embeddings of the nodes 
-        adjacent ot it with the embeddig of `node_id`, the node which we 
+        adjacent to it with the embeddig of `node_id`, the node which we 
         wish to explain.   
 
         ### Args
@@ -163,7 +163,7 @@ class CFPGv2(BaseExplainer):
 
         # Instantiate the explainer model
         in_feats = self.features.size(1)
-        self.explainer_module = CFPGv2ExplModule(in_feats,10,32,device)
+        self.explainer_module = CFPGv2ExplModule(in_feats,10,64,device)
 
         n_heads = 7
         #self.explainer_mlp = nn.Sequential(        # ZAVVE
@@ -294,26 +294,30 @@ class CFPGv2(BaseExplainer):
                     else:
                         curr_batch_size = NODE_BATCH_SIZE
 
-                    if self.type == 'node':
-                        # Similar to the original paper we only consider a subgraph for explaining
-                        batch_feats  = node_batch.x
-                        batch_graph  = node_batch.edge_index
-                        global_n_ids = node_batch.n_id
-                        b_id += 1
+                    #if self.type == 'node':
+                    batch_feats  = node_batch.x
+                    batch_graph  = node_batch.edge_index
+                    global_n_ids = node_batch.n_id
+                    b_id += 1
 
                     for b_n_idx in range(curr_batch_size):
                         # only need node_id neighnbors to compute the explainer input
                         global_idx = global_n_ids[b_n_idx].to(self.device)
 
+                        # we only consider 3hop-neighborhood for explaining
                         sub_nodes, sub_index, n_map, _ = k_hop_subgraph(b_n_idx, 3, batch_graph, relabel_nodes=True)
                         sub_index = sub_index.to(self.device)
                         sub_feats = batch_feats[sub_nodes, :].to(self.device)
 
+                        # relabel sub-graph with global node indices   # still needed?
                         global_n_ids = global_n_ids.to(self.device)
-                        sub_graph = torch.take(global_n_ids,sub_index)    # global node indices to sub-graph
+                        sub_graph = torch.take(global_n_ids,sub_index)    
                         
                         # compute explanation mask
-                        mask = self.explainer_module(sub_feats, sub_index, b_n_idx)
+                        #print("\n\t>> sub feats:", sub_feats.size())
+                        #print("\t>> sub graph:", sub_index.size())
+                        mask = self.explainer_module(sub_feats, sub_index, n_map)
+                        #exit(0)
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
@@ -330,7 +334,7 @@ class CFPGv2(BaseExplainer):
                                                                     mask=mask)  #mask
 
 
-                        # if original prediction changes save the CF example
+                        # if masked prediction is different from original, save the CF example
                         if pred_same == 0:
                             #print("cf example found for node", global_idx)
                             best_loss = id_loss
@@ -372,7 +376,7 @@ class CFPGv2(BaseExplainer):
         This only gives sensible results if the prepare method has already been called.
 
         ### Args
-        index : int
+        index : `int`
             index of the node/graph that we wish to explain
 
         ### Return
@@ -381,7 +385,7 @@ class CFPGv2(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            sub_nodes, graph, n_map, _ = k_hop_subgraph(index, 3, self.adj)
+            sub_nodes, graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=False)
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
@@ -389,15 +393,17 @@ class CFPGv2(BaseExplainer):
             embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
         # Use explainer mlp to get an explanation
-        sub_feats = embeds[sub_nodes]
-        mask = self.explainer_module(sub_feats, graph, n_map)
-        #input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
-        #sampling_weights = self.explainer_module(input_expl)
-        #mask = self._sample_graph(sampling_weights, training=False).squeeze()
-    
+        sub_feats = self.features[sub_nodes, :]
+        #mask = self.explainer_module(sub_feats, graph, n_map)
+        mask = self.explainer_module(self.features, graph, index)
+        
         # to get opposite of cf-mask, i.e. explanation
-        cf_adj = torch.ones(mask.size()).to(self.device) 
-        mask = (cf_adj - mask).abs()
+        #cf_adj = torch.ones(mask.size()).to(self.device) 
+        #mask = (cf_adj - mask).abs()
+        #print("\n\t>> mask:", mask.size())
+        #print("\t>> mean:", mask.mean())
+        #print("\t>> sum :", (mask > 0.5).sum())
+        #exit(0)
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):
@@ -405,4 +411,4 @@ class CFPGv2(BaseExplainer):
             t = index_edge(graph, pair)
             expl_graph_weights[t] = mask[i]
 
-        return graph, expl_graph_weights #, sub_nodes, mask
+        return graph, expl_graph_weights

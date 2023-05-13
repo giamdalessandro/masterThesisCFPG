@@ -1,18 +1,20 @@
-import numpy as np
+import torch
 from tqdm import tqdm
 
-from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.metrics import roc_auc_score, accuracy_score
 
 from .BaseEvaluation import BaseEvaluation
 
 
 
-def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=True):
+def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=False):
     """Evaluate the auc score given explaination and ground truth labels.
 
     ### Args
     `explanations` : list
-        predicted labels, list of tuples (edge,edge_labels);
+        predicted explanation as a list of (edge_index,edge_labels) tuples, 
+        one for each node explained with the edge indices of the node 
+        neighborhood and the relative labels;
     
     `explanation_lables` : sparse COO Tensor
         explanation ground truth labels.
@@ -23,34 +25,45 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=True):
     ground_truth = []
     predictions = []
     # for easier access densify explanation labels matrix
-    expl_lab_dense = explanation_labels[1].to_dense()
-    #pred_scores = explanations[1]
-    #print("[AUC]> pred scores:", (pred_scores > 0.5).sum())
+    expl_labels_sparse = explanation_labels[1].indices()
+    #print("\t[DEBUG]> gt edge_index: ", explanation_labels[0].size())
+    #print("\t[DEBUG]> gt edge labels:", explanation_labels[1].size())
+    #print("\t[DEBUG]> #gt edges:", expl_labels_sparse.size())
 
+    #print("\n\t[DEBUG]> #expl:", len(explanations))
+    #print("\t[DEBUG]> first expl:", explanations[0][0].size(), explanations[0][1].size())
+    #print("\t[DEBUG]> first expl:", explanations[0][0])
+    #exit(0)
+    
+    expl_lab_dense = explanation_labels[1].to_dense()
+
+    expl_pred_dense = torch.zeros(explanation_labels[1].size())
+    #pred_scores = explanations[1]
+
+    visited_edges = torch.zeros(explanation_labels[1].size())
     with tqdm(explanations, desc="[metrics]> AUC score", disable=False) as eval_step:
         for expl in eval_step: # Loop over the explanations for each node
+            # expl[0] -> explanation edge indices
+            # expl[1] -> explanation edge weights
+
             #print("[AUC]> expl graph (expl[0]):", expl[0].size())    # edge index
             pred_scores = expl[1]
             pred_mean = expl[1].mean()
-            #print("[AUC]> expl preds (expl[1]):", (expl[1] > pred_mean.item()).sum())    # predicted edge labels
-            #print("[AUC]> gt edges :", explanation_labels[0].size())
-            #print("[AUC]> gt labels:", explanation_labels[1].size())
 
             ground_truth_node = []
             prediction_node = []
             
             for i in range(0, expl[0].size(1)): # Loop over all edges in the explanation sub-graph
-                prediction_node.append(expl[1][i].item())
-                #print(f"[AUC] prediction: {expl[1][i].item():.4f}")
-
+                edge_pred = expl[1][i].item()
+                prediction_node.append(edge_pred)
                 # Graphs are defined bidirectional, so we need to retrieve both edges
-                pair = expl[0].T[i].long() #.numpy()
-                #pair_rev = torch.LongTensor([pair[1], pair[0]])
-                #idx_edge = np.where((explanation_labels[0].T == pair).all(dim=1))[0]
-                #idx_edge_rev = np.where((explanation_labels[0].T == pair_rev).all(dim=1))[0]
-                #print("\nidx edge     :", idx_edge)
-                #print("idx edge rev :", idx_edge_rev)
-                #print("expl edge    :", explanation_labels[1].T.size())
+                pair = expl[0].T[i].long() #.numpy()      
+                
+                #if visited_edges[pair[0]][pair[1]] == 1:
+                #    continue
+                #else:
+                #    visited_edges[pair[0]][pair[1]] = 1
+                #if edge_pred > 0.5: expl_pred_dense[pair[0]][pair[1]] = 1    
 
                 # If any of the edges is in the ground truth set, the edge should be in the explanation
                 edge     = expl_lab_dense[pair[0]][pair[1]].item() 
@@ -67,11 +80,19 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=True):
             ground_truth.extend(ground_truth_node)
             predictions.extend(prediction_node)
 
+    #print("\n\t[DEBUG]> gt: ", len(ground_truth))
+    #print("\t[DEBUG]> preds:", len(predictions))
+    #exit(0)
+
     #fpr, tpr, thres = roc_curve(ground_truth, predictions)
     #print("[eval]> ROC thresholds:", len(thres)) 
+    #score = accuracy_score(ground_truth, predictions)
     score = roc_auc_score(ground_truth, predictions)
 
-    if plot_roc:
+    #expl_pred_sparse = expl_pred_dense.to_sparse_coo().indices()
+    #print("\n\t[DEBUG]> expl_pred_sparse:", expl_pred_sparse.size())
+    
+    if plot_roc:   # plot ROC curve
         import matplotlib.pyplot as plt
         from sklearn.metrics import RocCurveDisplay
 

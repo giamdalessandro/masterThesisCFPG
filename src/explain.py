@@ -137,9 +137,6 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
 
-        #print("subg :", graph.size())
-        #print("expl :", expl.size())
-        #print("mask :", mask.size())
         if (curr_id%(n_tests//5)) == 0: 
             plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         elif idx == test_idxs[-1]: 
