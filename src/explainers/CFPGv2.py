@@ -19,12 +19,17 @@ NODE_BATCH_SIZE = 32
 
 class CFPGv2ExplModule(torch.nn.Module):
     """Class for the explanation module of CFPG-v.2"""
-    def __init__(self, in_feats: int, enc_hidden: int=20, dec_hidden: int=64, device: str="cpu") -> None:
+    def __init__(self, 
+            in_feats: int, 
+            enc_hidden: int=20,
+            dec_hidden: int=64, 
+            device: str="cpu"
+        ) -> None:
         super().__init__()
-        self.device = device
         self.in_feats = in_feats
         self.enc_h = enc_hidden
         self.dec_h = dec_hidden
+        self.device = device
 
         self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
 
@@ -35,7 +40,7 @@ class CFPGv2ExplModule(torch.nn.Module):
             nn.Linear(self.dec_h, 1),
         ).to(self.device)
 
-    def forward(self, x, edge_index, node_id):
+    def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
         # encoder step
         x1 = nn.functional.relu(self.enc_gc1(x, edge_index))
 
@@ -44,7 +49,7 @@ class CFPGv2ExplModule(torch.nn.Module):
 
         # decoder step
         x2 = self.decoder(z)
-        sampled_mask = self._sample_graph(x2)
+        sampled_mask = self._sample_graph(x2, bias=bias, training=train)
 
         return sampled_mask
 
@@ -163,7 +168,7 @@ class CFPGv2(BaseExplainer):
 
         # Instantiate the explainer model
         in_feats = self.features.size(1)
-        self.explainer_module = CFPGv2ExplModule(in_feats,10,64,device)
+        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,device)
 
         n_heads = 7
         #self.explainer_mlp = nn.Sequential(        # ZAVVE
@@ -316,7 +321,7 @@ class CFPGv2(BaseExplainer):
                         # compute explanation mask
                         #print("\n\t>> sub feats:", sub_feats.size())
                         #print("\t>> sub graph:", sub_index.size())
-                        mask = self.explainer_module(sub_feats, sub_index, n_map)
+                        mask = self.explainer_module(sub_feats, sub_index, n_map, bias=sample_bias)
                         #exit(0)
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
@@ -395,15 +400,16 @@ class CFPGv2(BaseExplainer):
         # Use explainer mlp to get an explanation
         sub_feats = self.features[sub_nodes, :]
         #mask = self.explainer_module(sub_feats, graph, n_map)
-        mask = self.explainer_module(self.features, graph, index)
+        mask = self.explainer_module(self.features, graph, index, train=False)
         
         # to get opposite of cf-mask, i.e. explanation
-        #cf_adj = torch.ones(mask.size()).to(self.device) 
-        #mask = (cf_adj - mask).abs()
+        cf_adj = torch.ones(mask.size()).to(self.device) 
+        mask = (cf_adj - mask).abs()
         #print("\n\t>> mask:", mask.size())
         #print("\t>> mean:", mask.mean())
         #print("\t>> sum :", (mask > 0.5).sum())
         #exit(0)
+        #mask = (mask > 0.5).float()
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):
