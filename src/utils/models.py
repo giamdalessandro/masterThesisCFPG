@@ -74,9 +74,9 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
     if explainer == "":
         rel_path = f"{paper}/{dataset}/{model_name}"
     elif explainer == "adv":
-        rel_path = f"{paper}/adv/{dataset}/{model_name}"
+        rel_path = f"{paper}/{explainer}/{dataset}/{model_name}"
     else:
-        rel_path = f"meta/{paper}/{explainer}/{dataset}/{model_name}"
+        rel_path = f"{paper}/{explainer}/{dataset}/{model_name}"
 
     print(Fore.CYAN + "[models]> ...loading checkpoint from",f"'checkpoints/{rel_path}'")
 

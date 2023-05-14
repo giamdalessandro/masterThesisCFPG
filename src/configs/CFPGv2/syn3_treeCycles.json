@@ -1,0 +1,23 @@
+{
+    "paper" : "CFPGv2",
+    "dataset" : "syn3",
+    "num_hidden" : 20,
+    "train_params" : {
+        "lr" : 0.003,
+        "epochs" : [1000],
+        "early_stop" : 100,
+        "clip_max" : 2.0,
+        "eval_enabled" : true,
+        "T" : 5,
+        "inner_lr" : 0.0001
+    },
+    "expl_params" : {
+        "opt" : "SGD",
+        "lr" : 0.001,
+        "reg_ent" : 10.0,
+        "reg_size" : 0.5,
+        "reg_cf" : 5.0,
+        "temps" : [1.0, 1.0],
+        "sample_bias" : 0.5
+    }
+}
