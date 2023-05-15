@@ -187,7 +187,7 @@ class CFPGv2(BaseExplainer):
 
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
-        self.explainer_module = CFPGv2ExplModule(in_feats,10,32,device)
+        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,device)
 
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
@@ -395,7 +395,7 @@ class CFPGv2(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            sub_nodes, graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
+            sub_nodes, sub_graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=False)
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
@@ -404,8 +404,8 @@ class CFPGv2(BaseExplainer):
 
         # Use explainer mlp to get an explanation
         expl_feats = embeds[sub_nodes, :].to(self.device)
-        #mask = self.explainer_module(sub_feats, graph, n_map)
-        mask = self.explainer_module(expl_feats, graph, n_map, train=False)
+        #mask = self.explainer_module(sub_feats, sub_graph, n_map)
+        mask = self.explainer_module(embeds, sub_graph, index, train=False)
         
         # to get opposite of cf-mask, i.e. explanation
         cf_adj = torch.ones(mask.size()).to(self.device) 
@@ -416,10 +416,10 @@ class CFPGv2(BaseExplainer):
         #exit(0)
         #mask = (mask > 0.5).float()
 
-        expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
+        expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):
-            pair = graph.T[i]
-            t = index_edge(graph, pair)
+            pair = sub_graph.T[i]
+            t = index_edge(sub_graph, pair)
             expl_graph_weights[t] = mask[i]
 
-        return graph, expl_graph_weights
+        return sub_graph, expl_graph_weights
