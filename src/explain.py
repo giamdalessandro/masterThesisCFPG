@@ -27,12 +27,13 @@ parser.add_argument("--explainer", "-E", type=str, default="GNN")
 parser.add_argument("--dataset", "-D", type=str, default="syn1")
 parser.add_argument("--epochs", "-e", type=int, default=5, help="Number of explainer epochs.")
 parser.add_argument("--seed", "-s", type=int, default=42, help="Random seed.")
-parser.add_argument('--plot', default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument('--plot-expl', default=False, action=argparse.BooleanOptionalAction)
 
 # other arguments
 parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
 parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction)
 parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument("--roc", default=False, action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 print(">>", args)
@@ -40,7 +41,7 @@ DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
 GNN_MODEL = args.explainer    # "GNN", "CF-GNN" or "PGE"
 EPOCHS    = args.epochs       # explainer epochs
 SEED      = args.seed
-PLOT      = args.plot
+PLOT      = args.plot_expl
 TRAIN_NODES = args.train_nodes
 STORE_ADV   = args.store_adv
 
@@ -150,7 +151,7 @@ inference_eval.done_explaining()
 
 # compute AUC score for computed explanation
 print(Fore.MAGENTA + "\n[explain]> explanation metrics")
-auc_score = auc_eval.get_score(explanations)
+auc_score = auc_eval.get_score(explanations, args.roc)
 time_score = inference_eval.get_score(explanations)
 print("\t>> final score:",f"{auc_score:.4f}")
 print("\t>> time elapsed:",f"{time_score:.4f}")

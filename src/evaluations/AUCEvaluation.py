@@ -129,7 +129,7 @@ class AUCEvaluation(BaseEvaluation):
         self.indices = indices
         self.ground_truth = ground_truth
 
-    def get_score(self, explanations):
+    def get_score(self, explanations, plot: bool=False):
         """Determines the auc score based on the given list of explanations and
         the list of ground truths
         
@@ -143,4 +143,4 @@ class AUCEvaluation(BaseEvaluation):
             return NotImplementedError("Graph AUC-score not implemented.")
             return _eval_AUC_graph(explanations, explanation_labels, self.indices)
         elif self.task == 'node':
-            return _eval_AUC_node(explanations, self.ground_truth)
+            return _eval_AUC_node(explanations, self.ground_truth, plot)
