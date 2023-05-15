@@ -40,6 +40,25 @@ class CFPGv2ExplModule(torch.nn.Module):
             nn.Linear(self.dec_h, 1),
         ).to(self.device)
 
+        ## possible decoders
+        """n_heads = 7
+        #self.decoder = nn.Sequential(        # ZAVVE
+        #    nn.Linear(self.expl_embedding, 64),
+        #    nn.ReLU(),
+        #    nn.Linear(64, n_heads),
+        #    nn.LeakyReLU(),
+        #    #nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)
+
+        #self.decoder = nn.Sequential(
+        #    nn.Linear(self.expl_embedding, n_heads),
+        #    nn.LeakyReLU(),
+        #    nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)"""
+
+
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
         # encoder step
         x1 = nn.functional.relu(self.enc_gc1(x, edge_index))
@@ -167,25 +186,9 @@ class CFPGv2(BaseExplainer):
             self.expl_embedding = self.model_to_explain.embedding_size * 3
 
         # Instantiate the explainer model
-        in_feats = self.features.size(1)
-        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,device)
+        in_feats = self.model_to_explain.embedding_size
+        self.explainer_module = CFPGv2ExplModule(in_feats,10,32,device)
 
-        n_heads = 7
-        #self.explainer_mlp = nn.Sequential(        # ZAVVE
-        #    nn.Linear(self.expl_embedding, 64),
-        #    nn.ReLU(),
-        #    nn.Linear(64, n_heads),
-        #    nn.LeakyReLU(),
-        #    #nn.Softmax(dim=1),
-        #    nn.AvgPool1d(n_heads),
-        #).to(self.device)
-
-        #self.explainer_mlp = nn.Sequential(
-        #    nn.Linear(self.expl_embedding, n_heads),
-        #    nn.LeakyReLU(),
-        #    nn.Softmax(dim=1),
-        #    nn.AvgPool1d(n_heads),
-        #).to(self.device)
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """
@@ -218,9 +221,9 @@ class CFPGv2(BaseExplainer):
         #tot_edges = torch.ones(mask.size()).to(self.device).sum()
         #size_loss = ((tot_edges - cf_edges).abs()) / 2
 
-        size_loss = -((mask > mask_mean)).sum()   # working fine
+        #size_loss = -((mask > mask_mean)).sum()   # working fine
         #print("\t>> cf mask size:", size_loss.item())      # working fine
-        #size_loss = (mask.sigmoid()).sum()     # old
+        size_loss = -(mask.sigmoid()).sum()     # old
         size_loss = size_loss * reg_size
 
         #scale = 0.99
@@ -264,8 +267,8 @@ class CFPGv2(BaseExplainer):
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         ## If we are explaining a graph, we can determine the embeddings before we run
-        #if self.type == 'node':
-        #    embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
+        if self.type == 'node':
+            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
 
         # use NeighborLoader to sample batch_size nodes and their respective 3-hop neighborhood
         gnn_iter = 3               # GCN model has 3 mp iteration
@@ -319,9 +322,11 @@ class CFPGv2(BaseExplainer):
                         sub_graph = torch.take(global_n_ids,sub_index)    
                         
                         # compute explanation mask
-                        #print("\n\t>> sub feats:", sub_feats.size())
+                        expl_feats = embeds[global_n_ids].to(self.device)
+                        #print("\n\t>> expl feats:", expl_feats.size())
+                        #print("\t>> sub feats:", sub_feats.size())
                         #print("\t>> sub graph:", sub_index.size())
-                        mask = self.explainer_module(sub_feats, sub_index, n_map, bias=sample_bias)
+                        mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
                         #exit(0)
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
@@ -390,7 +395,7 @@ class CFPGv2(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            sub_nodes, graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=False)
+            sub_nodes, graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
@@ -398,9 +403,9 @@ class CFPGv2(BaseExplainer):
             embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
         # Use explainer mlp to get an explanation
-        sub_feats = self.features[sub_nodes, :]
+        expl_feats = embeds[sub_nodes, :].to(self.device)
         #mask = self.explainer_module(sub_feats, graph, n_map)
-        mask = self.explainer_module(self.features, graph, index, train=False)
+        mask = self.explainer_module(expl_feats, graph, n_map, train=False)
         
         # to get opposite of cf-mask, i.e. explanation
         cf_adj = torch.ones(mask.size()).to(self.device) 

@@ -145,7 +145,6 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
         
         explanations.append((graph, expl))
         curr_id += 1
-        #exit(0)
 
 inference_eval.done_explaining()
 
