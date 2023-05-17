@@ -100,8 +100,10 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, save_path: str=LOG_
     eps = logs["epochs"]
     opt = logs["cfg"]["opt"]
     conv = logs["conv"]
-    e_c = logs['cfg']
     log_file = f"{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
+    
+    e_c = logs["cfg"]
+    heads = 0 if conv == "GCN" else e_c["heads"]     # no meaning if using GCNconv
 
     date_str = datetime.now().strftime("%d %B, %H:%M")
     log_file = save_path + "/" + log_file
@@ -109,10 +111,10 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, save_path: str=LOG_
         log_f.write(f"\n############################################################\n")
         log_f.write(f"---------- {explainer} - {dataset} - {date_str} ---------------\n")
         log_f.write(f">> epochs:     {eps} \t\tnode explained: {logs['nodes']}\n")
-        log_f.write(f">> graph conv: {conv}\t\theads (if GAT):\n")
+        log_f.write(f">> graph conv: {conv}\t\theads (if GAT): {heads}\n")
         log_f.write(f"\n---------- params ---------------------------------------\n")
-        log_f.write(f">> lr:           {e_c['lr']}\t reg_ent: {e_c['reg_ent']}\n")
-        log_f.write(f">> temps:   {e_c['temps']}\t reg_cf:  {e_c['reg_cf']}\n")
+        log_f.write(f">> lr:           {e_c['lr']}\t reg_ent:  {e_c['reg_ent']}\n")
+        log_f.write(f">> temps:   {e_c['temps']}\t reg_cf:   {e_c['reg_cf']}\n")
         log_f.write(f">> sample bias:    {e_c['sample_bias']}\t reg_size: {e_c['reg_size']}\n")
         log_f.write(f"\n---------- results --------------------------------------\n")
         log_f.write(f">> AUC: {logs['AUC']:.4f}\t\t\t time elapsed: {logs['time']:.2f} s\n")

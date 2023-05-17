@@ -40,6 +40,8 @@ parser.add_argument('--plot-expl', default=False, action=argparse.BooleanOptiona
 parser.add_argument("--device", "-d", default="cpu", help="Running device, 'cpu' or 'cuda'")
 parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction,
                     help="Whether to explain original train nodes")
+parser.add_argument("--store-log", default=False, action=argparse.BooleanOptionalAction, 
+                    help="Whether to store run logs")
 parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction, 
                     help="Whether to store adv samples")
 parser.add_argument("--roc", default=False, action=argparse.BooleanOptionalAction, 
@@ -55,6 +57,7 @@ SEED      = args.seed
 PLOT      = args.plot_expl
 TRAIN_NODES = args.train_nodes
 STORE_ADV   = args.store_adv
+STORE_LOG   = args.store_log
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -175,20 +178,20 @@ if GNN_MODEL != "PGE":      # PGE does not produce CF examples
     print("\t>> with CF:",f"{perc_cf*100:.2f} %")
     #print("\t>> w/o CF :",f"{(1-perc_cf)*100:.2f} %")
 
-
 # store explanation results into a log file
-logs_d = {
-    "epochs"  : EPOCHS,
-    "conv"    : CONV,
-    "cfg"     : cfg["expl_params"],
-    "nodes"   : "train" if TRAIN_NODES else "test",
-    "AUC"     : auc_score,
-    "time"    : time_score,
-    "cf_perc" : perc_cf,
-    "cf_tot"  : max_cf_ex,
-    "cf_fnd"  : found_cf_ex,
-}
-store_expl_log(explainer=GNN_MODEL, dataset=DATASET, logs=logs_d)
+if STORE_LOG:
+    logs_d = {
+        "epochs"  : EPOCHS,
+        "conv"    : CONV,
+        "cfg"     : explainer.coeffs,
+        "nodes"   : "train" if TRAIN_NODES else "test",
+        "AUC"     : auc_score,
+        "time"    : time_score,
+        "cf_perc" : perc_cf,
+        "cf_tot"  : max_cf_ex,
+        "cf_fnd"  : found_cf_ex,
+    }
+    store_expl_log(explainer=GNN_MODEL, dataset=DATASET, logs=logs_d)
 
 
 #### STEP 5: build the node_features for the adversarial graph based on the cf examples 

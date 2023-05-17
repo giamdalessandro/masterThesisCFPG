@@ -24,18 +24,20 @@ class CFPGv2ExplModule(torch.nn.Module):
             enc_hidden: int=20,
             dec_hidden: int=64, 
             conv: str="GCN",
+            heads: int=1,
             device: str="cpu"
         ) -> None:
         super().__init__()
         self.in_feats = in_feats
         self.enc_h = enc_hidden
         self.dec_h = dec_hidden
+        self.heads = heads
         self.device = device
 
         if conv == "GCN":
             self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
         elif conv == "GAT":
-            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=3, concat=False)
+            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
             #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=1)
 
         self.latent_dim = self.enc_h*3
@@ -146,6 +148,7 @@ class CFPGv2(BaseExplainer):
         "reg_cf"  : 5.0, 
         "temps": [5.0, 2.0],
         "sample_bias": 0.0,
+        "heads" : 3,
     }
 
     def __init__(self, 
@@ -191,7 +194,7 @@ class CFPGv2(BaseExplainer):
 
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
-        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,device)
+        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,self.coeffs["heads"],device)
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """
