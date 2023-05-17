@@ -8,7 +8,7 @@ from torch.optim import Adam, SGD
 import torch_geometric
 from torch_geometric.utils import k_hop_subgraph 
 from torch_geometric.loader import NeighborLoader
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GATv2Conv
 
 from .BaseExplainer import BaseExplainer
 from utils.graphs import index_edge
@@ -31,7 +31,9 @@ class CFPGv2ExplModule(torch.nn.Module):
         self.dec_h = dec_hidden
         self.device = device
 
-        self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
+        #self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
+        self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=3, concat=False)
+        #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=1)
 
         self.latent_dim = self.enc_h*3
         self.decoder = nn.Sequential(
@@ -58,13 +60,12 @@ class CFPGv2ExplModule(torch.nn.Module):
         #    nn.AvgPool1d(n_heads),
         #).to(self.device)"""
 
-
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
         # encoder step
         x1 = nn.functional.relu(self.enc_gc1(x, edge_index))
 
         # parse latent representation
-        z = self._parse_latent_rep(edge_index, x1, node_id)
+        z = self._latent_edge_repr(edge_index, x1, node_id)
 
         # decoder step
         x2 = self.decoder(z)
@@ -72,7 +73,7 @@ class CFPGv2ExplModule(torch.nn.Module):
 
         return sampled_mask
 
-    def _parse_latent_rep(self, sub_index, enc_embeds, node_id):
+    def _latent_edge_repr(self, sub_index, enc_embeds, node_id):
         """Use encoder node embeddings to create encoder edge embeddings,
         getting each edge embed by concatenating the embeddings of the nodes 
         adjacent to it with the embeddig of `node_id`, the node which we 
@@ -135,8 +136,7 @@ class CFPGv2ExplModule(torch.nn.Module):
 
 class CFPGv2(BaseExplainer):
     """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer)"""
-    ## default values for explainer parameters
-    coeffs = {
+    coeffs = {            ## default values for explainer parameters
         "lr": 0.003,
         "reg_size": 0.5,
         "reg_ent" : 1.0,
@@ -188,7 +188,6 @@ class CFPGv2(BaseExplainer):
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
         self.explainer_module = CFPGv2ExplModule(in_feats,20,64,device)
-
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """
