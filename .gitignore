@@ -1,10 +1,9 @@
 ### ZAVVE
 .vscode
-
-# datasets
 datasets/
 checkpoints/
 results/
+logs/
 
 ### github default
 # Byte-compiled / optimized / DLL files
