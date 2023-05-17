@@ -15,6 +15,7 @@ from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.graphs import normalize_adj
 from utils.plots import plot_graph
+from utils.evaluation import store_expl_log
 
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvluation
@@ -157,12 +158,27 @@ print("\t>> time elapsed:",f"{time_score:.4f}")
 
 if GNN_MODEL != "PGE":      # PGE does not produce CF examples
     cf_examples = explainer.cf_examples
+    found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)
-    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{max_cf_ex}")
-    perc_cf = (len(cf_examples.keys())/max_cf_ex)
+    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:",f"{found_cf_ex}/{max_cf_ex}")
+    perc_cf = (found_cf_ex/max_cf_ex)
     print("\t>> with CF:",f"{perc_cf*100:.2f} %")
     #print("\t>> w/o CF :",f"{(1-perc_cf)*100:.2f} %")
 
+
+# store explanation results into a log file
+logs_d = {
+    "epochs"  : EPOCHS,
+    "AUC"     : auc_score,
+    "time"    : time_score,
+    "cf_perc" : perc_cf,
+    "cf_tot"  : max_cf_ex,
+    "cf_fnd"  : found_cf_ex,
+    #"coeffs"  : explainer.coeffs,
+    "nodes"   : "train" if TRAIN_NODES else "test",
+    "cfg"     : cfg["expl_params"]
+}
+store_expl_log(explainer=GNN_MODEL, dataset=DATASET, logs=logs_d)
 
 
 #### STEP 5: build the node_features for the adversarial graph based on the cf examples 
