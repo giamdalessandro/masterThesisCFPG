@@ -23,6 +23,7 @@ class CFPGv2ExplModule(torch.nn.Module):
             in_feats: int, 
             enc_hidden: int=20,
             dec_hidden: int=64, 
+            conv: str="GCN",
             device: str="cpu"
         ) -> None:
         super().__init__()
@@ -31,9 +32,11 @@ class CFPGv2ExplModule(torch.nn.Module):
         self.dec_h = dec_hidden
         self.device = device
 
-        #self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
-        self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=3, concat=False)
-        #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=1)
+        if conv == "GCN":
+            self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
+        elif conv == "GAT":
+            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=3, concat=False)
+            #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=1)
 
         self.latent_dim = self.enc_h*3
         self.decoder = nn.Sequential(
@@ -148,6 +151,7 @@ class CFPGv2(BaseExplainer):
     def __init__(self, 
             model_to_explain: torch.nn.Module, 
             data_graph: torch_geometric.data.Data,
+            conv: str="GCN",
             task: str="node", 
             epochs: int=30, 
             device: str="cpu",
@@ -187,7 +191,7 @@ class CFPGv2(BaseExplainer):
 
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
-        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,device)
+        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,device)
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """

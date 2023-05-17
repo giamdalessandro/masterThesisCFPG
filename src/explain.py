@@ -25,22 +25,32 @@ CUDA = True
 # explainer training
 parser = argparse.ArgumentParser()
 parser.add_argument("--explainer", "-E", type=str, default="GNN")
-parser.add_argument("--dataset", "-D", type=str, default="syn1")
-parser.add_argument("--epochs", "-e", type=int, default=5, help="Number of explainer epochs.")
-parser.add_argument("--seed", "-s", type=int, default=42, help="Random seed.")
-parser.add_argument('--plot-expl', default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument("--dataset", "-D", type=str, default="syn1", 
+                    help="One of ['syn1','syn2','syn3','syn4']")
+parser.add_argument("--epochs", "-e", type=int, default=5, 
+                    help="Number of explainer epochs")
+parser.add_argument("--seed", "-s", type=int, default=42, 
+                    help="Random seed (default: 42)")
+parser.add_argument("--conv", "-c", type=str, default="GCN", 
+                    help="Explainer graph convolution ('GCN' or 'GAT')")
+parser.add_argument('--plot-expl', default=False, action=argparse.BooleanOptionalAction, 
+                    help="Plot some of the computed explanation")
 
 # other arguments
-parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
-parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction)
-parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction)
-parser.add_argument("--roc", default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument("--device", "-d", default="cpu", help="Running device, 'cpu' or 'cuda'")
+parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction,
+                    help="Whether to explain original train nodes")
+parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction, 
+                    help="Whether to store adv samples")
+parser.add_argument("--roc", default=False, action=argparse.BooleanOptionalAction, 
+                    help="Whether to plot ROC curve")
 
 args = parser.parse_args()
 print(">>", args)
 DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
 GNN_MODEL = args.explainer    # "GNN", "CF-GNN" or "PGE"
 EPOCHS    = args.epochs       # explainer epochs
+CONV      = args.conv
 SEED      = args.seed
 PLOT      = args.plot_expl
 TRAIN_NODES = args.train_nodes
@@ -110,7 +120,7 @@ elif GNN_MODEL == "CF-GNN":
 elif GNN_MODEL == "PGE":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
 elif GNN_MODEL == "CFPGv2":
-    explainer = CFPGv2(model, graph, epochs=EPOCHS, coeffs=cfg["expl_params"])
+    explainer = CFPGv2(model, graph, conv=CONV, epochs=EPOCHS, coeffs=cfg["expl_params"])
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
@@ -169,14 +179,14 @@ if GNN_MODEL != "PGE":      # PGE does not produce CF examples
 # store explanation results into a log file
 logs_d = {
     "epochs"  : EPOCHS,
+    "conv"    : CONV,
+    "cfg"     : cfg["expl_params"],
+    "nodes"   : "train" if TRAIN_NODES else "test",
     "AUC"     : auc_score,
     "time"    : time_score,
     "cf_perc" : perc_cf,
     "cf_tot"  : max_cf_ex,
     "cf_fnd"  : found_cf_ex,
-    #"coeffs"  : explainer.coeffs,
-    "nodes"   : "train" if TRAIN_NODES else "test",
-    "cfg"     : cfg["expl_params"]
 }
 store_expl_log(explainer=GNN_MODEL, dataset=DATASET, logs=logs_d)
 
