@@ -173,9 +173,9 @@ if GNN_MODEL != "PGE":      # PGE does not produce CF examples
     cf_examples = explainer.cf_examples
     found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)
-    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:",f"{found_cf_ex}/{max_cf_ex}")
+    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:")
     perc_cf = (found_cf_ex/max_cf_ex)
-    print("\t>> with CF:",f"{perc_cf*100:.2f} %")
+    print(f"\t>> with CF: {found_cf_ex}/{max_cf_ex}  ({perc_cf*100:.2f}%)")
     #print("\t>> w/o CF :",f"{(1-perc_cf)*100:.2f} %")
 
 # store explanation results into a log file

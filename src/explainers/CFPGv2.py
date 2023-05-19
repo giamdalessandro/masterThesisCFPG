@@ -67,31 +67,31 @@ class CFPGv2ExplModule(torch.nn.Module):
 
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
         # encoder step
-        x1 = nn.functional.relu(self.enc_gc1(x, edge_index))
+        out_enc = nn.functional.relu(self.enc_gc1(x, edge_index))
 
-        # parse latent representation
-        z = self._latent_edge_repr(edge_index, x1, node_id)
+        # get edge representation
+        z = self._get_edge_repr(edge_index, out_enc, node_id)
 
         # decoder step
-        x2 = self.decoder(z)
-        sampled_mask = self._sample_graph(x2, bias=bias, training=train)
+        out_dec = self.decoder(z)
+        sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
 
         return sampled_mask
 
-    def _latent_edge_repr(self, sub_index, enc_embeds, node_id):
+    def _get_edge_repr(self, sub_index, enc_embeds, node_id):
         """Use encoder node embeddings to create encoder edge embeddings,
         getting each edge embed by concatenating the embeddings of the nodes 
         adjacent to it with the embeddig of `node_id`, the node which we 
         wish to explain.   
 
         ### Args
-        `sub_index`: `torch.Tensor`
+        sub_index : `torch.Tensor`
             edge_index of the neighborhood subgraph of `node_id`;
 
-        `enc_embeds`: `torch.Tensor`
+        enc_embeds : `torch.Tensor`
             embedding of all nodes in `node_id` neighborhood
         
-        `node_id`: int
+        node_id : int
             id of the node we wish to explain
         
         ### Returns
@@ -140,7 +140,7 @@ class CFPGv2ExplModule(torch.nn.Module):
 
 
 class CFPGv2(BaseExplainer):
-    """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer)"""
+    """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer v.2)"""
     coeffs = {            ## default values for explainer parameters
         "lr": 0.003,
         "reg_size": 0.5,
@@ -225,7 +225,7 @@ class CFPGv2(BaseExplainer):
         mask_mean = mask.mean()
         #cf_edges = (mask > mask_mean).sum()
         #tot_edges = torch.ones(mask.size()).to(self.device).sum()
-        #size_loss = ((tot_edges - cf_edges).abs()) / 2
+        #size_loss = ((tot_edges - cf_edges).abs())
 
         #size_loss = -((mask > mask_mean)).sum()   # working fine
         #print("\t>> cf mask size:", size_loss.item())      # working fine
@@ -387,16 +387,16 @@ class CFPGv2(BaseExplainer):
         indices = torch.LongTensor(indices).to(self.device)   
         self._train(indices=indices)
 
-    def explain(self, index):
-        """Given the index of a node/graph this method returns its explanation. 
+    def explain(self, index: int):
+        """Given a node index returns its explanation subgraph. 
         This only gives sensible results if the prepare method has already been called.
 
         ### Args
         index : `int`
-            index of the node/graph that we wish to explain
+            index of the node to be explained
 
         ### Return
-            explanation graph and edge weights
+            The tuple (explanation subgraph, edge weights)
         """
         index = int(index)
         if self.type == 'node':
