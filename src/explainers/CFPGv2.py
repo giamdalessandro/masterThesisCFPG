@@ -37,7 +37,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         if conv == "GCN":
             self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
         elif conv == "GAT":
-            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
+            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
             #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=1)
 
         self.latent_dim = self.enc_h*3
@@ -67,14 +67,30 @@ class CFPGv2ExplModule(torch.nn.Module):
 
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
         # encoder step
-        out_enc = nn.functional.relu(self.enc_gc1(x, edge_index))
+        x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
+        out_enc = nn.functional.relu(x1)
+        #print(f"nodes:    {x.size()}")
+        #print(f"edge_idx: {edge_index.size()}")
+        #print(f"edge_idx: {att_w[0].size()}, att_w: {att_w[1].size()}")
+        att_w = torch.mean(att_w[1], dim=1)
 
         # get edge representation
         z = self._get_edge_repr(edge_index, out_enc, node_id)
-
+        #print(f"edges lat: {z.size()}")
+        #exit("\n[DEBUG]: sto a debbuggà, stacce.")
+        
         # decoder step
         out_dec = self.decoder(z)
+        #o_dec = torch.add(out_dec.squeeze(),att_w,alpha=-0.8)
+
         sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
+        
+        #print(f"att_w: {att_w.size()}")
+        #print(f"s mask: {sampled_mask.size()}")
+        #print(f"caccone: {sampled_mask.size()}")
+        #exit("\n[DEBUG]: sto a debbuggà, stacce.")
+
+        if train: return sampled_mask, z, att_w
 
         return sampled_mask
 
@@ -132,7 +148,7 @@ class CFPGv2ExplModule(torch.nn.Module):
             eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
             gate_inputs = (torch.log(eps) - torch.log(1 - eps)).to(self.device)
             gate_inputs = (gate_inputs + sampling_weights) / temperature
-            graph =  torch.sigmoid(gate_inputs)
+            graph = torch.sigmoid(gate_inputs)
         else:
             graph = torch.sigmoid(sampling_weights)
         return graph
@@ -196,7 +212,7 @@ class CFPGv2(BaseExplainer):
         in_feats = self.model_to_explain.embedding_size
         self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,self.coeffs["heads"],device)
 
-    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
+    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss):
         """
         Returns the loss score based on the given mask.
 
@@ -222,7 +238,7 @@ class CFPGv2(BaseExplainer):
         EPS = 1e-15
 
         # Regularization losses
-        mask_mean = mask.mean()
+        #mask_mean = mask.mean()
         #cf_edges = (mask > mask_mean).sum()
         #tot_edges = torch.ones(mask.size()).to(self.device).sum()
         #size_loss = ((tot_edges - cf_edges).abs())
@@ -244,8 +260,11 @@ class CFPGv2(BaseExplainer):
         cce_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
         pred_loss = pred_same * (-1 * cce_loss) * reg_cf
 
+        # KL divergence loss
+        #kl_loss = nn.functional.kl_div(masked_pred,original_pred, reduction="batchmean")
+
         # ZAVVE: TODO tryin' to optimize objective function for cf case
-        loss_total = size_loss + pred_loss + mask_ent_loss
+        loss_total = size_loss + pred_loss + mask_ent_loss #+ kl_loss
         return loss_total, size_loss, mask_ent_loss, pred_loss
 
     def _train(self, indices=None):
@@ -332,7 +351,7 @@ class CFPGv2(BaseExplainer):
                         #print("\n\t>> expl feats:", expl_feats.size())
                         #print("\t>> sub feats:", sub_feats.size())
                         #print("\t>> sub graph:", sub_index.size())
-                        mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
+                        mask, z, att_w = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
                         #exit(0)
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
@@ -342,12 +361,16 @@ class CFPGv2(BaseExplainer):
                         if self.type == 'node': # node class prediction
                             # when considering the features subset, node prediction is at index 0
                             masked_pred = masked_pred[sub_node_idx]
-                            original_pred = original_pred[sub_node_idx].argmax()
+                            op = original_pred[sub_node_idx]
+                            original_pred = op.argmax()
                             pred_same = (masked_pred.argmax() == original_pred)
+
+                            kl_loss = nn.functional.kl_div(masked_pred,op,reduction="batchmean")
 
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                     original_pred=original_pred, 
-                                                                    mask=mask)  #mask
+                                                                    mask=mask,
+                                                                    kl_loss=kl_loss)
 
 
                         # if masked prediction is different from original, save the CF example

@@ -15,11 +15,18 @@ def load_saved_test(path: str):
 
     # load raw data
     with open(save_path, 'rb') as fin:
-        data = torch.load(fin)
-        print(">>", data.keys())
+        #try:
+        #    data = torch.load(fin)
+        #except:
+        data = pkl.load(fin)    
 
-        adj = torch.Tensor(data["adj"]).squeeze().to_sparse_coo()
-        feats = torch.Tensor(data["features"])
+        print(">> reading from",path)
+        print(">>", len(data))
+
+        #adj = torch.Tensor(data["adj"]).squeeze().to_sparse_coo()
+        #feats = torch.Tensor(data["features"])
+        adj = torch.Tensor(data[0]).squeeze().to_sparse_coo()
+        feats = torch.Tensor(data[1])
 
         print(">> adj  :", adj.indices().size())
         print(">> feats:", feats.size())
@@ -93,5 +100,5 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR, save: bool=False
 
 
 if __name__ == "__main__":
-    syn_dataset_from_file(dataset="syn5", save=False)
-    #load_saved_test("pkls/test_syn5-4.pkl")
+    #syn_dataset_from_file(dataset="syn5", save=False)
+    load_saved_test("pkls/pge_syn4.pkl")

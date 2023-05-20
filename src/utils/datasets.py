@@ -54,7 +54,7 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
     # load raw data
     loaded_data = {}
     with open(path, 'rb') as fin:
-        if dataset == "syn4":
+        if dataset == "syn4-bis":
             data = torch.load(fin)
             loaded_data = data
 
