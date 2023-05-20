@@ -75,7 +75,6 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=False):
 
     #print("\n\t[DEBUG]> gt:   ", len(ground_truth), "\t#1s:", torch.LongTensor(ground_truth).sum())
     #print("\t[DEBUG]> preds:", len(predictions))
-
     #missed = (expl_labels_dense - (visited_edges > 0.0).long()).sum()
     #print("\n\t[DEBUG]> expl-edge preds:", expl_pred.size())
     #print("\t[DEBUG]> visited:", len(visited_l))
