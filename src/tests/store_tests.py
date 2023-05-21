@@ -49,6 +49,13 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR, save: bool=False
     filename = dataset + f_type
     path = data_dir + "pkls/" + filename
 
+    #filename = dataset + ".pkl"
+    #path = data_dir + "pkls/" + filename
+    ## load raw data
+    #with open(path, 'rb') as fin:
+    #    data = pkl.load(fin)
+    #    adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label_matrix = data
+
     # load raw data
     loaded_d = {}
     with open(path, 'rb') as fin:
@@ -96,6 +103,12 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR, save: bool=False
 
     if save: torch.save(merged, "./src/tests/test_syn5-4.pkl")
     return
+
+
+#def create_test_dataset():
+#    """Create"""
+#    for i in range(4):
+#        dataset = f"syn{i}.pkl"
 
 
 

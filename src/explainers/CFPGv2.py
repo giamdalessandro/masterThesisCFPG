@@ -31,6 +31,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         self.in_feats = in_feats
         self.enc_h = enc_hidden
         self.dec_h = dec_hidden
+        self.conv = conv
         self.heads = heads
         self.device = device
 
@@ -66,33 +67,46 @@ class CFPGv2ExplModule(torch.nn.Module):
         #).to(self.device)"""
 
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
+        if self.conv == "GCN":
+            out = self._forward_GCN(x, edge_index, node_id, bias, train) 
+        elif self.conv == "GAT":
+            out, z, att_w = self._forward_GAT(x, edge_index, node_id, bias, train)
+
+        return out
+
+    def _forward_GCN(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
+        """Forward step with a GCN encoder."""
         # encoder step
-        x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
+        x1 = self.enc_gc1(x, edge_index)
         out_enc = nn.functional.relu(x1)
-        #print(f"nodes:    {x.size()}")
-        #print(f"edge_idx: {edge_index.size()}")
-        #print(f"edge_idx: {att_w[0].size()}, att_w: {att_w[1].size()}")
-        att_w = torch.mean(att_w[1], dim=1)
 
         # get edge representation
         z = self._get_edge_repr(edge_index, out_enc, node_id)
-        #print(f"edges lat: {z.size()}")
-        #exit("\n[DEBUG]: sto a debbuggà, stacce.")
         
         # decoder step
         out_dec = self.decoder(z)
-        #o_dec = torch.add(out_dec.squeeze(),att_w,alpha=-0.8)
-
         sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
-        
-        #print(f"att_w: {att_w.size()}")
-        #print(f"s mask: {sampled_mask.size()}")
-        #print(f"caccone: {sampled_mask.size()}")
-        #exit("\n[DEBUG]: sto a debbuggà, stacce.")
-
-        if train: return sampled_mask, z, att_w
 
         return sampled_mask
+    
+    def _forward_GAT(self, x, edge_index, node_id, bias: float=0.0, alpha: float=0.0, train: bool=True):
+        """Forward step with a GAT encoder."""
+        # encoder step
+        x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
+        out_enc = nn.functional.relu(x1)
+
+        # get edge representation
+        z = self._get_edge_repr(edge_index, out_enc, node_id)
+        
+        # decoder step
+        out_dec = self.decoder(z)
+
+        # add attention
+        att_w = torch.mean(att_w[1], dim=1)
+        o_dec = torch.add(out_dec.squeeze(),att_w,alpha=alpha)
+        
+        sampled_mask = self._sample_graph(o_dec, bias=bias, training=train)
+        return sampled_mask, z, att_w     
 
     def _get_edge_repr(self, sub_index, enc_embeds, node_id):
         """Use encoder node embeddings to create encoder edge embeddings,
@@ -351,7 +365,7 @@ class CFPGv2(BaseExplainer):
                         #print("\n\t>> expl feats:", expl_feats.size())
                         #print("\t>> sub feats:", sub_feats.size())
                         #print("\t>> sub graph:", sub_index.size())
-                        mask, z, att_w = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
+                        mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
                         #exit(0)
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)

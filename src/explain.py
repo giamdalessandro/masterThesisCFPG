@@ -97,6 +97,7 @@ if GNN_MODEL == "CF-GNN":
     dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     norm_adj = normalize_adj(dense_index)
 
+if DATASET == "cfg_syn4": DATASET = "syn4"
 model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg, device=device)
 
 

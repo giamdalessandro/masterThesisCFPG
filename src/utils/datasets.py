@@ -16,7 +16,7 @@ def parse_config(dataset: str, gnn: str):
     if dataset == "syn1": data_cfg = dataset + "_BAshapes"
     elif dataset == "syn2": data_cfg = dataset + "_BAcommunities"
     elif dataset == "syn3": data_cfg = dataset + "_treeCycles"
-    elif dataset == "syn4": data_cfg = dataset + "_treeGrids"
+    elif dataset in ["syn4","cfg_syn4"]: data_cfg = "syn4" + "_treeGrids"
 
     #gnn = "PGE" # to force PGE params
     rel_path = f"/../configs/{gnn}/{data_cfg}.json"
@@ -54,10 +54,9 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
     # load raw data
     loaded_data = {}
     with open(path, 'rb') as fin:
-        if dataset == "syn4-bis":
+        if dataset == "cfg_syn4":
             data = torch.load(fin)
             loaded_data = data
-
         else:
             data = pkl.load(fin)
             loaded_data["adj"]        = data[0]
@@ -100,15 +99,8 @@ class BAGraphDataset(Dataset):
             directory path where dataset files are stored. 
         """
         super().__init__(None, transform, pre_transform)   
-        #filename = dataset + ".pkl"
-        #path = data_dir + "pkls/" + filename
-        ## load raw data
-        #with open(path, 'rb') as fin:
-        #    data = pkl.load(fin)
-        #    adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label_matrix = data
-
-        #  Data are retrieved aws a dictonary with the following keys:
-        #  {adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label}
+        # Data are retrieved aws a dictonary with the following keys:
+        # {adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label}
         data = syn_dataset_from_file(dataset=dataset,data_dir=data_dir)
 
         features = data["features"]
@@ -117,8 +109,8 @@ class BAGraphDataset(Dataset):
         expl_mask = torch.zeros(num_nodes, dtype=torch.bool)
         expl_mask[torch.arange(400, num_nodes, 5)] = True
 
+        # pyg uses sparse matrix representation for adjacency matrix as default
         adj = data["adj"]
-        # pyg uses sparse matrix representation as default
         edge_index = torch.tensor(adj).squeeze().to_sparse()
 
         edge_label_matrix = data["edge_label"]
@@ -207,13 +199,13 @@ def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproc
         A couple (`torch_geometric.data.Dataset`,list). 
     """
     print(Fore.GREEN + f"[dataset]> loading dataset...")
-    if dataset[:3] == "syn": 
+    if "syn" in dataset: 
         # Load node-classification datasets
         if dataset == "syn1" or dataset == "syn2":
             test_indices = range(400, 700, 5)
         elif dataset == "syn3":
             test_indices = range(511,871,6)
-        elif dataset == "syn4":
+        elif dataset in ["syn4","cfg_syn4"]:
             test_indices = range(511,800,1)
 
         filename = dataset + ".pkl"
