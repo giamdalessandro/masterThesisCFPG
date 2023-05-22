@@ -46,7 +46,7 @@ def plot_graph(edge_index, expl_weights, n_idx: int, e_cap: int=0, show: bool=Tr
 
     pos = nx.spring_layout(G)
     if show: 
-        nx.draw(G, pos=pos, with_labels=True, font_size=8)                     # draw grpah
+        nx.draw(G, pos=pos, with_labels=True, font_size=8)  # draw grpah
         try:
             nx.draw_networkx_nodes(G, pos, nodelist=[n_idx], node_color="orange")  # highlight explained node
         except nx.exception.NetworkXError as e:
@@ -54,3 +54,29 @@ def plot_graph(edge_index, expl_weights, n_idx: int, e_cap: int=0, show: bool=Tr
             
         plt.title(f"Node {n_idx} expl")
         plt.show()
+
+def plot_expl_loss(expl_name: str, losses: list, cf_num: list, show: bool=True):
+    """Plot explainer training performance"""
+    x = range(1,len(losses)+1)   # epochs id
+    plt.figure(figsize=(3, 4))
+
+    # loss plot
+    plt.subplot(211)
+    plt.title("explanation loss")
+    plt.plot(x, losses)
+    plt.grid(True)
+
+    # cf examples plot
+    plt.subplot(212)
+    plt.title("cf examples found")
+    plt.plot(x, cf_num,  color="orange")
+    plt.xlabel("epoch")
+    plt.ylabel("#cf examples")
+    plt.grid(True)
+    
+    plt.suptitle(f"{expl_name} trainig")
+
+    if show:
+        plt.show()
+
+    return

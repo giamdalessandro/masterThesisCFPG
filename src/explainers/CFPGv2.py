@@ -322,6 +322,10 @@ class CFPGv2(BaseExplainer):
         n_indices = indices.size(0)
         n_batches = len(loader)
 
+        self.history = {}
+        epoch_loss = []
+        epoch_cf_ex = []
+
         self.cf_examples = {}
         best_loss = Inf
         # Start training loop
@@ -385,6 +389,10 @@ class CFPGv2(BaseExplainer):
                                                                     original_pred=original_pred, 
                                                                     mask=mask,
                                                                     kl_loss=kl_loss)
+                        loss_total += id_loss
+                        size_total += size_loss
+                        ent_total  += ent_loss
+                        pred_total += pred_loss
 
 
                         # if masked prediction is different from original, save the CF example
@@ -398,16 +406,18 @@ class CFPGv2(BaseExplainer):
                             except KeyError:
                                 self.cf_examples[str(global_idx)] = cf_ex
 
-                        loss_total += id_loss
-                        size_total += size_loss
-                        ent_total  += ent_loss
-                        pred_total += pred_loss
-
-                    epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
+                epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
                                         l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
+                    
+                # metrics to plot
+                epoch_loss.append(loss_total.item())
+                epoch_cf_ex.append(len(self.cf_examples.keys()))
 
                 loss_total.backward()
                 optimizer.step()
+
+        self.history["train_loss"] = epoch_loss
+        self.history["tot_cf"] = epoch_cf_ex
 
 
     def prepare(self, indices=None):
