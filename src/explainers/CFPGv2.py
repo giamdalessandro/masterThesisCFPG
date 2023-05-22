@@ -70,7 +70,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         if self.conv == "GCN":
             out = self._forward_GCN(x, edge_index, node_id, bias, train) 
         elif self.conv == "GAT":
-            out, z, att_w = self._forward_GAT(x, edge_index, node_id, bias, train)
+            out, z, att_w = self._forward_GAT(x, edge_index, node_id, bias, train=train)
 
         return out
 
@@ -323,7 +323,10 @@ class CFPGv2(BaseExplainer):
         n_batches = len(loader)
 
         self.history = {}
-        epoch_loss = []
+        epoch_loss_tot = []
+        epoch_loss_size = []
+        epoch_loss_ent = []
+        epoch_loss_pred = []
         epoch_cf_ex = []
 
         self.cf_examples = {}
@@ -410,14 +413,23 @@ class CFPGv2(BaseExplainer):
                                         l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
                     
                 # metrics to plot
-                epoch_loss.append(loss_total.item())
+                epoch_loss_tot.append(loss_total.item())
+                epoch_loss_size.append(size_total.item())
+                epoch_loss_ent.append(ent_total.item())
+                epoch_loss_pred.append(pred_total.item())
                 epoch_cf_ex.append(len(self.cf_examples.keys()))
 
                 loss_total.backward()
                 optimizer.step()
 
-        self.history["train_loss"] = epoch_loss
-        self.history["tot_cf"] = epoch_cf_ex
+        self.history["train_loss"] = {
+            "loss_tot"  : epoch_loss_tot,
+            "loss_size" : epoch_loss_size,
+            "loss_ent"  : epoch_loss_ent,
+            "loss_pred" : epoch_loss_pred,
+        }
+        self.history["cf_fnd"] = epoch_cf_ex
+        self.history["cf_tot"] = n_indices
 
 
     def prepare(self, indices=None):

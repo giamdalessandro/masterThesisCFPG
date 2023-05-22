@@ -14,7 +14,7 @@ from explainers.CFPGv2 import CFPGv2
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.graphs import normalize_adj
-from utils.plots import plot_graph
+from utils.plots import plot_graph, plot_expl_loss
 from utils.evaluation import store_expl_log
 
 from evaluations.AUCEvaluation import AUCEvaluation
@@ -126,6 +126,7 @@ elif GNN_MODEL == "PGE":
 elif GNN_MODEL == "CFPGv2":
     explainer = CFPGv2(model, graph, conv=CONV, epochs=EPOCHS, coeffs=cfg["expl_params"])
 
+
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
 gt = (graph.edge_index,graph.edge_label)
@@ -139,10 +140,20 @@ if TRAIN_NODES:
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
 else:                              
     train_idxs = test_idxs   # use only nodes that have an explanation ground truth
-explainer.prepare(indices=train_idxs)
+explainer.prepare(indices=train_idxs)  # actually train the explainer model
+
+e_name = explainer.expl_name
+e_h = explainer.history
+plot_expl_loss(
+    expl_name=e_name,
+    losses=e_h["train_loss"],
+    cf_num=e_h["cf_fnd"],
+    cf_tot=e_h["cf_tot"]
+)
+#exit("[DEBUGGONE]> sto a fixà i plot")
 
 
-# actually explain GNN predictions for all test indices
+# Actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
 explanations = []
 with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:

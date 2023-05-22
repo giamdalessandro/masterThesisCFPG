@@ -49,6 +49,10 @@ if torch.cuda.is_available() and device == "cuda" and CUDA:
 ## load a BAshapes dataset
 cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
 dataset, test_indices = load_dataset(dataset=DATASET, load_adv=(MODE=="adv"))
+graph = dataset.get(0) # get base BAgraph
+print(Fore.GREEN + f"\n[dataset]> {dataset} dataset graph...")
+print("\t>>", graph)
+
 # add dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -64,8 +68,8 @@ model, _ = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN
 
 for g in range(dataset.len()):
     graph = dataset.get(g)    # get base BAgraph
-    print(Fore.GREEN + f"\n[dataset]> {dataset} dataset graph...")
-    print("\t>>", graph)
+    #print(Fore.GREEN + f"\n[dataset]> {dataset} dataset graph...")
+    #print("\t>>", graph)
 
     labels = graph.y
     labels = torch.argmax(labels, dim=1)
@@ -95,9 +99,9 @@ for g in range(dataset.len()):
         print(">> DONE")
 
 
+    train_params = cfg["train_params"]
     if TRAIN:
         print(Fore.MAGENTA + "\n[training]> starting train...")
-        train_params = cfg["train_params"]
         optimizer = torch.optim.Adam(model.parameters(), lr=train_params["lr"])#, weisght_decay=train_params["weight_decay"])
         #optimizer = torch.optim.SGD(model.parameters(), lr=train_params["lr"], nesterov=True, momentum=0.9)
         criterion = torch.nn.CrossEntropyLoss()
@@ -145,23 +149,29 @@ for g in range(dataset.len()):
                 if epoch - best_epoch > train_params["early_stop"] and best_val_acc > 0.99:
                     break
 
-        best_epoch = best_epoch if STORE else -1
-        model = load_best_model(model=model, 
-                    best_epoch=best_epoch,
-                    gnn=GNN_MODEL, 
-                    dataset=DATASET, 
-                    mode=MODE,
-                    eval_enabled=train_params["eval_enabled"])
+    best_epoch = best_epoch if STORE else -1
+    model = load_best_model(model=model, 
+                best_epoch=best_epoch,
+                gnn=GNN_MODEL, 
+                dataset=DATASET, 
+                mode=MODE,
+                eval_enabled=train_params["eval_enabled"])
 
-        out = model(x, edge_index)
+    out = model(x, edge_index)
 
-        # Train eval
-        train_acc = evaluate(out[idx_train], labels[idx_train])
-        val_acc   = evaluate(out[idx_eval], labels[idx_eval])
-        test_acc  = evaluate(out[idx_test], labels[idx_test])
+    # Train eval
+    train_acc = evaluate(out[idx_train], labels[idx_train])
+    val_acc   = evaluate(out[idx_eval], labels[idx_eval])
+    test_acc  = evaluate(out[idx_test], labels[idx_test])
+    if TRAIN:
         print(Fore.MAGENTA + "\n[results]> training final results - Accuracy")
         if best_epoch == -1: print(Fore.RED+"[DEBUG]> training ckpts not stored, showing default results...")
-        print(f"\t>> train: {train_acc:.4f}  val: {val_acc:.4f}  test: {test_acc:.4f}")
+    else:
+        # add metrics for rm-1hop and rm-expl test
+        print(Fore.MAGENTA + "\n[results]> from checkpoint results - Accuracy")
+        print(f"\t>> model: {GNN_MODEL}\tdataset: {DATASET}")
+
+    print(f"\t>> train: {train_acc:.4f}  val: {val_acc:.4f}  test: {test_acc:.4f}")
 
 
 if STORE:

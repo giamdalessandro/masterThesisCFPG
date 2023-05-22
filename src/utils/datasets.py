@@ -73,6 +73,48 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
 
 
 
+def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproccessing: bool=False, shuffle: bool=True):
+    r"""High level function which loads the dataset by calling the proper method 
+    for node-classification or graph-classification datasets.
+
+    Args:
+    - `_dataset`(str): Which dataset to load. Choose from "syn1", "syn2", "syn3", 
+        "syn4", "ba2" or "mutag";
+    - `load_adv`(bool): whether or not to load the adversarial example graph;
+    - `skip_preproccessing`(bool): Whether or not to convert the adjacency matrix 
+        to an edge matrix.
+    - `shuffle`(bool): Should the returned dataset be shuffled or not.
+    
+    Returns:    
+        The couple (`torch_geometric.data.Dataset`,list). 
+    """
+    print(Fore.GREEN + f"[dataset]> loading dataset...")
+    if "syn" in dataset: 
+        # Load node-classification datasets
+        if dataset == "syn1" or dataset == "syn2":
+            test_indices = range(400, 700, 5)
+        elif dataset == "syn3":
+            test_indices = range(511,871,6)
+        elif dataset in ["syn4","cfg_syn4"]:
+            test_indices = range(511,800,1)
+
+        filename = dataset + ".pkl"
+        print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
+
+        # create dataset class with loaded data
+        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv)
+        print("\t>> #graphs:       ", len(pyg_dataset))
+        print("\t>> #classes:      ", pyg_dataset.num_classes)
+        print("\t>> #node_features:", pyg_dataset.num_node_features)
+
+        return pyg_dataset, test_indices
+        
+    else: 
+        # TODO Load graph-classification datasets
+        #return load_graph_dataset(dataset, shuffle)
+        return NotImplementedError("Graph classification datasets not yet implemented.")
+
+
 class BAGraphDataset(Dataset):
     r"""PyG dataset class to wrap the synthetic BA-Shapes datasets from the 
     `"GNNExplainer: Generating Explanations for Graph Neural Networks"` 
@@ -181,45 +223,3 @@ class BAGraphDataset(Dataset):
         #data = torch.load(osp.join(self.processed_dir, f'data_{idx}.pt'))
         return self.data[idx]
 
-
-
-def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproccessing: bool=False, shuffle: bool=True):
-    r"""High level function which loads the dataset by calling the proper method 
-    for node-classification or graph-classification datasets.
-
-    Args:
-    - `_dataset`(str): Which dataset to load. Choose from "syn1", "syn2", "syn3", 
-        "syn4", "ba2" or "mutag";
-    - `load_adv`(bool): whether or not to load the adversarial example graph;
-    - `skip_preproccessing`(bool): Whether or not to convert the adjacency matrix 
-        to an edge matrix.
-    - `shuffle`(bool): Should the returned dataset be shuffled or not.
-    
-    Returns:    
-        A couple (`torch_geometric.data.Dataset`,list). 
-    """
-    print(Fore.GREEN + f"[dataset]> loading dataset...")
-    if "syn" in dataset: 
-        # Load node-classification datasets
-        if dataset == "syn1" or dataset == "syn2":
-            test_indices = range(400, 700, 5)
-        elif dataset == "syn3":
-            test_indices = range(511,871,6)
-        elif dataset in ["syn4","cfg_syn4"]:
-            test_indices = range(511,800,1)
-
-        filename = dataset + ".pkl"
-        print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
-
-        # create dataset class with loaded data
-        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv)
-        print("\t>> #graphs:       ", len(pyg_dataset))
-        print("\t>> #classes:      ", pyg_dataset.num_classes)
-        print("\t>> #node_features:", pyg_dataset.num_node_features)
-
-        return pyg_dataset, test_indices
-        
-    else: 
-        # TODO Load graph-classification datasets
-        #return load_graph_dataset(dataset, shuffle)
-        return NotImplementedError("Graph classification datasets not yet implemented.")
