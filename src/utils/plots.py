@@ -89,12 +89,14 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
     plt.title("cf examples found")
     plt.plot(x, cf_num, ".-", color="magenta")
     plt.xlabel("epoch")
-    plt.ylabel("#cf examples")
+    plt.ylabel("no. cf examples")
     plt.xticks(x, minor=True)
     plt.grid(which="major", axis="x", alpha=0.5)
     plt.grid(which="minor", axis="x", alpha=0.2)
     
     # cf perc twinx plot
+    # TODO: too much cf_perc on y-axis, should reduce them to a fixed num
+    #   also 4 decimals is too much for viz
     cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
     perc_tick = sorted(list(set(cf_num)))
     print("\t>> perc:", cf_perc)
