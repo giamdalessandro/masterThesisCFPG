@@ -72,7 +72,6 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
     return loaded_data
 
 
-
 def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproccessing: bool=False, shuffle: bool=True):
     r"""High level function which loads the dataset by calling the proper method 
     for node-classification or graph-classification datasets.

@@ -190,7 +190,9 @@ class CFPGv2(BaseExplainer):
             device: str="cpu",
             coeffs: dict=None
         ):
-        """### Args
+        """Initialize CFPGv2 explainer model
+        
+        ### Args
         `model_to_explain` : torch.nn.Module
             GNN model who's predictions we wish to explain.
 
@@ -224,26 +226,26 @@ class CFPGv2(BaseExplainer):
 
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
-        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,self.coeffs["heads"],device)
+        heads = self.coeffs["heads"] if conv == "GAT" else -1 
+        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,heads,device)
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss):
-        """
-        Returns the loss score based on the given mask.
+        """Returns the loss score based on the given mask.
 
-        ### Args:
-        `masked_pred` : torch.Tensor
+        #### Args
+        masked_pred : `torch.Tensor`
             Prediction based on the current explanation
 
-        `original_pred` : torch.Tensor
+        original_pred : `torch.Tensor`
             Predicion based on the original graph
 
-        `edge_mask` : torch.Tensor
+        edge_mask : `torch.Tensor`
             Current explanaiton
 
-        `reg_coefs` : torch.Tensor
+        reg_coefs : `torch.Tensor`
             regularization coefficients
 
-        ### Return
+        #### Return
             Tuple of Tensors (loss,size_loss,mask_ent_loss,pred_loss)
         """
         reg_size = self.coeffs["reg_size"]
@@ -282,8 +284,7 @@ class CFPGv2(BaseExplainer):
         return loss_total, size_loss, mask_ent_loss, pred_loss
 
     def _train(self, indices=None):
-        """
-        Main method to train the modeledge_weights=None
+        """Main method to train the modeledge_weights=None
         
         Args: 
         - indices: Indices that we want to use for training.
@@ -323,11 +324,11 @@ class CFPGv2(BaseExplainer):
         n_batches = len(loader)
 
         self.history = {}
-        epoch_loss_tot = []
+        epoch_loss_tot  = []
         epoch_loss_size = []
-        epoch_loss_ent = []
+        epoch_loss_ent  = []
         epoch_loss_pred = []
-        epoch_cf_ex = []
+        epoch_cf_ex     = []
 
         self.cf_examples = {}
         best_loss = Inf
@@ -369,11 +370,7 @@ class CFPGv2(BaseExplainer):
                         
                         # compute explanation mask
                         expl_feats = embeds[global_n_ids].to(self.device)
-                        #print("\n\t>> expl feats:", expl_feats.size())
-                        #print("\t>> sub feats:", sub_feats.size())
-                        #print("\t>> sub graph:", sub_index.size())
                         mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
-                        #exit(0)
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
@@ -386,12 +383,11 @@ class CFPGv2(BaseExplainer):
                             original_pred = op.argmax()
                             pred_same = (masked_pred.argmax() == original_pred)
 
-                            kl_loss = nn.functional.kl_div(masked_pred,op,reduction="batchmean")
+                            #kl_loss = nn.functional.kl_div(masked_pred,op,reduction="batchmean")
 
                         id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                     original_pred=original_pred, 
-                                                                    mask=mask,
-                                                                    kl_loss=kl_loss)
+                                                                    mask=mask)
                         loss_total += id_loss
                         size_total += size_loss
                         ent_total  += ent_loss
@@ -436,8 +432,8 @@ class CFPGv2(BaseExplainer):
         """Prepars the explanation method for explaining. When using a parametrized 
         explainer like PGExplainer, we first need to train the explainer MLP.
 
-        ### Args
-        `indices` : list
+        #### Args
+        indices : `list`
             node indices over which we wish to train.
         """
         if indices is None: # Consider all indices
@@ -450,11 +446,11 @@ class CFPGv2(BaseExplainer):
         """Given a node index returns its explanation subgraph. 
         This only gives sensible results if the prepare method has already been called.
 
-        ### Args
+        #### Args
         index : `int`
             index of the node to be explained
 
-        ### Return
+        #### Return
             The tuple (explanation subgraph, edge weights)
         """
         index = int(index)
