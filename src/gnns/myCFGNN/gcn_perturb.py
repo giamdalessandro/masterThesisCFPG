@@ -6,7 +6,12 @@ from torch.nn.parameter import Parameter
 from utils.graphs import create_symm_matrix_from_vec, create_vec_from_symm_matrix
 from .gcn import GraphConvolution, GCNSynthetic
 
-
+# -------------------------------------------------------
+# TODO: better implementeation of GCNpetrurb that can run
+#   with sparse representation of the edge matrix,
+#   if needed.
+#   Code at the end of this file is likely garbage.
+# -------------------------------------------------------
 
 class GraphConvolutionPerturb(nn.Module):
 	"""Similar to GraphConvolution except includes P_hat"""
@@ -85,20 +90,6 @@ class GCNSyntheticPerturb(nn.Module):
 			else:
 				torch.sub(self.P_vec, eps)      # self.P_vec is all 1s
 
-	def _old_reset_parameters(self, eps: float=10**-4):
-		# Think more about how to initialize this
-		with torch.no_grad():
-			if self.edge_additions:
-				adj_vec = create_vec_from_symm_matrix(self.adj, self.P_vec_size).numpy()
-				for i in range(len(adj_vec)):
-					if i < 1:
-						adj_vec[i] = adj_vec[i] - eps
-					else:
-						adj_vec[i] = adj_vec[i] + eps
-				torch.add(self.P_vec, torch.FloatTensor(adj_vec))       #self.P_vec is all 0s
-			else:
-				torch.sub(self.P_vec, eps)
-
 	def forward(self, x, sub_adj, embedding: bool=False):
 		self.sub_adj = sub_adj
 		# Same as normalize_adj in utils.py except includes P_hat in A_tilde
@@ -118,10 +109,11 @@ class GCNSyntheticPerturb(nn.Module):
 		D_tilde = torch.diag(sum(A_tilde)).detach()   # Don't need gradient of this
 		# Raise to power -1/2, set all infs to 0s
 		D_tilde_exp = D_tilde.pow(-0.5)               # D_tilde ** (-1 / 2)
-		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0
+		D_tilde_exp[torch.isinf(D_tilde_exp)] = 0     # zeros out infinite elements
 
 		# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
 		norm_adj = torch.mm(torch.mm(D_tilde_exp, A_tilde), D_tilde_exp)
+
 
 		x1 = F.relu(self.gc1(x, norm_adj))
 		x1 = F.dropout(x1, self.dropout, training=self.training)
@@ -189,3 +181,42 @@ class GCNSyntheticPerturb(nn.Module):
 		# Zero-out loss_pred with pred_same if prediction flips
 		loss_total = loss_pred + self.beta * loss_graph_dist
 		return loss_total, loss_pred, loss_graph_dist, cf_adj
+
+
+
+#    def _forward_perturbGCN(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
+#        """Forward step with a GCN encoder."""
+#        # pre-encoder step
+#		# Same as normalize_adj in utils.py except includes P_hat in A_tilde
+#        self.P_hat_symm = create_symm_matrix_from_vec(self.P_vec, self.tot_nodes)  # Ensure symmetry
+#
+#        A_tilde = torch.FloatTensor(self.tot_nodes, self.tot_nodes)
+#        A_tilde.requires_grad = True
+#
+#        if True:  # Learn new adj matrix directly
+#            # Use sigmoid to bound P_hat in [0,1]
+#            A_tilde = torch.sigmoid(self.P_hat_symm) + torch.eye(self.tot_nodes)  
+#        else:  
+#            # Learn P_hat that gets multiplied element-wise with adj -- only edge deletions
+#            # Use sigmoid to bound P_hat in [0,1]
+#            A_tilde = torch.sigmoid(self.P_hat_symm) * edge_index + torch.eye(self.tot_nodes)       
+#
+#        D_tilde = torch.diag(sum(A_tilde)).detach()   # Don't need gradient of this
+#        # Raise to power -1/2, set all infs to 0s
+#        D_tilde_exp = D_tilde.pow(-0.5)               # D_tilde ** (-1 / 2)
+#        D_tilde_exp[torch.isinf(D_tilde_exp)] = 0     # zeros out infinite elements
+#
+#		# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
+#        norm_edge_index = torch.mm(torch.mm(D_tilde_exp, A_tilde), D_tilde_exp)
+#        norm_edge_index = norm_edge_index[edge_index[0],edge_index[1]]
+#
+#        # encoder step
+#        x1 = self.enc_gc1(x, edge_index, norm_edge_index)
+#        out_enc = nn.functional.relu(x1)
+#        # get edge representation
+#        z = self._get_edge_repr(edge_index, out_enc, node_id)
+#        # decoder step
+#        out_dec = self.decoder(z)
+#        sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
+#
+#        return sampled_mask

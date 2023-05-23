@@ -60,8 +60,7 @@ class GCNSynthetic(nn.Module):
         return log_softmax(x, dim=1)
 
     def embedding(self, x, adj):
-        """
-        Computes nodes embeddings, i.e. feed-forward only through the
+        """Computes nodes embeddings, i.e. feed-forward only through the
         convolutional layers of the GCN.
         """
         x1 = relu(self.gc1(x, adj))

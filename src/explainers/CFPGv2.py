@@ -3,6 +3,7 @@ from numpy import Inf
 
 import torch
 from torch import nn
+from torch.nn.parameter import Parameter
 from torch.optim import Adam, SGD
 
 import torch_geometric
@@ -11,7 +12,7 @@ from torch_geometric.loader import NeighborLoader
 from torch_geometric.nn import GCNConv, GATv2Conv
 
 from .BaseExplainer import BaseExplainer
-from utils.graphs import index_edge
+from utils.graphs import index_edge, create_symm_matrix_from_vec
 
 
 NODE_BATCH_SIZE = 32
@@ -31,15 +32,19 @@ class CFPGv2ExplModule(torch.nn.Module):
         self.in_feats = in_feats
         self.enc_h = enc_hidden
         self.dec_h = dec_hidden
-        self.conv = conv
+        self.conv  = conv
         self.heads = heads
         self.device = device
+        #self.tot_nodes = tot_nodes
 
-        if conv == "GCN":
+        if conv in "GCN":
+            #if conv == "pGCN":
+            #    P_vec_size = int((self.tot_nodes * self.tot_nodes - self.tot_nodes) / 2) + self.tot_nodes
+            #    self.P_vec = Parameter(torch.FloatTensor(torch.ones(P_vec_size))).to(self.device)
             self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
         elif conv == "GAT":
+            #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=self.heads)
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
-            #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=1)
 
         self.latent_dim = self.enc_h*3
         self.decoder = nn.Sequential(
@@ -88,7 +93,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
 
         return sampled_mask
-    
+
     def _forward_GAT(self, x, edge_index, node_id, bias: float=0.0, alpha: float=0.0, train: bool=True):
         """Forward step with a GAT encoder."""
         # encoder step
@@ -226,10 +231,10 @@ class CFPGv2(BaseExplainer):
 
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
-        heads = self.coeffs["heads"] if conv == "GAT" else -1 
+        heads    = self.coeffs["heads"] if conv == "GAT" else -1 
         self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,heads,device)
 
-    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss):
+    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss=None):
         """Returns the loss score based on the given mask.
 
         #### Args
@@ -484,3 +489,4 @@ class CFPGv2(BaseExplainer):
             expl_graph_weights[t] = mask[i]
 
         return sub_graph, expl_graph_weights
+
