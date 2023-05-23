@@ -1,13 +1,86 @@
+import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.nn.functional import relu, dropout, log_softmax, nll_loss
 from torch.nn.parameter import Parameter
+#from torch_geometric.nn import GCNConv
 
+
+## from gcn.py
+class GraphConvolution(nn.Module):
+    """Simple GCN layer, similar to https://arxiv.org/abs/1609.02907"""
+    def __init__(self, in_features, out_features, bias=True):
+        super(GraphConvolution, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = Parameter(torch.FloatTensor(in_features, out_features))
+        if bias:
+            self.bias = Parameter(torch.FloatTensor(out_features))
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(1))
+        self.weight.data.uniform_(-stdv, stdv)
+        if self.bias is not None:
+            self.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, input, adj):
+        support = torch.mm(input, self.weight)
+        output = torch.spmm(adj, support)
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def __repr__(self):
+        return self.__class__.__name__ + ' (' \
+               + str(self.in_features) + ' -> ' \
+               + str(self.out_features) + ')'
+
+## from gcn.py
+class GCNSynthetic(nn.Module):
+    """3-layer GCN used in GNN Explainer synthetic tasks"""
+    def __init__(self, nfeat, nhid, nout, nclass, dropout):
+        super(GCNSynthetic, self).__init__()
+        self.nclass = nclass
+
+        self.gc1 = GraphConvolution(nfeat, nhid)
+        self.gc2 = GraphConvolution(nhid, nhid)
+        self.gc3 = GraphConvolution(nhid, nout)
+        self.lin = nn.Linear(nhid + nhid + nout, nclass)
+        self.dropout = dropout
+
+    def forward(self, x, adj):
+        input_lin = self.embedding(x, adj)
+        x = self.lin(input_lin)
+        return log_softmax(x, dim=1)
+
+    def embedding(self, x, adj):
+        """
+        Computes nodes embeddings, i.e. feed-forward only through the
+        convolutional layers of the GCN.
+        """
+        x1 = relu(self.gc1(x, adj))
+        x1 = dropout(x1, self.dropout, training=self.training)
+        x2 = relu(self.gc2(x1, adj))
+        x2 = dropout(x2, self.dropout, training=self.training)
+        x3 = self.gc3(x2, adj)
+        input_lin = torch.cat((x1, x2, x3), dim=1)
+
+        return input_lin
+
+    def loss(self, pred, label):
+        return nll_loss(pred, label)
+    
+
+
+import torch.nn.functional as F
 from utils.graphs import create_symm_matrix_from_vec, create_vec_from_symm_matrix
-from .gcn import GraphConvolution, GCNSynthetic
 
 
-
+## from gcn_perturb.py
 class GraphConvolutionPerturb(nn.Module):
 	"""Similar to GraphConvolution except includes P_hat"""
 	def __init__(self, in_features, out_features, bias=True):
@@ -33,7 +106,7 @@ class GraphConvolutionPerturb(nn.Module):
 		       + str(self.in_features) + ' -> ' \
 		       + str(self.out_features) + ')'
 
-
+## from gcn_perturb.py
 class GCNSyntheticPerturb(nn.Module):
 	"""3-layer GCN used in GNN Explainer synthetic tasks"""
 	def __init__(self, 
@@ -149,8 +222,6 @@ class GCNSyntheticPerturb(nn.Module):
 		else:
 			A_tilde = self.P * self.adj + torch.eye(self.num_nodes).to(self.device)  # ZAVVE cuda test
 
-		#print("P matrix:", self.P.size())
-		#print("A_tilde:", A_tilde.size())
 		D_tilde = torch.diag(sum(A_tilde))
 		# Raise to power -1/2, set all infs to 0s
 		D_tilde_exp = D_tilde.pow(-0.5)     #D_tilde ** (-1 / 2)
@@ -170,7 +241,7 @@ class GCNSyntheticPerturb(nn.Module):
 		return F.log_softmax(x, dim=1), self.P, x3
 
 	def loss(self, output, y_pred_orig, y_pred_new_actual):
-		#pred_same = (y_pred_new_actual == y_pred_orig).float()
+		pred_same = (y_pred_new_actual == y_pred_orig).float()
 
 		# Need dim >=2 for F.nll_loss to work
 		output = output.unsqueeze(0)
@@ -183,9 +254,9 @@ class GCNSyntheticPerturb(nn.Module):
 		cf_adj.requires_grad = True  # Need to change this otherwise loss_graph_dist has no gradient
 
 		# Want negative in front to maximize loss instead of minimizing it to find CFs
-		loss_pred = F.cross_entropy(output, y_pred_orig)              #-F.nll_loss(output, y_pred_orig)
-		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2   # num of edges changed (symmetrical)
+		loss_pred = -F.nll_loss(output, y_pred_orig)              #F.cross_entropy(output, y_pred_orig)
+		loss_graph_dist = sum(sum(abs(cf_adj - self.adj))) / 2    # num of edges changed (symmetrical)
 
 		# Zero-out loss_pred with pred_same if prediction flips
-		loss_total = loss_pred + self.beta * loss_graph_dist
+		loss_total = pred_same * loss_pred + self.beta * loss_graph_dist
 		return loss_total, loss_pred, loss_graph_dist, cf_adj
