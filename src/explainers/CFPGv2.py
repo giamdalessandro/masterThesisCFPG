@@ -26,15 +26,17 @@ class CFPGv2ExplModule(torch.nn.Module):
             dec_hidden: int=64, 
             conv: str="GCN",
             heads: int=1,
+            add_att: float=0.0,
             device: str="cpu"
         ) -> None:
         super().__init__()
         self.in_feats = in_feats
-        self.enc_h = enc_hidden
-        self.dec_h = dec_hidden
-        self.conv  = conv
-        self.heads = heads
-        self.device = device
+        self.enc_h    = enc_hidden
+        self.dec_h    = dec_hidden
+        self.conv     = conv
+        self.heads    = heads
+        self.add_att  = add_att
+        self.device   = device
         #self.tot_nodes = tot_nodes
 
         if conv in "GCN":
@@ -43,8 +45,10 @@ class CFPGv2ExplModule(torch.nn.Module):
             #    self.P_vec = Parameter(torch.FloatTensor(torch.ones(P_vec_size))).to(self.device)
             self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
         elif conv == "GAT":
-            #self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, heads=self.heads)
-            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
+            if self.add_att != 0.0:
+                self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
+            else:
+                self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
 
         self.latent_dim = self.enc_h*3
         self.decoder = nn.Sequential(
@@ -75,7 +79,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         if self.conv == "GCN":
             out = self._forward_GCN(x, edge_index, node_id, bias, train) 
         elif self.conv == "GAT":
-            out, z, att_w = self._forward_GAT(x, edge_index, node_id, bias, train=train)
+            out, z, att_w = self._forward_GAT(x, edge_index, node_id, bias, alpha=self.add_att, train=train)
 
         return out
 
@@ -107,10 +111,11 @@ class CFPGv2ExplModule(torch.nn.Module):
         out_dec = self.decoder(z)
 
         # add attention
-        att_w = torch.mean(att_w[1], dim=1)
-        o_dec = torch.add(out_dec.squeeze(),att_w,alpha=alpha)
+        if alpha != 0.0:
+            att_w = torch.mean(att_w[1], dim=1)
+            out_dec = torch.add(out_dec.squeeze(),att_w,alpha=alpha)
         
-        sampled_mask = self._sample_graph(o_dec, bias=bias, training=train)
+        sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
         return sampled_mask, z, att_w     
 
     def _get_edge_repr(self, sub_index, enc_embeds, node_id):
@@ -183,7 +188,6 @@ class CFPGv2(BaseExplainer):
         "reg_cf"  : 5.0, 
         "temps": [5.0, 2.0],
         "sample_bias": 0.0,
-        "heads" : 3,
     }
 
     def __init__(self, 
@@ -232,7 +236,8 @@ class CFPGv2(BaseExplainer):
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
         heads    = self.coeffs["heads"] if conv == "GAT" else -1 
-        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,heads,device)
+        add_att  = self.coeffs["add_att"] if conv == "GAT" else 0.0 
+        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,heads,add_att,device)
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss=None):
         """Returns the loss score based on the given mask.

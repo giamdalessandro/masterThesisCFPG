@@ -63,7 +63,7 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
     l_min = torch.min(losses_t, dim=1).values
     l_max = torch.max(losses_t, dim=1).values
     
-    # normalization used: (x - x_min)/(x_max - x_min)
+    # min-max normalization: (x - x_min)/(x_max - x_min)
     norm_losses = []
     for i in range(len(losses.keys())):
         norm_losses.append((losses_t[i] - l_min[i].item())/(l_max[i].item() - l_min[i].item()))
@@ -88,7 +88,7 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
     plt.grid(which="minor", alpha=0.2)
     plt.legend()
 
-    if cf_num >= 0 and cf_tot > 0:  # cf examples plot
+    if len(cf_num) >= 0 and cf_tot > 0:  # cf examples plot
         perc_tick = sorted(list(set(cf_num)))
         y_ticks = [0] + perc_tick
         y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]

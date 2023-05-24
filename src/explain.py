@@ -36,6 +36,7 @@ parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptio
 parser.add_argument("--conv", "-c", type=str, default="GCN", 
                     choices=["GCN","GAT"], help="Explainer graph convolution ('GCN' or 'GAT')")
 parser.add_argument("--heads", type=int, default=1, help="Attention heads (if conv is 'GAT')")
+parser.add_argument("--add-att", type=float, default=0.0, help="Attention coeff")
 
 # other arguments
 parser.add_argument("--log", default=False, action=argparse.BooleanOptionalAction, 
@@ -125,6 +126,7 @@ elif GNN_MODEL == "PGE":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
 elif GNN_MODEL == "CFPGv2":
     cfg["expl_params"]["heads"] = args.heads
+    cfg["expl_params"]["add_att"] = args.add_att
     explainer = CFPGv2(model, graph, conv=args.conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
 
 
@@ -149,7 +151,7 @@ if args.roc:
     plot_expl_loss(
         expl_name=e_name,
         losses=e_h["train_loss"],
-        cf_num=e_h["cf_fnd"] if GNN_MODEL != "PGE" else -1,
+        cf_num=e_h["cf_fnd"] if GNN_MODEL != "PGE" else [-1],
         cf_tot=e_h["cf_tot"] if GNN_MODEL != "PGE" else -1
     )
 #exit("[DEBUGGONE]> sto a fixà i plot")
