@@ -69,9 +69,9 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
         norm_losses.append((losses_t[i] - l_min[i].item())/(l_max[i].item() - l_min[i].item()))
 
     # plot x ticks
-    x_maj = range(0,len(cf_num)+1,5) 
+    x_maj = range(0,len(norm_losses[0])+1,5) 
     x_maj = [1] + list(x_maj[1:]) 
-    x = range(1,len(cf_num)+1)   # epochs id
+    x = range(1,len(norm_losses[0])+1)   # epochs id
     plt.figure(figsize=(3, 4))
 
     # losses plot
@@ -88,35 +88,43 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
     plt.grid(which="minor", alpha=0.2)
     plt.legend()
 
-    # cf examples plot
-    plt.subplot(212)
-    plt.title("cf examples found")
-    plt.plot(x, cf_num, ".-", color="magenta")
-    plt.xlabel("epoch")
-    plt.ylabel("no. cf examples")
-    plt.xticks(x_maj)
-    plt.xticks(x, minor=True)
-    plt.grid(which="major", axis="x", alpha=0.5)
-    plt.grid(which="minor", axis="x", alpha=0.2)
-    
-    # cf perc twinx plot
-    # TODO: too much cf_perc on y-axis, should reduce them to a fixed num
-    #   also 4 decimals is too much for viz
-    cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
-    perc_tick = sorted(list(set(cf_num)))
-    try:
-        assert len(cf_perc) == len(perc_tick)
-    except AssertionError:
-        print("\t>> perc:", cf_perc)
-        print("\t>> perc:", perc_tick)
-        exit(Fore.RED + "[ERROR]> tto few perc_ticks in plot.")
+    if cf_num >= 0 and cf_tot > 0:  # cf examples plot
+        perc_tick = sorted(list(set(cf_num)))
+        y_ticks = [0] + perc_tick
+        y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]
+        print("\t>> y ticks:", y_ticks)
 
-    plt.twinx()
-    plt.ylabel("portion of cf found")
-    plt.plot(x, cf_num, alpha=0.1)
-    plt.yticks(ticks=perc_tick,labels=cf_perc)
-    plt.grid(which="major", axis="y", alpha=0.6, color="gray")
-    #plt.hlines(perc_tick, 1, len(x), "gray", "--", alpha=0.2)
+
+        plt.subplot(212)
+        plt.title("cf examples found")
+        plt.plot(x, cf_num, ".-", color="magenta")
+        plt.xlabel("epoch")
+        plt.ylabel("no. cf examples")
+        plt.xticks(x_maj)
+        plt.xticks(x, minor=True)
+        plt.yticks(y_ticks)
+        plt.grid(which="major", axis="x", alpha=0.5)
+        plt.grid(which="minor", axis="x", alpha=0.2)
+        
+        # cf perc twinx plot
+        # TODO: too much cf_perc on y-axis, should reduce them to a fixed num
+        #   also 4 decimals is too much for viz
+        cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
+        cf_perc = (["min"] + cf_perc) if cf_perc[-1] == "1.0000" else (["min"] + cf_perc + ["max"])
+        #perc_tick = sorted(list(set(cf_num)))
+        try:
+            assert len(cf_perc) == len(y_ticks)
+        except AssertionError:
+            print("\t>> y-ticks:", y_ticks)
+            print("\t>> cf-perc:", cf_perc)
+            exit(Fore.RED + "[ERROR]> Assertion: too few perc_ticks in plot.")
+
+        plt.twinx()
+        plt.ylabel("portion of cf found")
+        plt.plot(x, cf_num, alpha=0.1)
+        plt.yticks(ticks=y_ticks, labels=cf_perc)
+        plt.grid(which="major", axis="y", alpha=0.6, color="gray")
+        #plt.hlines(perc_tick, 1, len(x), "gray", "--", alpha=0.2)
 
     plt.suptitle(f"{expl_name} training")
 

@@ -10,8 +10,7 @@ from utils.graphs import index_edge
 
 
 class PGExplainer(BaseExplainer):
-    """
-    A class encaptulating the PGExplainer (https://arxiv.org/abs/2011.04573).
+    """A class encaptulating the PGExplainer (https://arxiv.org/abs/2011.04573).
     
     :param model_to_explain: graph classification model who's predictions we wish to explain.
     :param graphs: the collections of edge_indices representing the graphs.
@@ -152,8 +151,7 @@ class PGExplainer(BaseExplainer):
         return total_loss, cce_loss, size_loss, mask_ent_loss
 
     def _train(self, indices = None):
-        """
-        Main method to train the model
+        """Main method to train the model
         
         Args: 
         - indices: Indices that we want to use for training.
@@ -171,6 +169,12 @@ class PGExplainer(BaseExplainer):
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
+
+        self.history = {}
+        epoch_loss_tot  = []
+        epoch_loss_size = []
+        epoch_loss_ent  = []
+        epoch_loss_pred = []
 
         # Start training loop
         with tqdm(range(0, self.epochs), desc="[PGE]> ...training") as epochs_bar:
@@ -215,9 +219,22 @@ class PGExplainer(BaseExplainer):
 
                 epochs_bar.set_postfix(loss=f"{loss.item():.4f}", l_size=f"{size_total.item():.4f}",
                                 l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
+                
+                # metrics to plot
+                epoch_loss_tot.append(loss.item())
+                epoch_loss_size.append(size_total.item())
+                epoch_loss_ent.append(ent_total.item())
+                epoch_loss_pred.append(pred_total.item())
 
                 loss.backward()
                 optimizer.step()
+
+            self.history["train_loss"] = {
+                "loss_tot"  : epoch_loss_tot,
+                "loss_size" : epoch_loss_size,
+                "loss_ent"  : epoch_loss_ent,
+                "loss_pred" : epoch_loss_pred,
+            }
 
 
     def prepare(self, indices=None):

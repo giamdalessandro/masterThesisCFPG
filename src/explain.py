@@ -149,8 +149,8 @@ if args.roc:
     plot_expl_loss(
         expl_name=e_name,
         losses=e_h["train_loss"],
-        cf_num=e_h["cf_fnd"],
-        cf_tot=e_h["cf_tot"]
+        cf_num=e_h["cf_fnd"] if GNN_MODEL != "PGE" else -1,
+        cf_tot=e_h["cf_tot"] if GNN_MODEL != "PGE" else -1
     )
 #exit("[DEBUGGONE]> sto a fixà i plot")
 
@@ -201,7 +201,7 @@ else:
 if STORE_LOG:
     logs_d = {
         "epochs"  : EPOCHS,
-        "conv"    : CONV,
+        "conv"    : args.conv,
         "cfg"     : explainer.coeffs,
         "nodes"   : "train" if TRAIN_NODES else "test",
         "AUC"     : auc_score,

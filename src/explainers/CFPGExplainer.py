@@ -83,8 +83,7 @@ class CFPGExplainer(BaseExplainer):
 
 
     def _create_explainer_input(self, pair, embeds, node_id):
-        """
-        Given the embeddign of the sample by the model that we wish to explain, 
+        """Given the embeddign of the sample by the model that we wish to explain, 
         this method construct the input to the mlp explainer model. Depending on
         if the task is to explain a graph or a sample, this is done by either 
         concatenating two or three embeddings.
@@ -143,8 +142,7 @@ class CFPGExplainer(BaseExplainer):
         return graph
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
-        """
-        Returns the loss score based on the given mask.
+        """Returns the loss score based on the given mask.
 
         ### Args:
         `masked_pred` : torch.Tensor
@@ -195,8 +193,7 @@ class CFPGExplainer(BaseExplainer):
         return loss_total, size_loss, mask_ent_loss, pred_loss
 
     def _train(self, indices=None):
-        """
-        Main method to train the model
+        """Main method to train the model
         
         Args: 
         - indices: Indices that we want to use for training.
