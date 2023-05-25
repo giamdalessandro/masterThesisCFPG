@@ -52,7 +52,7 @@ parser.add_argument("--device", "-d", default="cpu", help="Running device, 'cpu'
 args = parser.parse_args()
 print(">>", args)
 DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = args.explainer    # "GNN", "CF-GNN" or "PGE"
+EXPLAINER = args.explainer    # "GNN", "CF-GNN" or "PGE"
 EPOCHS    = args.epochs       # explainer epochs
 SEED      = args.seed
 PLOT      = args.plot_expl
@@ -73,7 +73,7 @@ if torch.cuda.is_available() and device == "cuda" and CUDA:
     
 
 #### STEP 1: load a BAshapes dataset
-cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
+cfg = parse_config(dataset=DATASET, to_load=EXPLAINER)
 dataset, test_idxs = load_dataset(dataset=DATASET)
 train_idxs = dataset.train_mask
 # add some dataset info to config 
@@ -91,15 +91,15 @@ edge_index = graph.edge_index
 
 
 #### STEP 2: instantiate GNN model, one of GNN or CF-GNN
-if GNN_MODEL == "CF-GNN":
-    # need dense-normalized adjacency matrix for GCNSynthetic model
-    v = torch.ones(edge_index.size(1))
-    s = (graph.num_nodes,graph.num_nodes)
-    dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
-    norm_adj = normalize_adj(dense_index)
+#if EXPLAINER == "CF-GNN":
+#    # need dense-normalized adjacency matrix for GCNSynthetic model
+#    v = torch.ones(edge_index.size(1))
+#    s = (graph.num_nodes,graph.num_nodes)
+#    dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
+#    norm_adj = normalize_adj(dense_index)
 
 if DATASET == "cfg_syn4": DATASET = "syn4"
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg, device=device)
+model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=True, config=cfg, device=device)
 
 
 # loading tensors for CUDA computation 
@@ -118,16 +118,16 @@ if device == "cuda" and CUDA:
 #### STEP 3: select explainer
 print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
-if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
-elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
-elif GNN_MODEL == "PGE":
+if EXPLAINER == "PGEex":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
-elif GNN_MODEL == "CFPGv2":
+elif EXPLAINER == "CFPG":
+    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
+elif EXPLAINER == "CFPGv2":
     cfg["expl_params"]["heads"] = args.heads
     cfg["expl_params"]["add_att"] = args.add_att
     explainer = CFPGv2(model, graph, conv=args.conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
+#elif EXPLAINER == "CF-GNN":
+#    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 
 
 #### STEP 4: train and execute explainer
@@ -151,8 +151,8 @@ if args.roc:
     plot_expl_loss(
         expl_name=e_name,
         losses=e_h["train_loss"],
-        cf_num=e_h["cf_fnd"] if GNN_MODEL != "PGE" else [-1],
-        cf_tot=e_h["cf_tot"] if GNN_MODEL != "PGE" else -1
+        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1
     )
 #exit("[DEBUGGONE]> sto a fixà i plot")
 
@@ -185,7 +185,7 @@ time_score = inference_eval.get_score(explanations)
 print("\t>> final score:",f"{auc_score:.4f}")
 print("\t>> time elapsed:",f"{time_score:.4f}")
 
-if GNN_MODEL != "PGE":      # PGE does not produce CF examples
+if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     cf_examples = explainer.cf_examples
     found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)
@@ -208,11 +208,11 @@ if STORE_LOG:
         "nodes"   : "train" if TRAIN_NODES else "test",
         "AUC"     : auc_score,
         "time"    : time_score,
-        "cf_perc" : perc_cf if GNN_MODEL != "PGE" else -1.0,
-        "cf_tot"  : max_cf_ex if GNN_MODEL != "PGE" else "a",
-        "cf_fnd"  : found_cf_ex if GNN_MODEL != "PGE" else "n",
+        "cf_perc" : perc_cf if EXPLAINER != "PGEex" else -1.0,
+        "cf_tot"  : max_cf_ex if EXPLAINER != "PGEex" else "a",
+        "cf_fnd"  : found_cf_ex if EXPLAINER != "PGEex" else "n",
     }
-    store_expl_log(explainer=GNN_MODEL, dataset=DATASET, logs=logs_d)
+    store_expl_log(explainer=EXPLAINER, dataset=DATASET, logs=logs_d)
 
 
 #### STEP 5: build the node_features for the adversarial graph based on the cf examples 
@@ -239,6 +239,6 @@ if STORE_ADV:
     print("adv_features :", adv_node_feats.size()) 
 
     # store in a .pkl file the adv examples
-    rel_path = f"/../datasets/pkls/{DATASET}_adv_train_{GNN_MODEL}.pt"
+    rel_path = f"/../datasets/pkls/{DATASET}_adv_train_{EXPLAINER}.pt"
     save_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
     torch.save(adv_data, save_path)

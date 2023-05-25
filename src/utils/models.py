@@ -13,12 +13,17 @@ SAVES_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_saves
 def string_to_model(paper: str, dataset: str, device: str, config):
     """Given a paper and a dataset return the cooresponding neural model needed for training.
 
-    Args
-    - `paper`: the paper who's classification model we want to use.
-    - `dataset`: the dataset on which we wish to train. This ensures that the model in- and output are correct.
-    - `config`: the dict containing config file parameters.
+    #### Args
+    paper : `str` 
+        the paper who's classification model we want to use.
     
-    Returns 
+    dataset : `str`
+        the dataset on which we wish to train. This ensures that the model in- and output are correct.
+    
+    config : `str`
+        the dict containing config file parameters.
+    
+    #### Returns 
         `torch.nn.module` models.
     """
     # get some model parameters from config file
@@ -27,7 +32,7 @@ def string_to_model(paper: str, dataset: str, device: str, config):
     n_class = config["num_classes"]
 
     if paper == "GNN" or paper == "PGE" or paper == "CFPGv2":  # GNNExplainer and PGExplainer gnn model
-        if dataset in ['syn1','syn2','syn3','syn4']:
+        if dataset in ["syn1","syn2","syn3","syn4"]:
             # node classification datasets
             return NodeGCN(n_feat, n_class, device)
         else:
@@ -37,7 +42,7 @@ def string_to_model(paper: str, dataset: str, device: str, config):
         # get GCNSynth model parameter from config file
         drop = config["dropout"]
 
-        if dataset in ['syn1','syn2','syn3','syn4']:
+        if dataset in ["syn1","syn2","syn3","syn4"]:
             # node classification datasets
             return GCNSynthetic(n_feat,n_hid,n_hid,n_class,drop)
         else:
@@ -47,36 +52,37 @@ def string_to_model(paper: str, dataset: str, device: str, config):
         raise NotImplementedError(f"Model {paper} not implemented.")
 
 def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
-    """
-    Given a paper and dataset loads the pre-trained model.
+    """Given a paper and dataset loads the pre-trained model.
 
-    Args
-    - `model`     : model instance on which the pretrained checkpoint will be loaded.
-    - `paper`     : the paper who's classification model we want to use.
-    - `explainer` : the explainer model on which the gnn-model has been meta-trained 
-            (if you want to load the model weights after meta-training).
-    - `dataset` : the dataset on which we wish to train. This ensures that the model 
-            input and output are correct.
+    #### Args    
+    model : `torch.nn.Module`
+        model instance on which the pretrained checkpoint will be loaded.
+
+    paper : `str`
+        the paper who's classification model we want to use.
     
-    Returns 
+    explainer : `str`
+        the explainer model on which the gnn-model has been meta-trained 
+        (if you want to load the model weights after meta-training).
+    
+    dataset : `str`
+        the dataset on which we wish to train. This ensures that the model 
+        input and output are correct.
+    
+    #### Returns 
         The path (`str`) to the pre-trined model parameters.
     """
-    # to test CFPGv2, should remove it later
-    paper = "GNN" if paper == "CFPGv2" else paper
-
-    # maybe wirte get_pretrained_model function
-    if paper == "CF-GNN_old":
-        # to load CFExpl paper pretrained models
-        model_name = f"gcn_3layer_{dataset}.pt"
+    if paper == "CF-GNN_old": 
+        model_name = f"gcn_3layer_{dataset}.pt"  # to load CFGNNExpl pretrained models
     else:
         model_name = "best_model"
 
     if explainer == "":
         rel_path = f"{paper}/{dataset}/{model_name}"
-    elif explainer == "adv":
-        rel_path = f"{paper}/{explainer}/{dataset}/{model_name}"
     else:
-        rel_path = f"{paper}/{explainer}/{dataset}/{model_name}"
+        rel_path = f"{paper}/meta/{explainer}/{dataset}/{model_name}"
+    #elif explainer == "adv":
+    #    rel_path = f"{paper}/{explainer}/{dataset}/{model_name}"
 
     print(Fore.CYAN + "[models]> ...loading checkpoint from",f"'checkpoints/{rel_path}'")
 
@@ -103,17 +109,26 @@ def model_selector(
     ): 
     r"""Given a paper and dataset loads accociated model.
 
-    Args
-    - `paper`   : the paper who's classification model we want to use.
-    - `dataset` : the dataset on which we wish to train. This ensures that the model
+    #### Args
+    paper : `str`
+        the paper who's classification model we want to use.
+    
+    dataset : `str`
+        the dataset on which we wish to train. This ensures that the model
         input and output are correct.
-    - `explainer` : the explainer model on which the gnn-model has been meta-trained 
+    
+    explainer : `str`
+        the explainer model on which the gnn-model has been meta-trained 
         (if you want to load the model weights after meta-training).
-    - `pretrained` : whether to return a pre-trained model or not. If true returns the 
-        model checkpoint.
-    - `return_checkpoint`: whether to return the dict contining the models parameters or not.
+    
+    pretrained : `bool`
+        whether to return a pre-trained model or not. If true returns the 
+        tuple (model,checkpoint).
+    
+    return_checkpoint : `bool`
+        whether to return the dict contining the models parameters or not.
 
-    Returns 
+    #### Returns 
         `torch.nn.module` models and optionallly a dict containing it's parameters.
     """
     model = string_to_model(paper, dataset, device, config)

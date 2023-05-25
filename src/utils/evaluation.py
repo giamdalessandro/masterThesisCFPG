@@ -10,8 +10,7 @@ SAVES_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_saves
 
 
 def evaluate(out, labels):
-    """
-    Calculates the accuracy between the prediction and the ground truth.
+    """Calculates the accuracy between the prediction and the ground truth.
     
     Args:
     - `out`   : predicted outputs of the explainer
@@ -27,8 +26,7 @@ def evaluate(out, labels):
 
 def store_checkpoint(model, gnn: str, dataset: str, train_acc, val_acc, test_acc, 
                     epoch=-1, mode: str=""):
-    """
-    Store the model weights at a predifined location.
+    """Store the model weights at a predifined location.
 
     Args
     - `model`     : the model who's parameters we whish to save;
@@ -58,8 +56,7 @@ def store_checkpoint(model, gnn: str, dataset: str, train_acc, val_acc, test_acc
 
 def load_best_model(model, best_epoch: int, gnn: str, dataset: str, explainer: str="",
                     eval_enabled: bool=True, mode: str=""):
-    """
-    Load the model parameters from a checkpoint into a model
+    """Load the model parameters from a checkpoint into a model
     
     Args
     - `model`       : the model who's parameters overide

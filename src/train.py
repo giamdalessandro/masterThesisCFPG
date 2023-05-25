@@ -15,15 +15,18 @@ from utils.graphs import normalize_adj
 CUDA = True
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gnn", "-G", type=str, default='GNN')
-parser.add_argument("--dataset", "-D", type=str, default='syn1')
+parser.add_argument("--gnn", "-G", type=str, default='PGE',
+                    choices=["PGE","CF-GNN"])
+parser.add_argument("--dataset", "-D", type=str, default='syn1',
+                    choices=["syn1","syn2","syn3","syn4"])
 parser.add_argument("--epochs", "-e", type=int, default=0, help='Number of explainer epochs.')
 parser.add_argument("--seed", "-s", type=int, default=42, help='Random seed.')
 parser.add_argument('--adv', type=str, default="")
 
-parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
 parser.add_argument('--train', default=False, action=argparse.BooleanOptionalAction)
 parser.add_argument('--store', default=False, action=argparse.BooleanOptionalAction)
+parser.add_argument("--device", "-d", type=str, default="cpu", 
+                    help="Running device.", choices=["cpu","cuda"])
 
 args = parser.parse_args()
 #print(">>", args)
@@ -47,8 +50,8 @@ if torch.cuda.is_available() and device == "cuda" and CUDA:
 
 
 ## load a BAshapes dataset
-cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
-dataset, test_indices = load_dataset(dataset=DATASET, load_adv=(MODE=="adv"))
+cfg = parse_config(dataset=DATASET, to_load=GNN_MODEL)
+dataset, test_indices = load_dataset(dataset=DATASET)  #, load_adv=(MODE=="adv"))
 graph = dataset.get(0) # get base BAgraph
 print(Fore.GREEN + f"\n[dataset]> {dataset} dataset graph...")
 print("\t>>", graph)
@@ -63,7 +66,7 @@ idx_test  = torch.BoolTensor(dataset.test_mask)
 
 
 ### instantiate GNN modelgraph
-model, _ = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), device=device, config=cfg)
+model, _ = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=not(TRAIN), device=device, config=cfg)
 
 
 #for g in range(dataset.len()):

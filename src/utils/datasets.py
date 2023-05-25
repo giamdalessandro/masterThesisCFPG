@@ -11,24 +11,47 @@ path_to_data = "/../../datasets/"
 DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
 
 
-def parse_config(dataset: str, gnn: str):
+def parse_config(to_load: str, dataset: str):
     """Parse config file (.json) for chosen `dataset` and `gnn` into a dictionary."""
-    if dataset == "syn1": data_cfg = dataset + "_BAshapes"
-    elif dataset == "syn2": data_cfg = dataset + "_BAcommunities"
-    elif dataset == "syn3": data_cfg = dataset + "_treeCycles"
-    elif dataset in ["syn4","cfg_syn4"]: data_cfg = "syn4" + "_treeGrids"
+    #if dataset   == "syn1": data_cfg = dataset + "_BAshapes"
+    #elif dataset == "syn2": data_cfg = dataset + "_BAcommunities"
+    #elif dataset == "syn3": data_cfg = dataset + "_treeCycles"
+    #elif dataset in ["syn4","cfg_syn4"]: data_cfg = "syn4" + "_treeGrids"
+    if to_load in ["PGE", "CF-GNN"]:  # only need to load gnn model config
+        gnn = to_load
+        explainer = ""
+    elif to_load in ["PGEex", "CFPG", "CFPGv2"]:  # need to load explainer and related gnn configs
+        gnn = "PGE"
+        explainer = to_load
+
+    if gnn   == "PGE":    gnn_file = "pgeGNN" 
+    elif gnn == "CF-GNN": gnn_file = "cfGNN"
 
     #gnn = "PGE" # to force PGE params
-    rel_path = f"/../configs/{gnn}/{data_cfg}.json"
+    rel_path = f"/../configs/gnns/{gnn_file}.json"
     cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
+    with open(cfg_path) as config_parser:
+        gnn_cfg = json.loads(json.dumps(json.load(config_parser)))
+        
+    if explainer == "":  
+        gnn_cfg["train_params"] = gnn_cfg["datasets"][dataset]
+        return gnn_cfg     # only need gnn model config
+    else: 
+        # need to load also explainer config 
+        if explainer   == "PGEex":  expl_file = "pge" 
+        elif explainer == "CFPG":   expl_file = "cfpg_base"
+        elif explainer == "CFPGv2": expl_file = "cfpg_v2"
 
-    try:    
-        with open(cfg_path) as config_parser:
-            config = json.loads(json.dumps(json.load(config_parser)))
-        return config
-    except FileNotFoundError:
-        print(f"No config found for '{cfg_path}'")
-        exit(0)
+        rel_path = f"/../configs/explainers/{expl_file}.json"
+        expl_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
+        with open(expl_path) as config_parser:
+            expl_cfg = json.loads(json.dumps(json.load(config_parser)))
+
+        cfg = gnn_cfg
+        cfg["expl_params"] = expl_cfg["datasets"][dataset]
+
+        return cfg
+    
 
 def get_neighborhood_labels(edge_index, edge_labels, test_indices):
     """ TODO: func to get labels for each node explanation separatedly.""" 
