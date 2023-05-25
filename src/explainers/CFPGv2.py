@@ -54,7 +54,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         self.decoder = nn.Sequential(
             nn.Linear(self.latent_dim, self.dec_h),
             nn.ReLU(),
-            nn.Linear(self.dec_h, 1),
+            nn.Linear(self.dec_h, 1)
         ).to(self.device)
 
         ## possible decoders
@@ -263,20 +263,16 @@ class CFPGv2(BaseExplainer):
         reg_cf   = self.coeffs["reg_cf"]
         EPS = 1e-15
 
-        # Regularization losses
+        # Size loss
         #mask_mean = mask.mean()
-        #cf_edges = (mask > mask_mean).sum()
-        #tot_edges = torch.ones(mask.size()).to(self.device).sum()
-        #size_loss = ((tot_edges - cf_edges).abs())
-
-        #size_loss = -((mask > mask_mean)).sum()   # working fine
-        #print("\t>> cf mask size:", size_loss.item())      # working fine
-        size_loss = -(mask.sigmoid()).sum()     # old
+        #size_loss = ((mask > mask_mean)).sum()   # working fine
+        size_loss = mask.sum()
         size_loss = size_loss * reg_size
 
         #scale = 0.99
         #mask = mask*(2*scale-1.0)+(1.0-scale)
 
+        # Entropy loss (PGE)
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
         mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
 
@@ -381,6 +377,9 @@ class CFPGv2(BaseExplainer):
                         # compute explanation mask
                         expl_feats = embeds[global_n_ids].to(self.device)
                         mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
+                        
+                        #cf_adj = torch.ones(mask.size()).to(self.device) 
+                        #cf_mask = (cf_adj - mask).abs()
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
@@ -481,11 +480,6 @@ class CFPGv2(BaseExplainer):
         # to get opposite of cf-mask, i.e. explanation
         cf_adj = torch.ones(mask.size()).to(self.device) 
         mask = (cf_adj - mask).abs()
-        #print("\n\t>> mask:", mask.size())
-        #print("\t>> mean:", mask.mean())
-        #print("\t>> sum :", (mask > 0.5).sum())
-        #exit(0)
-        #mask = (mask > 0.5).float()
 
         expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

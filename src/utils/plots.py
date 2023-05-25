@@ -75,6 +75,7 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
     plt.figure(figsize=(3, 4))
 
     # losses plot
+    # TODO: should enforce same colors on same loss components
     plt.subplot(211)
     plt.title("explanation loss")
     plt.plot(x, (norm_losses[0]).tolist(), ".-", label="loss")
@@ -92,7 +93,7 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
         perc_tick = sorted(list(set(cf_num)))
         y_ticks = [0] + perc_tick
         y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]
-        print("\t>> y ticks:", y_ticks)
+        #print("\t>> y ticks:", y_ticks)
 
 
         plt.subplot(212)

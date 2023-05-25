@@ -24,7 +24,8 @@ CUDA = True
 
 # explainer training
 parser = argparse.ArgumentParser()
-parser.add_argument("--explainer", "-E", type=str, default="GNN")
+parser.add_argument("--explainer", "-E", type=str, default="CFPG",
+                    choices=["PGEex","CFPG","CFPGv2"])
 parser.add_argument("--dataset", "-D", type=str, default="syn1", 
                     choices=['syn1','syn2','syn3','syn4'], help="Dataset used for training")
 parser.add_argument("--epochs", "-e", type=int, default=5, help="Number of explainer epochs")
@@ -39,6 +40,8 @@ parser.add_argument("--heads", type=int, default=1, help="Attention heads (if co
 parser.add_argument("--add-att", type=float, default=0.0, help="Attention coeff")
 
 # other arguments
+parser.add_argument("--prefix", type=str, default="", 
+                    help="Explainer graph convolution ('GCN' or 'GAT')")
 parser.add_argument("--log", default=False, action=argparse.BooleanOptionalAction, 
                     help="Whether to store run logs")
 parser.add_argument("--roc", default=False, action=argparse.BooleanOptionalAction, 
@@ -212,7 +215,7 @@ if STORE_LOG:
         "cf_tot"  : max_cf_ex if EXPLAINER != "PGEex" else "a",
         "cf_fnd"  : found_cf_ex if EXPLAINER != "PGEex" else "n",
     }
-    store_expl_log(explainer=EXPLAINER, dataset=DATASET, logs=logs_d)
+    store_expl_log(explainer=EXPLAINER, dataset=DATASET, logs=logs_d, prefix=args.prefix)
 
 
 #### STEP 5: build the node_features for the adversarial graph based on the cf examples 

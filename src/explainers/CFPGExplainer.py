@@ -172,7 +172,6 @@ class CFPGExplainer(BaseExplainer):
         #size_loss = ((tot_edges - cf_edges).abs()) / 2
 
         size_loss = -((mask > mask_mean)).sum()   # working fine
-        #print("\t>> cf mask size:", size_loss.item())      # working fine
         #size_loss = (mask.sigmoid()).sum()     # old
         size_loss = size_loss * reg_size
 

@@ -95,7 +95,7 @@ def load_best_model(model, best_epoch: int, gnn: str, dataset: str, explainer: s
 path_to_logs = "/../../logs/"
 LOG_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_logs
 
-def store_expl_log(explainer: str, dataset: str, logs: dict, save_path: str=LOG_DIR):
+def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", save_path: str=LOG_DIR):
     """Store explanation run logs."""
     save_path = save_path + f"{explainer}/{dataset}" 
     if not os.path.isdir(save_path):
@@ -104,7 +104,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, save_path: str=LOG_
     eps = logs["epochs"]
     opt = logs["cfg"]["opt"]
     conv = logs["conv"]
-    log_file = f"{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
+    log_file = f"{prefix}{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
     
     e_c = logs["cfg"]
     heads = 0 if conv == "GCN" else e_c["heads"]     # no meaning if using GCNconv

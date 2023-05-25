@@ -251,8 +251,7 @@ class PGExplainer(BaseExplainer):
         self._train(indices=indices)
 
     def explain(self, index):
-        """
-        Given the index of a node/graph this method returns its explanation. 
+        """Given the index of a node/graph this method returns its explanation. 
         This only gives sensible results if the prepare method has already been called.
 
         Args
@@ -275,7 +274,11 @@ class PGExplainer(BaseExplainer):
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
         sampling_weights = self.explainer_model(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
-        #print("[explain]> mask:", torch.sum(mask > mask.mean()))
+        
+        #print("\t[expl]> mask sum:", mask.sum())
+        #print("\t[expl]> mask max:", mask.max())
+        #print("\t[expl]> first 5:", mask[:5])
+        #exit(0)
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):
