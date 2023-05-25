@@ -2,7 +2,7 @@
     "paper" : "CF-GNN",
     "num_hidden" : 20,
     "num_layers" : 3,
-    "dataset" : {
+    "datasets" : {
         "syn1" : {
             "name" : "BAshapes",
             "lr" : 0.005,

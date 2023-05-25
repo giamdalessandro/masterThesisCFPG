@@ -40,7 +40,7 @@ def string_to_model(paper: str, dataset: str, device: str, config):
 
     elif paper == "CF-GNN":  # CF-GNNExplainer gnn model
         # get GCNSynth model parameter from config file
-        drop = config["dropout"]
+        drop = config["train_params"]["dropout"]
 
         if dataset in ["syn1","syn2","syn3","syn4"]:
             # node classification datasets
