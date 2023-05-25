@@ -167,13 +167,13 @@ if TRAIN:
     train_acc = evaluate(out[idx_train], labels[idx_train])
     val_acc   = evaluate(out[idx_eval], labels[idx_eval])
     test_acc  = evaluate(out[idx_test], labels[idx_test])
-    if TRAIN:
-        print(Fore.MAGENTA + "\n[results]> training final results - Accuracy")
-        if best_epoch == -1: print(Fore.RED+"[DEBUG]> training ckpts not stored, showing default results...")
-    else:
+    if STORE:
         # add metrics for rm-1hop and rm-expl test
-        print(Fore.MAGENTA + "\n[results]> from checkpoint results - Accuracy")
+        print(Fore.MAGENTA + "\n[results]> training results - Accuracy")
         print(f"\t>> model: {GNN_MODEL}\tdataset: {DATASET}")
+    else:
+        print(Fore.MAGENTA + "\n[results]> stored final results - Accuracy")
+        if best_epoch == -1: print(Fore.RED+"[DEBUG]> training ckpts not stored, showing default results...")
 
     print(f"\t>> train: {train_acc:.4f}  val: {val_acc:.4f}  test: {test_acc:.4f}")
 

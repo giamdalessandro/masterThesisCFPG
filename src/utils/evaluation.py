@@ -28,14 +28,21 @@ def store_checkpoint(model, gnn: str, dataset: str, train_acc, val_acc, test_acc
                     epoch=-1, mode: str=""):
     """Store the model weights at a predifined location.
 
-    Args
-    - `model`     : the model who's parameters we whish to save;
-    - `gnn  `     : str, the gnn model;
-    - `dataset`   : str, the dataset;
-    - `train_acc` : training accuracy obtained by the model;
-    - `val_acc`   : validation accuracy obtained by the model;
-    - `test_acc`  : test accuracy obtained by the model;
-    - `epoch`     : the current epoch of the training process;
+    #### Args
+    model : torch.nn.Module
+        the model who's parameters we whish to save;
+    gnn : str, 
+        the gnn model;
+    dataset : str, 
+        the dataset;
+    train_acc : float
+        training accuracy obtained by the model;
+    val_acc : float
+        validation accuracy obtained by the model;
+    test_acc : float
+        test accuracy obtained by the model;
+    epoch : int 
+        the current epoch of the training process;
     """
     if mode != "":
         save_path = SAVES_DIR + f"{gnn}/{mode}/{dataset}" 
