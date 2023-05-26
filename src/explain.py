@@ -125,17 +125,6 @@ else:
     train_idxs = test_idxs   # use only nodes that have an explanation ground truth
 explainer.prepare(indices=train_idxs)  # actually train the explainer model
 
-if args.roc:
-    e_name = explainer.expl_name
-    e_h = explainer.history
-    plot_expl_loss(
-        expl_name=e_name,
-        losses=e_h["train_loss"],
-        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
-        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1
-    )
-#exit("[DEBUGGONE]> sto a fixà i plot")
-
 
 # Actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
@@ -158,13 +147,16 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
 
 inference_eval.done_explaining()
 
-# compute AUC score for computed explanation
+# Metrics: compute AUC score for computed explanation
 print(Fore.MAGENTA + "\n[explain]> explanation metrics")
-auc_score = auc_eval.get_score(explanations, args.roc)
+auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 print("\t>> final score:",f"{auc_score:.4f}")
 print("\t>> time elapsed:",f"{time_score:.4f}")
 
+
+#### STEP 5: Logs and plots
+# CF explanations data to log
 if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     cf_examples = explainer.cf_examples
     found_cf_ex = len(cf_examples.keys())
@@ -172,12 +164,27 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:")
     perc_cf = (found_cf_ex/max_cf_ex)
     print(f"\t>> with CF: {found_cf_ex}/{max_cf_ex}  ({perc_cf*100:.2f}%)")
-    #print("\t>> w/o CF :",f"{(1-perc_cf)*100:.2f} %")
 else:
     # add some log info for log function    
     explainer.coeffs["lr"] = explainer.lr 
     explainer.coeffs["opt"] = "Adam"      
     explainer.coeffs["reg_cf"] = "n/a"    
+
+
+# performances plots
+if args.roc:
+    e_name = explainer.expl_name
+    e_h = explainer.history
+    plot_expl_loss(
+        expl_name=e_name,
+        losses=e_h["train_loss"],
+        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
+        roc_gt=roc_gts,
+        roc_preds=roc_preds
+    )
+#exit("[DEBUGGONE]> sto a fixà i plot")
+
 
 # store explanation results into a log file
 if STORE_LOG:
@@ -195,7 +202,7 @@ if STORE_LOG:
     store_expl_log(explainer=EXPLAINER, dataset=DATASET, logs=logs_d, prefix=args.prefix)
 
 
-#### STEP 5: build the node_features for the adversarial graph based on the cf examples 
+#### STEP 6: build the node_features for the adversarial graph based on the cf examples 
 if STORE_ADV:
     adv_node_feats = []
     for n_idx in range(x.size(0)):

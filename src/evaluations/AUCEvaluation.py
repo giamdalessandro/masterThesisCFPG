@@ -7,7 +7,7 @@ from .BaseEvaluation import BaseEvaluation
 
 
 
-def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=False):
+def _eval_AUC_node(explanations, explanation_labels):
     """Evaluate the auc score given explaination and ground truth labels.
 
     ### Args
@@ -27,6 +27,7 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=False):
     # for easier access densify explanation labels matrix
     expl_labels_dense = explanation_labels[1].to_dense()
     expl_labels_sparse = explanation_labels[1].indices()
+
     #print("\n\t[DEBUG]> labels:", expl_labels_sparse.size(1))
 
     visited_edges = torch.zeros(explanation_labels[1].size())
@@ -65,7 +66,10 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=False):
                 else:
                     ground_truth_node.append(1)
 
-                #exit("\n[DEBUG]: sto a debbuggà, stacce.")            
+            #print("\n\t>> sub graph:", sub_graph.size())
+            #print("\t>> preds    :", pred_scores.size())
+            #print("\t>> groud truth:", len(ground_truth_node))
+            #exit("\n[DEBUG]: sto a debbuggà, stacce.")            
 
             ground_truth.extend(ground_truth_node)
             predictions.extend(prediction_node)
@@ -87,25 +91,7 @@ def _eval_AUC_node(explanations, explanation_labels, plot_roc: bool=False):
     #score = accuracy_score(ground_truth, predictions)
     score = roc_auc_score(ground_truth, predictions)
 
-    if plot_roc:   # plot ROC curve
-        import matplotlib.pyplot as plt
-        from sklearn.metrics import RocCurveDisplay
-
-        RocCurveDisplay.from_predictions(
-            ground_truth,
-            predictions,
-            name=f"expl.edges vs the rest",
-            color="darkorange",
-        )
-        plt.plot([0, 1], [0, 1], "k--", label="chance level (AUC = 0.5)")
-        plt.axis("square")
-        plt.xlabel("FP rate")
-        plt.ylabel("TP rate")
-        plt.title("ROC curve")
-        plt.legend()
-        plt.show()
-
-    return score
+    return score, ground_truth, predictions
 
 
 class AUCEvaluation(BaseEvaluation):
@@ -124,7 +110,7 @@ class AUCEvaluation(BaseEvaluation):
         self.indices = indices
         self.ground_truth = ground_truth
 
-    def get_score(self, explanations, plot: bool=False):
+    def get_score(self, explanations):
         """Determines the auc score based on the given list of explanations and
         the list of ground truths
         
@@ -138,4 +124,4 @@ class AUCEvaluation(BaseEvaluation):
             return NotImplementedError("Graph AUC-score not implemented.")
             return _eval_AUC_graph(explanations, explanation_labels, self.indices)
         elif self.task == 'node':
-            return _eval_AUC_node(explanations, self.ground_truth, plot)
+            return _eval_AUC_node(explanations, self.ground_truth)

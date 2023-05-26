@@ -55,7 +55,7 @@ def plot_graph(edge_index, expl_weights, n_idx: int, e_cap: int=0, show: bool=Tr
         plt.title(f"Node {n_idx} expl")
         plt.show()
 
-def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show: bool=True):
+def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_gt: list, roc_preds: list, show: bool=True):
     """Plot explainer training performances."""
     # normalize losses contribution for a better plot
     losses_l = [torch.Tensor(l) for l in losses.values()]
@@ -72,58 +72,64 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
     x_maj = range(0,len(norm_losses[0])+1,5) 
     x_maj = [1] + list(x_maj[1:]) 
     x = range(1,len(norm_losses[0])+1)   # epochs id
-    plt.figure(figsize=(3, 4))
+    
+    fig = plt.figure(figsize=(12,9), layout="tight")
+    ax1 = fig.add_subplot(3,4,(1,2))
+    ax2 = fig.add_subplot(3,4,(5,6))
+    ax3 = fig.add_subplot(3,4,(9,10))
+    ax4 = fig.add_subplot(3,4,(3,8))
 
-    # losses plot
+
+    ### losses plot
     # TODO: should enforce same colors on same loss components
-    plt.subplot(3,1,1)
-    plt.title("explanation loss")
-    plt.plot(x, (norm_losses[0]).tolist(), ".-", label="loss")
-    plt.plot(x, (norm_losses[1]).tolist(), "--", label="size loss")
-    plt.plot(x, (norm_losses[2]).tolist(), "--", label="ent loss")
-    plt.plot(x, (norm_losses[3]).tolist(), "--", label="pred loss")
-    plt.xticks(x_maj)
-    plt.xticks(x, minor=True)
-    plt.ylabel("normalized loss score")
-    plt.grid(which="major", alpha=0.5)
-    plt.grid(which="minor", alpha=0.2)
-    plt.legend()
+    ax1.set_title("explanation loss")
+    ax1.plot(x, (norm_losses[1]).tolist(), "--", label="size loss", alpha=0.5)
+    ax1.plot(x, (norm_losses[2]).tolist(), "--", label="ent loss" , alpha=0.5)
+    ax1.plot(x, (norm_losses[3]).tolist(), "--", label="pred loss", alpha=0.5)
+    ax1.plot(x, (norm_losses[0]).tolist(), ".-", label="loss", color="k")
+    ax1.set_xticks(x_maj)
+    ax1.set_xticks(x, minor=True)
+    ax1.set_ylabel("normalized loss score")
+    ax1.grid(which="major", alpha=0.5)
+    ax1.grid(which="minor", alpha=0.2)
+    ax1.legend()
 
 
-    # perc losses plot
+    ### perc losses plot
     perc_losses = []
     for i in range(1,len(losses.keys())):
-        perc_losses.append(losses_t[i]/losses_t[0])
+        perc_losses.append(torch.div(losses_t[i],losses_t[0].abs()))
 
-    print("\tperc_loss 1:", perc_losses[0])
-    print("\tperc_loss 2:", perc_losses[1])
-    print("\tperc_loss 3:", perc_losses[2])
+    #print("\tperc_loss 1:", perc_losses[0])
+    #print("\tperc_loss 2:", perc_losses[1])
+    #print("\tperc_loss 3:", perc_losses[2]) 
+    bottom_1 = perc_losses[0]
+    bottom_2 = perc_losses[0] + perc_losses[1]
+    #plt.bar(x, (perc_losses[0]).tolist(), label="loss")
+    ax2.set_title("losses contribution")
+    ax2.set_xticks(x_maj)
+    ax2.set_xticks(x, minor=True)
+    ax2.bar(x, (perc_losses[0]).tolist(),label="size loss")
+    ax2.bar(x, (perc_losses[1]).tolist(),label="ent loss" , bottom=bottom_1)
+    ax2.bar(x, (perc_losses[2]).tolist(),label="pred loss", bottom=bottom_2)
+    ax2.legend()
 
-    #plt.subplot(3,1,2)
-    ##plt.bar(x, (perc_losses[0]).tolist(), label="loss")
-    #plt.bar(x, (perc_losses[0]).tolist(), label="size loss")
-    #plt.bar(x, (perc_losses[1]).tolist(), label="ent loss")
-    #plt.bar(x, (perc_losses[2]).tolist(), label="pred loss")
-    #plt.legend()
 
-
+    ### cf examples plot
     if len(cf_num) >= 0 and cf_tot > 0:  # cf examples plot
         perc_tick = sorted(list(set(cf_num)))
         y_ticks = [0] + perc_tick
         y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]
-        #print("\t>> y ticks:", y_ticks)
-
-
-        plt.subplot(3,1,3)
-        plt.title("cf examples found")
-        plt.plot(x, cf_num, ".-", color="magenta")
-        plt.xlabel("epoch")
-        plt.ylabel("no. cf examples")
-        plt.xticks(x_maj)
-        plt.xticks(x, minor=True)
-        plt.yticks(y_ticks)
-        plt.grid(which="major", axis="x", alpha=0.5)
-        plt.grid(which="minor", axis="x", alpha=0.2)
+        
+        ax3.set_title("cf examples found")
+        ax3.plot(x, cf_num, ".-", color="magenta")
+        ax3.set_xlabel("epoch")
+        ax3.set_ylabel("no. cf examples")
+        ax3.set_xticks(x_maj)
+        ax3.set_xticks(x, minor=True)
+        ax3.set_yticks(y_ticks)
+        ax3.grid(which="major", axis="x", alpha=0.5)
+        ax3.grid(which="minor", axis="x", alpha=0.2)
         
         # cf perc twinx plot
         # TODO: too much cf_perc on y-axis, should reduce them to a fixed num
@@ -138,16 +144,31 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
             print("\t>> cf-perc:", cf_perc)
             exit(Fore.RED + "[ERROR]> Assertion: too few perc_ticks in plot.")
 
-        plt.twinx()
-        plt.ylabel("portion of cf found")
-        plt.plot(x, cf_num, alpha=0.1)
-        plt.yticks(ticks=y_ticks, labels=cf_perc)
-        plt.grid(which="major", axis="y", alpha=0.6, color="gray")
+        ax3_tx = ax3.twinx()
+        ax3_tx.set_ylabel("portion of cf found")
+        ax3_tx.plot(x, cf_num, alpha=0.1)
+        ax3_tx.set_yticks(ticks=y_ticks, labels=cf_perc)
+        ax3_tx.grid(which="major", axis="y", alpha=0.6, color="gray")
         #plt.hlines(perc_tick, 1, len(x), "gray", "--", alpha=0.2)
 
-    plt.suptitle(f"{expl_name} training")
+    ### ROC curve plot
+    from sklearn.metrics import RocCurveDisplay
 
-    if show:
-        plt.show()
+    RocCurveDisplay.from_predictions(
+        roc_gt,
+        roc_preds,
+        name=f"expl.edges vs the rest",
+        color="darkorange",
+        ax=ax4
+    )
+    ax4.plot([0, 1], [0, 1], "k--", label="chance level (AUC = 0.5)")
+    ax4.axis("square")
+    ax4.set_xlabel("FP rate")
+    ax4.set_ylabel("TP rate")
+    ax4.set_title("ROC curve")
+    ax4.legend()
 
+
+    fig.suptitle(f"{expl_name} training")
+    if show:   plt.show()
     return
