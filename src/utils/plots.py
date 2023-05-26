@@ -76,7 +76,7 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
 
     # losses plot
     # TODO: should enforce same colors on same loss components
-    plt.subplot(211)
+    plt.subplot(3,1,1)
     plt.title("explanation loss")
     plt.plot(x, (norm_losses[0]).tolist(), ".-", label="loss")
     plt.plot(x, (norm_losses[1]).tolist(), "--", label="size loss")
@@ -89,6 +89,24 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
     plt.grid(which="minor", alpha=0.2)
     plt.legend()
 
+
+    # perc losses plot
+    perc_losses = []
+    for i in range(1,len(losses.keys())):
+        perc_losses.append(losses_t[i]/losses_t[0])
+
+    print("\tperc_loss 1:", perc_losses[0])
+    print("\tperc_loss 2:", perc_losses[1])
+    print("\tperc_loss 3:", perc_losses[2])
+
+    #plt.subplot(3,1,2)
+    ##plt.bar(x, (perc_losses[0]).tolist(), label="loss")
+    #plt.bar(x, (perc_losses[0]).tolist(), label="size loss")
+    #plt.bar(x, (perc_losses[1]).tolist(), label="ent loss")
+    #plt.bar(x, (perc_losses[2]).tolist(), label="pred loss")
+    #plt.legend()
+
+
     if len(cf_num) >= 0 and cf_tot > 0:  # cf examples plot
         perc_tick = sorted(list(set(cf_num)))
         y_ticks = [0] + perc_tick
@@ -96,7 +114,7 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, show
         #print("\t>> y ticks:", y_ticks)
 
 
-        plt.subplot(212)
+        plt.subplot(3,1,3)
         plt.title("cf examples found")
         plt.plot(x, cf_num, ".-", color="magenta")
         plt.xlabel("epoch")
