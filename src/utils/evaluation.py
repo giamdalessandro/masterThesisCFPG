@@ -28,8 +28,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
     parser.add_argument("--reg-cf", type=float, default=0.0, help="Pred loss coeff")
 
     # other arguments
-    parser.add_argument("--prefix", type=str, default="", 
-                        help="Explainer graph convolution ('GCN' or 'GAT')")
+    parser.add_argument("--prefix", type=str, default="")
     parser.add_argument("--log", default=False, action=argparse.BooleanOptionalAction, 
                         help="Whether to store run logs")
     parser.add_argument("--roc", default=False, action=argparse.BooleanOptionalAction, 
@@ -153,6 +152,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         log_f.write(f"---------- {explainer} - {dataset} - {date_str} ---------------\n")
         log_f.write(f">> epochs:     {eps} \t\tnode explained: {logs['nodes']}\n")
         log_f.write(f">> graph conv: {conv}\t\theads (if GAT): {heads}\n")
+        log_f.write(f">> explModule: {conv}1->FC64->relu->FC1\n")
         log_f.write(f"\n---------- params ---------------------------------------\n")
         log_f.write(f">> lr:           {e_c['lr']}\t reg_ent:  {e_c['reg_ent']}\n")
         log_f.write(f">> temps:   {e_c['temps']}\t reg_cf:   {e_c['reg_cf']}\n")
