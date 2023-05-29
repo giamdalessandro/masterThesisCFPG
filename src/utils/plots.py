@@ -110,9 +110,9 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
     ax2.set_title("losses contribution")
     ax2.set_xticks(x_maj)
     ax2.set_xticks(x, minor=True)
-    ax2.bar([t+(width*-1) for t in x], (perc_losses[0]).tolist(), width=width, label="size loss")
-    ax2.bar([t+(width*0) for t in x],  (perc_losses[1]).tolist(), width=width, label="ent loss" )
-    ax2.bar([t+(width*1) for t in x],  (perc_losses[2]).tolist(), width=width, label="pred loss")
+    ax2.bar([t+(width*0) for t in x], (perc_losses[0]).tolist(), width=width, label="size loss")
+    ax2.bar([t+(width*1) for t in x],  (perc_losses[1]).tolist(), width=width, label="ent loss" )
+    ax2.bar([t+(width*2) for t in x],  (perc_losses[2]).tolist(), width=width, label="pred loss")
     ax2.grid(which="major", alpha=0.5)
     ax2.grid(which="minor", alpha=0.2)
     ax2.legend()
@@ -125,18 +125,22 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
         y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]
         
         ax3.set_title("cf examples found")
-        ax3.plot(x, cf_num, ".-", color="magenta")
+        ax3.plot(x, cf_num, "-", drawstyle='steps-mid', color="magenta")
+        for i in range(len(x)):
+            ax3.text(x[i], cf_num[i]+0.3, str(cf_num[i]), fontsize=10)
         ax3.set_xlabel("epoch")
         ax3.set_ylabel("no. cf examples")
         ax3.set_xticks(x_maj)
         ax3.set_xticks(x, minor=True)
-        ax3.set_yticks(y_ticks)
+        #ax3.set_yticks(y_ticks)
         ax3.grid(which="major", axis="x", alpha=0.5)
         ax3.grid(which="minor", axis="x", alpha=0.2)
         
         # cf perc twinx plot
         # TODO: too much cf_perc on y-axis, should reduce them to a fixed num
         #   also 4 decimals is too much for viz
+        #   Should print only 2 (mi and max) perc values with labels, 
+        #   for the others the minor tick w/o value is enough
         cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
         cf_perc = (["min"] + cf_perc) if cf_perc[-1] == "1.0000" else (["min"] + cf_perc + ["max"])
         #perc_tick = sorted(list(set(cf_num)))
@@ -149,8 +153,8 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
 
         ax3_tx = ax3.twinx()
         ax3_tx.set_ylabel("portion of cf found")
-        ax3_tx.plot(x, cf_num, alpha=0.1)
-        ax3_tx.set_yticks(ticks=y_ticks, labels=cf_perc)
+        ax3_tx.plot(x, cf_num, ".-", alpha=0.2)
+        #ax3_tx.set_yticks(ticks=y_ticks, labels=cf_perc)
         ax3_tx.grid(which="major", axis="y", alpha=0.6, color="gray")
         #plt.hlines(perc_tick, 1, len(x), "gray", "--", alpha=0.2)
 
