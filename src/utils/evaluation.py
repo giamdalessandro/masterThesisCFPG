@@ -179,10 +179,10 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "cf (%)"    : [f"{logs['cf_perc']:.4f}"],
         "cf tot."   : [f"{logs['cf_fnd']}/{logs['cf_tot']}"],
         "optimizer" : [opt],
-        "l_rate"    : [float(e_c['lr'])],
-        "reg_ent"   : [float(e_c['reg_ent'])],
-        "reg_cf"    : [float(e_c['reg_cf'])],
-        "reg_size"  : [float(e_c['reg_size'])],
+        "l_rate"    : [str(e_c['lr'])],
+        "reg_ent"   : [str(e_c['reg_ent'])],
+        "reg_cf"    : [str(e_c['reg_cf'])],
+        "reg_size"  : [str(e_c['reg_size'])],
     }
     df = pd.DataFrame.from_dict(to_csv)
     csv_path = save_dir + f"/{explainer}_{dataset}.csv"
