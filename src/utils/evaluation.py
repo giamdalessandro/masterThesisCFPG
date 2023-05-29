@@ -1,6 +1,7 @@
 import os
 import torch
 import argparse
+import pandas as pd
 
 from datetime import datetime
 from colorama import init, Fore 
@@ -131,11 +132,11 @@ def load_best_model(model, best_epoch: int, gnn: str, dataset: str, explainer: s
 path_to_logs = "/../../logs/"
 LOG_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_logs
 
-def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", save_path: str=LOG_DIR):
+def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", save_dir: str=LOG_DIR):
     """Store explanation run logs."""
-    save_path = save_path + f"{explainer}/{dataset}" 
-    if not os.path.isdir(save_path):
-        os.makedirs(save_path)
+    save_dir = save_dir + f"{explainer}/{dataset}" 
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
 
     eps = logs["epochs"]
     opt = logs["cfg"]["opt"]
@@ -143,10 +144,10 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
     log_file = f"{prefix}{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
     
     e_c = logs["cfg"]
-    heads = 0 if conv == "GCN" else e_c["heads"]     # no meaning if using GCNconv
+    heads = -1 if conv == "GCN" else e_c["heads"]     # no meaning if using GCNconv
 
-    date_str = datetime.now().strftime("%d %B, %H:%M")
-    log_file = save_path + "/" + log_file
+    date_str = datetime.now().strftime("%d-%B_%H:%M")
+    log_file = save_dir + "/" + log_file
     with open(log_file, "a+") as log_f:
         log_f.write(f"\n############################################################\n")
         log_f.write(f"---------- {explainer} - {dataset} - {date_str} ---------------\n")
@@ -161,5 +162,27 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         log_f.write(f">> AUC: {logs['AUC']:.4f}\t\t\t time elapsed: {logs['time']:.2f} s\n")
         log_f.write(f">> cf explanation found: {logs['cf_fnd']}/{logs['cf_tot']} ({logs['cf_perc']:.4f})\n\n")
         log_f.close()
+
+    date_csv = datetime.now().strftime("%d-%m_%H:%M")
+    to_csv = {
+        "run_id"    : [date_csv],
+        "explainer" : [explainer],
+        "dataset"   : [dataset],
+        "epochs"    : [eps],
+        "expl_arch" : [f"{conv}1->FC64->relu->FC1"] if conv == "CFPGv2" else [explainer],
+        "heads"     : [heads],
+        "note"      : [prefix],
+        "AUC"       : [f"{logs['AUC']:.4f}"],
+        "cf (%)"    : [f"{logs['cf_perc']:.4f}"],
+        "cf tot."   : [f"{logs['cf_fnd']}/{logs['cf_tot']}"],
+        "optimizer" : [opt],
+        "l_rate"    : [e_c['lr']],
+        "reg_ent"   : [e_c['reg_ent']],
+        "reg_cf"    : [e_c['reg_cf']],
+        "reg_size"  : [e_c['reg_size']],
+    }
+    df = pd.DataFrame.from_dict(to_csv)
+    csv_path = save_dir + f"/{explainer}_{dataset}.csv"
+    df.to_csv(csv_path)
 
     return

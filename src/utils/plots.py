@@ -96,6 +96,7 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
 
 
     ### perc losses plot
+    width = 0.25
     perc_losses = []
     for i in range(1,len(losses.keys())):
         perc_losses.append(torch.div(losses_t[i],losses_t[0].abs()))
@@ -109,9 +110,11 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
     ax2.set_title("losses contribution")
     ax2.set_xticks(x_maj)
     ax2.set_xticks(x, minor=True)
-    ax2.bar(x, (perc_losses[0]).tolist(),label="size loss")
-    ax2.bar(x, (perc_losses[1]).tolist(),label="ent loss" , bottom=bottom_1)
-    ax2.bar(x, (perc_losses[2]).tolist(),label="pred loss", bottom=bottom_2)
+    ax2.bar([t+(width*-1) for t in x], (perc_losses[0]).tolist(), width=width, label="size loss")
+    ax2.bar([t+(width*0) for t in x],  (perc_losses[1]).tolist(), width=width, label="ent loss" )
+    ax2.bar([t+(width*1) for t in x],  (perc_losses[2]).tolist(), width=width, label="pred loss")
+    ax2.grid(which="major", alpha=0.5)
+    ax2.grid(which="minor", alpha=0.2)
     ax2.legend()
 
 
