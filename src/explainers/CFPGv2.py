@@ -23,10 +23,11 @@ class CFPGv2ExplModule(torch.nn.Module):
     def __init__(self, 
             in_feats: int, 
             enc_hidden: int=20,
-            dec_hidden: int=64, 
+            dec_hidden: int=64,
             conv: str="GCN",
             heads: int=1,
             add_att: float=0.0,
+            dropout: float=0.2, 
             device: str="cpu"
         ) -> None:
         super().__init__()
@@ -37,9 +38,10 @@ class CFPGv2ExplModule(torch.nn.Module):
         self.heads    = heads
         self.add_att  = add_att
         self.device   = device
+        self.dropout = dropout
         #self.tot_nodes = tot_nodes
 
-        if conv in "GCN":
+        if conv == "GCN":
             #if conv == "pGCN":
             #    P_vec_size = int((self.tot_nodes * self.tot_nodes - self.tot_nodes) / 2) + self.tot_nodes
             #    self.P_vec = Parameter(torch.FloatTensor(torch.ones(P_vec_size))).to(self.device)
@@ -88,6 +90,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         # encoder step
         x1 = self.enc_gc1(x, edge_index)
         out_enc = nn.functional.relu(x1)
+        #out_enc = nn.functional.dropout(out_enc,self.dropout)
 
         # get edge representation
         z = self._get_edge_repr(edge_index, out_enc, node_id)
@@ -103,6 +106,7 @@ class CFPGv2ExplModule(torch.nn.Module):
         # encoder step
         x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
         out_enc = nn.functional.relu(x1)
+        #out_enc = nn.functional.dropout(out_enc,self.dropout)
 
         # get edge representation
         z = self._get_edge_repr(edge_index, out_enc, node_id)
@@ -116,6 +120,7 @@ class CFPGv2ExplModule(torch.nn.Module):
             out_dec = torch.add(out_dec.squeeze(),att_w,alpha=alpha)
         
         sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
+        
         return sampled_mask, z, att_w     
 
     def _get_edge_repr(self, sub_index, enc_embeds, node_id):
@@ -175,6 +180,7 @@ class CFPGv2ExplModule(torch.nn.Module):
             graph = torch.sigmoid(gate_inputs)
         else:
             graph = torch.sigmoid(sampling_weights)
+            #graph = torch.special.logit(graph, eps=1e-8) 
         return graph
 
 
@@ -237,7 +243,13 @@ class CFPGv2(BaseExplainer):
         in_feats = self.model_to_explain.embedding_size
         heads    = self.coeffs["heads"] if conv == "GAT" else -1 
         add_att  = self.coeffs["add_att"] if conv == "GAT" else 0.0 
-        self.explainer_module = CFPGv2ExplModule(in_feats,20,64,conv,heads,add_att,device)
+        self.explainer_module = CFPGv2ExplModule(in_feats=in_feats,
+                                    enc_hidden=20,
+                                    dec_hidden=64,
+                                    conv=conv,
+                                    heads=heads,
+                                    add_att=add_att,
+                                    device=device)
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss=None):
         """Returns the loss score based on the given mask.
@@ -266,11 +278,8 @@ class CFPGv2(BaseExplainer):
         # Size loss
         #mask_mean = mask.mean()
         #size_loss = ((mask > mask_mean)).sum()   # working fine
-        size_loss = mask.sum()
+        size_loss = -mask.sum()
         size_loss = size_loss * reg_size
-
-        #scale = 0.99
-        #mask = mask*(2*scale-1.0)+(1.0-scale)
 
         # Entropy loss (PGE)
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
@@ -279,8 +288,8 @@ class CFPGv2(BaseExplainer):
         # Explanation loss
         pred_same = (masked_pred.argmax().item() == original_pred).float()
         #cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
-        cce_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
-        pred_loss = pred_same * (-1 * cce_loss) * reg_cf
+        nll_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
+        pred_loss = pred_same * (-1 * nll_loss) * reg_cf
 
         # KL divergence loss
         #kl_loss = nn.functional.kl_div(masked_pred,original_pred, reduction="batchmean")
@@ -374,15 +383,19 @@ class CFPGv2(BaseExplainer):
                         global_n_ids = global_n_ids.to(self.device)
                         sub_graph = torch.take(global_n_ids,sub_index)    
                         
+
                         # compute explanation mask
                         expl_feats = embeds[global_n_ids].to(self.device)
                         mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
-                        
-                        #cf_adj = torch.ones(mask.size()).to(self.device) 
-                        #cf_mask = (cf_adj - mask).abs()
+                        #print("\n\t>> node id:", global_idx)                        
+                        #print("\t>> mask mean:", mask.max())                        
+                        cf_adj = torch.ones(mask.size()).to(self.device) 
+                        cf_mask = (cf_adj - mask) #.abs()
+                        #cf_mask = torch.mul(cf_adj,mask) #.abs()
 
-                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
+                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
+
 
                         sub_node_idx = n_map.item()
                         if self.type == 'node': # node class prediction
@@ -407,7 +420,7 @@ class CFPGv2(BaseExplainer):
                         if pred_same == 0:
                             #print("cf example found for node", global_idx)
                             best_loss = id_loss
-                            cf_ex = {"best_loss": best_loss, "mask": mask, "feats": cf_feat[sub_node_idx]}
+                            cf_ex = {"best_loss": best_loss, "mask": cf_mask, "feats": cf_feat[sub_node_idx]}
                             try: 
                                 if best_loss < self.cf_examples[str(global_idx)]["best_loss"]:
                                     self.cf_examples[str(global_idx)] = cf_ex
@@ -415,7 +428,7 @@ class CFPGv2(BaseExplainer):
                                 self.cf_examples[str(global_idx)] = cf_ex
 
                 epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
-                                        l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
+                                    l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
                     
                 # metrics to plot
                 epoch_loss_tot.append(loss_total.item())
@@ -478,8 +491,8 @@ class CFPGv2(BaseExplainer):
         mask = self.explainer_module(embeds, sub_graph, index, train=False)
         
         # to get opposite of cf-mask, i.e. explanation
-        cf_adj = torch.ones(mask.size()).to(self.device) 
-        mask = (cf_adj - mask).abs()
+        #cf_adj = torch.ones(mask.size()).to(self.device) 
+        #mask = (cf_adj - mask).abs()
 
         expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

@@ -1,6 +1,7 @@
 import os
 import torch 
 import pickle as pkl
+import pandas as pd
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
 
@@ -105,13 +106,19 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR, save: bool=False
     return
 
 
-#def create_test_dataset():
-#    """Create"""
-#    for i in range(4):
-#        dataset = f"syn{i}.pkl"
+def store_run_csv(save_path: str=""):
+    """Create dafafadxca"""
+    
+    data = {"cacca" : [3], "pupu": [5]}
+    df = pd.DataFrame.from_dict(data)
+
+    print(df)
+
+    return
 
 
 
 if __name__ == "__main__":
     #syn_dataset_from_file(dataset="syn5", save=False)
-    load_saved_test("pkls/pge_syn4.pkl")
+    #load_saved_test("pkls/pge_syn4.pkl")
+    store_run_csv()

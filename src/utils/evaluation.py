@@ -137,6 +137,9 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
     save_dir = save_dir + f"{explainer}/{dataset}" 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
+        header = True
+    else:
+        header = False
 
     eps = logs["epochs"]
     opt = logs["cfg"]["opt"]
@@ -169,20 +172,20 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "explainer" : [explainer],
         "dataset"   : [dataset],
         "epochs"    : [eps],
-        "expl_arch" : [f"{conv}1->FC64->relu->FC1"] if conv == "CFPGv2" else [explainer],
+        "expl_arch" : [f"{conv}1->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
         "heads"     : [heads],
         "note"      : [prefix],
         "AUC"       : [f"{logs['AUC']:.4f}"],
         "cf (%)"    : [f"{logs['cf_perc']:.4f}"],
         "cf tot."   : [f"{logs['cf_fnd']}/{logs['cf_tot']}"],
         "optimizer" : [opt],
-        "l_rate"    : [e_c['lr']],
-        "reg_ent"   : [e_c['reg_ent']],
-        "reg_cf"    : [e_c['reg_cf']],
-        "reg_size"  : [e_c['reg_size']],
+        "l_rate"    : [float(e_c['lr'])],
+        "reg_ent"   : [float(e_c['reg_ent'])],
+        "reg_cf"    : [float(e_c['reg_cf'])],
+        "reg_size"  : [float(e_c['reg_size'])],
     }
     df = pd.DataFrame.from_dict(to_csv)
     csv_path = save_dir + f"/{explainer}_{dataset}.csv"
-    df.to_csv(csv_path)
+    df.to_csv(csv_path, mode="a+", header=not os.path.exists(csv_path))
 
     return
