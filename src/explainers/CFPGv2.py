@@ -12,177 +12,11 @@ from torch_geometric.loader import NeighborLoader
 from torch_geometric.nn import GCNConv, GATv2Conv
 
 from .BaseExplainer import BaseExplainer
+from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule
 from utils.graphs import index_edge, create_symm_matrix_from_vec
 
 
 NODE_BATCH_SIZE = 32
-
-
-class CFPGv2ExplModule(torch.nn.Module):
-    """Class for the explanation module of CFPG-v.2"""
-    def __init__(self, 
-            in_feats: int, 
-            enc_hidden: int=20,
-            dec_hidden: int=64,
-            conv: str="GCN",
-            heads: int=1,
-            add_att: float=0.0,
-            dropout: float=0.2, 
-            device: str="cpu"
-        ) -> None:
-        super().__init__()
-        self.in_feats = in_feats
-        self.enc_h    = enc_hidden
-        self.dec_h    = dec_hidden
-        self.conv     = conv
-        self.heads    = heads
-        self.add_att  = add_att
-        self.device   = device
-        self.dropout = dropout
-        #self.tot_nodes = tot_nodes
-
-        if conv == "GCN":
-            #if conv == "pGCN":
-            #    P_vec_size = int((self.tot_nodes * self.tot_nodes - self.tot_nodes) / 2) + self.tot_nodes
-            #    self.P_vec = Parameter(torch.FloatTensor(torch.ones(P_vec_size))).to(self.device)
-            self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
-        elif conv == "GAT":
-            if self.add_att != 0.0:
-                self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
-            else:
-                self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
-
-        self.latent_dim = self.enc_h*3
-        self.decoder = nn.Sequential(
-            nn.Linear(self.latent_dim, self.dec_h),
-            nn.ReLU(),
-            nn.Linear(self.dec_h, 1)
-        ).to(self.device)
-
-        ## possible decoders
-        """n_heads = 7
-        #self.decoder = nn.Sequential(        # ZAVVE
-        #    nn.Linear(self.expl_embedding, 64),
-        #    nn.ReLU(),
-        #    nn.Linear(64, n_heads),
-        #    nn.LeakyReLU(),
-        #    #nn.Softmax(dim=1),
-        #    nn.AvgPool1d(n_heads),
-        #).to(self.device)
-
-        #self.decoder = nn.Sequential(
-        #    nn.Linear(self.expl_embedding, n_heads),
-        #    nn.LeakyReLU(),
-        #    nn.Softmax(dim=1),
-        #    nn.AvgPool1d(n_heads),
-        #).to(self.device)"""
-
-    def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
-        if self.conv == "GCN":
-            out = self._forward_GCN(x, edge_index, node_id, bias, train) 
-        elif self.conv == "GAT":
-            out, z, att_w = self._forward_GAT(x, edge_index, node_id, bias, alpha=self.add_att, train=train)
-
-        return out
-
-    def _forward_GCN(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
-        """Forward step with a GCN encoder."""
-        # encoder step
-        x1 = self.enc_gc1(x, edge_index)
-        out_enc = nn.functional.relu(x1)
-        #out_enc = nn.functional.dropout(out_enc,self.dropout)
-
-        # get edge representation
-        z = self._get_edge_repr(edge_index, out_enc, node_id)
-        
-        # decoder step
-        out_dec = self.decoder(z)
-        sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
-
-        return sampled_mask
-
-    def _forward_GAT(self, x, edge_index, node_id, bias: float=0.0, alpha: float=0.0, train: bool=True):
-        """Forward step with a GAT encoder."""
-        # encoder step
-        x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
-        out_enc = nn.functional.relu(x1)
-        #out_enc = nn.functional.dropout(out_enc,self.dropout)
-
-        # get edge representation
-        z = self._get_edge_repr(edge_index, out_enc, node_id)
-        
-        # decoder step
-        out_dec = self.decoder(z)
-
-        # add attention
-        if alpha != 0.0:
-            att_w = torch.mean(att_w[1], dim=1)
-            out_dec = torch.add(out_dec.squeeze(),att_w,alpha=alpha)
-        
-        sampled_mask = self._sample_graph(out_dec, bias=bias, training=train)
-        
-        return sampled_mask, z, att_w     
-
-    def _get_edge_repr(self, sub_index, enc_embeds, node_id):
-        """Use encoder node embeddings to create encoder edge embeddings,
-        getting each edge embed by concatenating the embeddings of the nodes 
-        adjacent to it with the embeddig of `node_id`, the node which we 
-        wish to explain.   
-
-        ### Args
-        sub_index : `torch.Tensor`
-            edge_index of the neighborhood subgraph of `node_id`;
-
-        enc_embeds : `torch.Tensor`
-            embedding of all nodes in `node_id` neighborhood
-        
-        node_id : int
-            id of the node we wish to explain
-        
-        ### Returns
-            Concatenated encoder edge embeddings
-        """
-        rows = sub_index[0]
-        cols = sub_index[1]
-        row_embeds = enc_embeds[rows]
-        col_embeds = enc_embeds[cols]
-
-        node_embed = enc_embeds[node_id].repeat(rows.size(0), 1).to(self.device)
-        parsed_rep = torch.cat([row_embeds, col_embeds, node_embed], 1).to(self.device)
-        
-        return parsed_rep
-    
-    def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
-        r"""Implementation of the reparamerization trick to obtain a sample 
-        graph while maintaining the posibility to backprop.
-        
-        ### Args
-        sampling_weights : `torch.Tensor`
-            Weights provided by the mlp;
-
-        temperature : `float`
-            annealing temperature to make the procedure more deterministic;
-
-        bias : `float`
-            Bias on the weights to make samplign less deterministic;
-
-        training : `bool`
-            If set to false, the samplign will be entirely deterministic;
-        
-        ### Return 
-            sampled graph.
-        """
-        if training:
-            bias = bias + 0.0001  # If bias is 0, we run into problems
-            eps = (bias - (1-bias)) * torch.rand(sampling_weights.size()) + (1-bias)
-            gate_inputs = (torch.log(eps) - torch.log(1 - eps)).to(self.device)
-            gate_inputs = (gate_inputs + sampling_weights) / temperature
-            graph = torch.sigmoid(gate_inputs)
-        else:
-            graph = torch.sigmoid(sampling_weights)
-            #graph = torch.special.logit(graph, eps=1e-8) 
-        return graph
-
 
 
 class CFPGv2(BaseExplainer):
@@ -234,22 +68,30 @@ class CFPGv2(BaseExplainer):
         print("\t>> explainer:", self.expl_name)
         print("\t>> coeffs:", self.coeffs)
 
-        if self.type == "graph": # graph classificatio model
+        if self.type == "graph": # graph classification model
             self.expl_embedding = self.model_to_explain.embedding_size * 2
         else:
             self.expl_embedding = self.model_to_explain.embedding_size * 3
 
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
-        heads    = self.coeffs["heads"] if conv == "GAT" else -1 
-        add_att  = self.coeffs["add_att"] if conv == "GAT" else 0.0 
-        self.explainer_module = CFPGv2ExplModule(in_feats=in_feats,
-                                    enc_hidden=20,
-                                    dec_hidden=64,
-                                    conv=conv,
-                                    heads=heads,
-                                    add_att=add_att,
-                                    device=device)
+
+        if conv == "GCN": 
+            self.explainer_module = GCNExplModule(in_feats=in_feats, enc_hidden=20,
+                                        dec_hidden=64, device=device)
+        elif conv == "GAT":
+            heads    = self.coeffs["heads"] 
+            add_att  = self.coeffs["add_att"]
+            self.explainer_module = GATExplModule(in_feats=in_feats, enc_hidden=20,
+                                        dec_hidden=64, heads=heads, add_att=add_att,
+                                        device=device)
+        elif conv == "pGCN":
+            n_nodes = self.features.size(0)
+            edges = self.adj
+            self.explainer_module = GCNPerturbExplModule(in_feats=in_feats, enc_hidden=20,
+                                        dec_hidden=64, num_nodes=n_nodes, edges=edges, 
+                                        device=device)
+        
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss=None):
         """Returns the loss score based on the given mask.
@@ -291,8 +133,8 @@ class CFPGv2(BaseExplainer):
         nll_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
         pred_loss = pred_same * (-1 * nll_loss) * reg_cf
 
-        # KL divergence loss
-        #kl_loss = nn.functional.kl_div(masked_pred,original_pred, reduction="batchmean")
+        ## KL divergence loss
+        #kl_loss = self.kl_loss(masked_pred,original_pred)
 
         # ZAVVE: TODO tryin' to optimize objective function for cf case
         loss_total = size_loss + pred_loss + mask_ent_loss #+ kl_loss
@@ -347,6 +189,7 @@ class CFPGv2(BaseExplainer):
 
         self.cf_examples = {}
         best_loss = Inf
+        #self.kl_loss = nn.KLDivLoss(reduction="batchmean")
         # Start training loop
         with tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False) as epochs_bar:
             for e in epochs_bar:
