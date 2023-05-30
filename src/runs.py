@@ -6,7 +6,6 @@ DATASETS = ["syn1","syn2","syn3","syn4"]
 CONVS = ["GCN","GAT"]
 
 ENT_COEFFS = [0.1, 0.5, 1.0, 2.0]
-
 #SIZE_COEFFS = [0.1, 0.01, 0.001]
 #CF_COEFFS = [0.5, 1.0, 2.0, 5.0]
 

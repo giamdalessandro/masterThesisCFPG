@@ -21,7 +21,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
 
     # to test gnn conv, may move it to cfg.json
     parser.add_argument("--conv", "-c", type=str, default="GCN", 
-                        choices=["GCN","GAT"], help="Explainer graph convolution ('GCN' or 'GAT')")
+                        choices=["GCN","GAT","pGCN"], help="Explainer graph convolution")
     parser.add_argument("--heads", type=int, default=1, help="Attention heads (if conv is 'GAT')")
     parser.add_argument("--add-att", type=float, default=0.0, help="Attention coeff")
     parser.add_argument("--reg-ent", type=float, default=0.0, help="Entropy loss coeff")

@@ -74,18 +74,18 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
     x = range(1,len(norm_losses[0])+1)   # epochs id
     
     fig = plt.figure(figsize=(12,9), layout="tight")
-    ax1 = fig.add_subplot(3,4,(1,2))
-    ax2 = fig.add_subplot(3,4,(5,6))
-    ax3 = fig.add_subplot(3,4,(9,10))
-    ax4 = fig.add_subplot(3,4,(3,8))
+    ax1 = fig.add_subplot(3,5,(1,3))
+    ax2 = fig.add_subplot(3,5,(6,8))
+    ax3 = fig.add_subplot(3,5,(11,13))
+    ax4 = fig.add_subplot(3,5,(4,10))
 
 
     ### losses plot
     # TODO: should enforce same colors on same loss components
     ax1.set_title("explanation loss")
-    ax1.plot(x, (norm_losses[1]).tolist(), "--", label="size loss", alpha=0.5)
-    ax1.plot(x, (norm_losses[2]).tolist(), "--", label="ent loss" , alpha=0.5)
-    ax1.plot(x, (norm_losses[3]).tolist(), "--", label="pred loss", alpha=0.5)
+    ax1.plot(x, (norm_losses[1]).tolist(), ".--", label="size loss", alpha=0.5)
+    ax1.plot(x, (norm_losses[2]).tolist(), ".--", label="ent loss" , alpha=0.5)
+    ax1.plot(x, (norm_losses[3]).tolist(), ".--", label="pred loss", alpha=0.5)
     ax1.plot(x, (norm_losses[0]).tolist(), ".-", label="loss", color="k")
     ax1.set_xticks(x_maj)
     ax1.set_xticks(x, minor=True)
@@ -101,61 +101,59 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
     for i in range(1,len(losses.keys())):
         perc_losses.append(torch.div(losses_t[i],losses_t[0].abs()))
 
-    #print("\tperc_loss 1:", perc_losses[0])
-    #print("\tperc_loss 2:", perc_losses[1])
-    #print("\tperc_loss 3:", perc_losses[2]) 
     bottom_1 = perc_losses[0]
     bottom_2 = perc_losses[0] + perc_losses[1]
     #plt.bar(x, (perc_losses[0]).tolist(), label="loss")
     ax2.set_title("losses contribution")
     ax2.set_xticks(x_maj)
     ax2.set_xticks(x, minor=True)
-    ax2.bar([t+(width*0) for t in x], (perc_losses[0]).tolist(), width=width, label="size loss")
-    ax2.bar([t+(width*1) for t in x],  (perc_losses[1]).tolist(), width=width, label="ent loss" )
-    ax2.bar([t+(width*2) for t in x],  (perc_losses[2]).tolist(), width=width, label="pred loss")
+    ax2.bar([t+(width*-1) for t in x], (perc_losses[0]).tolist(), width=width, label="size loss")
+    ax2.bar([t+(width*0) for t in x], (perc_losses[1]).tolist(), width=width, label="ent loss" )
+    ax2.bar([t+(width*1) for t in x], (perc_losses[2]).tolist(), width=width, label="pred loss")
     ax2.grid(which="major", alpha=0.5)
     ax2.grid(which="minor", alpha=0.2)
-    ax2.legend()
+    ax2.legend(ncols=3)
 
 
     ### cf examples plot
     if len(cf_num) >= 0 and cf_tot > 0:  # cf examples plot
         perc_tick = sorted(list(set(cf_num)))
-        y_ticks = [0] + perc_tick
+        #y_ticks = [0] + perc_tick
+        y_ticks = list(range(0,cf_tot,10))
         y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]
         
         ax3.set_title("cf examples found")
-        ax3.plot(x, cf_num, "-", drawstyle='steps-mid', color="magenta")
+        ax3.plot(x, cf_num, "-", drawstyle='steps-mid', color="magenta", label="cf ex. found")
         for i in range(len(x)):
-            ax3.text(x[i], cf_num[i]+0.3, str(cf_num[i]), fontsize=10)
+            ax3.text(x[i]-0.1, cf_num[i]+0.5, str(cf_num[i]), fontsize=9)
         ax3.set_xlabel("epoch")
         ax3.set_ylabel("no. cf examples")
         ax3.set_xticks(x_maj)
         ax3.set_xticks(x, minor=True)
-        #ax3.set_yticks(y_ticks)
+        ax3.set_yticks(y_ticks)
         ax3.grid(which="major", axis="x", alpha=0.5)
         ax3.grid(which="minor", axis="x", alpha=0.2)
+        ax3.legend(loc='upper left')
         
-        # cf perc twinx plot
-        # TODO: too much cf_perc on y-axis, should reduce them to a fixed num
-        #   also 4 decimals is too much for viz
-        #   Should print only 2 (mi and max) perc values with labels, 
+        ### cf perc twinx plot
+        # TODO: Should print only 2 (mi and max) perc values with labels, 
         #   for the others the minor tick w/o value is enough
         cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
-        cf_perc = (["min"] + cf_perc) if cf_perc[-1] == "1.0000" else (["min"] + cf_perc + ["max"])
-        #perc_tick = sorted(list(set(cf_num)))
-        try:
-            assert len(cf_perc) == len(y_ticks)
-        except AssertionError:
-            print("\t>> y-ticks:", y_ticks)
-            print("\t>> cf-perc:", cf_perc)
-            exit(Fore.RED + "[ERROR]> Assertion: too few perc_ticks in plot.")
+        cf_mid = cf_num[(len(cf_num)//2)-1]
+        cf_num_tx = [min(cf_num),cf_mid,max(cf_num)] if min(cf_num) != max(cf_num) else cf_num[-1]
+        cf_perc_mid = cf_perc[(len(cf_num)//2)-1] if cf_perc[-1] == "1.0000" else cf_perc[(len(cf_num)//2)-2] 
+        cf_ticks = [min(cf_perc)[:4],cf_perc_mid[:4],max(cf_perc)[:4]] if min(cf_perc) != max(cf_perc) else cf_perc[-1][:4]
+        if cf_ticks[-1] != "1.00":
+            cf_ticks = cf_ticks + ["max"]
+            cf_num_tx = cf_num_tx + [cf_tot]
 
         ax3_tx = ax3.twinx()
         ax3_tx.set_ylabel("portion of cf found")
         ax3_tx.plot(x, cf_num, ".-", alpha=0.2)
-        #ax3_tx.set_yticks(ticks=y_ticks, labels=cf_perc)
-        ax3_tx.grid(which="major", axis="y", alpha=0.6, color="gray")
+        ax3_tx.set_yticks(y_ticks, minor=True)
+        ax3_tx.set_yticks(ticks=cf_num_tx, labels=cf_ticks)
+        ax3_tx.grid(which="major", axis="y", alpha=0.4, color="gray")
+        #ax3_tx.legend()
         #plt.hlines(perc_tick, 1, len(x), "gray", "--", alpha=0.2)
 
     ### ROC curve plot
