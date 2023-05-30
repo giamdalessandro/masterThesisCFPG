@@ -177,6 +177,7 @@ if args.roc:
     e_h = explainer.history
     plot_expl_loss(
         expl_name=e_name,
+        dataset=DATASET,
         losses=e_h["train_loss"],
         cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
         cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,

@@ -55,7 +55,16 @@ def plot_graph(edge_index, expl_weights, n_idx: int, e_cap: int=0, show: bool=Tr
         plt.title(f"Node {n_idx} expl")
         plt.show()
 
-def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_gt: list, roc_preds: list, show: bool=True):
+def plot_expl_loss(
+        expl_name: str, 
+        dataset: str,
+        losses: dict, 
+        cf_num: list, 
+        cf_tot: int, 
+        roc_gt: list, 
+        roc_preds: list, 
+        show: bool=True
+    ):
     """Plot explainer training performances."""
     # normalize losses contribution for a better plot
     losses_l = [torch.Tensor(l) for l in losses.values()]
@@ -174,6 +183,6 @@ def plot_expl_loss(expl_name: str, losses: dict, cf_num: list, cf_tot: int, roc_
     ax4.legend()
 
 
-    fig.suptitle(f"{expl_name} training")
+    fig.suptitle(f"{expl_name} training on {dataset.upper()} dataset")
     if show:   plt.show()
     return
