@@ -103,6 +103,7 @@ elif EXPLAINER == "CFPGv2":
     cfg["expl_params"]["reg_ent"]  = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
     cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
     cfg["expl_params"]["reg_cf"]   = cfg["expl_params"]["reg_cf"] if args.reg_cf == 0.0 else args.reg_cf
+    cfg["expl_params"]["conv"]     = args.conv
     cfg["expl_params"]["heads"]    = args.heads
     cfg["expl_params"]["add_att"]  = args.add_att
     explainer = CFPGv2(model, graph, conv=args.conv, epochs=EPOCHS, coeffs=cfg["expl_params"])

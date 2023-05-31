@@ -128,7 +128,7 @@ def plot_expl_loss(
     if len(cf_num) >= 0 and cf_tot > 0:  # cf examples plot
         perc_tick = sorted(list(set(cf_num)))
         #y_ticks = [0] + perc_tick
-        y_ticks = list(range(0,cf_tot,10))
+        y_ticks = list(range(0,cf_tot,10)) if cf_tot <= 60 else list(range(0,cf_tot,30))
         y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]
         
         ax3.set_title("cf examples found")
