@@ -21,7 +21,7 @@ NODE_BATCH_SIZE = 32
 
 class CFPGv2(BaseExplainer):
     """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer v.2)"""
-    coeffs = {            ## default values for explainer parameters
+    coeffs = {     ## default values for explainer parameters
         "lr": 0.003,
         "reg_size": 0.5,
         "reg_ent" : 1.0,
