@@ -147,7 +147,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
     log_file = f"{prefix}{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
     
     e_c = logs["cfg"]
-    heads = -1 if conv == "GCN" else e_c["heads"]     # no meaning if using GCNconv
+    heads = "n/a" if conv == "GCN" else e_c["heads"]     # no meaning if using GCNconv
 
     date_str = datetime.now().strftime("%d-%B_%H:%M")
     log_file = save_dir + "/" + log_file
@@ -166,6 +166,9 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         log_f.write(f">> cf explanation found: {logs['cf_fnd']}/{logs['cf_tot']} ({logs['cf_perc']:.4f})\n\n")
         log_f.close()
 
+    # balanced metric for AUC and cf%
+    metric = (logs['AUC']*0.5) + (logs['cf_perc']*0.5)
+
     date_csv = datetime.now().strftime("%d-%m_%H:%M")
     to_csv = {
         "run_id"    : [date_csv],
@@ -175,14 +178,15 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "expl_arch" : [f"{conv}1->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
         "heads"     : [heads],
         "note"      : [prefix],
-        "AUC"       : [f"{logs['AUC']:.4f}"],
-        "cf (%)"    : [f"{logs['cf_perc']:.4f}"],
+        "metric"    : [round(metric,4)] if explainer != "PGEex" else ["n/a"],
+        "AUC"       : [round(logs['AUC'],4)],
+        "cf (%)"    : [round(logs['cf_perc'],4)],
         "cf tot."   : [f"{logs['cf_fnd']}/{logs['cf_tot']}"],
         "optimizer" : [opt],
-        "l_rate"    : [str(e_c['lr'])],
-        "reg_ent"   : [str(e_c['reg_ent'])],
-        "reg_cf"    : [str(e_c['reg_cf'])],
-        "reg_size"  : [str(e_c['reg_size'])],
+        "l_rate"    : [e_c['lr']],
+        "reg_ent"   : [e_c['reg_ent']],
+        "reg_cf"    : [e_c['reg_cf']],
+        "reg_size"  : [e_c['reg_size']],
     }
     df = pd.DataFrame.from_dict(to_csv)
     csv_path = save_dir + f"/{explainer}_{dataset}.csv"
