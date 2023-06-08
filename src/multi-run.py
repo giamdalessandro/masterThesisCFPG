@@ -3,7 +3,7 @@ import  functools
 import  os
 
 
-DATASETS = ["syn4"] #["syn1","syn2","syn3","syn4"]
+DATASETS = ["syn1"] #["syn1","syn2","syn3","syn4"]
 CONVS = ["pGCN","GCN","GAT"]
 EXPLAINER = "PGEex"
 EPOCHS = 20
@@ -15,14 +15,12 @@ def get8RandomBytesFromOS():
     byteCodes = list(map(ord, r8.decode('Latin-1')))  # type conversion
     return byteCodes
 
-
-ENT_COEFFS = [0.1, 0.5, 1.0, 2.0]
+#ENT_COEFFS = [0.1, 0.5, 1.0, 2.0]
 #SIZE_COEFFS = [0.1, 0.01, 0.001]
 #CF_COEFFS = [0.5, 1.0, 2.0, 5.0]
-NUM_HEADS = [3, 5, 8]
-
-
+#NUM_HEADS = [3, 5, 8]
 SEEDS = get8RandomBytesFromOS()
+
 
 script_cmd  = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
 rid = 0
@@ -31,7 +29,7 @@ for s in SEEDS:
     for d in DATASETS:
         #for curr in ENT_COEFFS:
         script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --seed {s} "
-        suffix_args = f"--prefix replicationPGEex-rBest-{EPOCHS}-tests --log"
+        suffix_args = f"--prefix replPGEex-noNorm-rBest-{EPOCHS}-tests --log"
         cmd = script_cmd + script_args + suffix_args
 
         print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
