@@ -191,6 +191,7 @@ if args.roc:
 # store explanation results into a log file
 if STORE_LOG:
     logs_d = {
+        "seed"    : SEED,
         "epochs"  : EPOCHS,
         "conv"    : args.conv,
         "cfg"     : explainer.coeffs,
