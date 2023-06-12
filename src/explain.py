@@ -95,18 +95,19 @@ if device == "cuda" and CUDA:
 #### STEP 3: select explainer
 print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
-cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"]  if args.reg_ent == 0.0 else args.reg_ent
+cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
 cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
-cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"]   if args.reg_cf == 0.0 else args.reg_cf
+cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"] if args.reg_cf == 0.0 else args.reg_cf
 if EXPLAINER == "PGEex":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
 elif EXPLAINER == "CFPG":
     explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
 elif EXPLAINER == "CFPGv2":
-    cfg["expl_params"]["conv"]    = cfg["expl_params"]["conv"] if args.conv == "GCN" else args.conv
+    conv = cfg["expl_params"]["conv"] if args.conv == "base" else args.conv
+    cfg["expl_params"]["conv"]    = conv
     cfg["expl_params"]["heads"]   = args.heads
     cfg["expl_params"]["add_att"] = args.add_att
-    explainer = CFPGv2(model, graph, conv=args.conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
+    explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
 #elif EXPLAINER == "CF-GNN":
 #    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 

@@ -110,8 +110,8 @@ def parser_add_args(parser: argparse.ArgumentParser):
                         help="Whether to explain original train nodes")
 
     # to test gnn conv, may move it to cfg.json
-    parser.add_argument("--conv", "-c", type=str, default="GCN", 
-                        choices=["GCN","GAT","pGCN","VAE"], help="Explainer graph convolution")
+    parser.add_argument("--conv", "-c", type=str, default="base", 
+                        choices=["base","GCN","GAT","pGCN","VAE"], help="Explainer graph convolution")
     parser.add_argument("--heads", type=int, default=1, help="Attention heads (if conv is 'GAT')")
     parser.add_argument("--add-att", type=float, default=0.0, help="Attention coeff")
     parser.add_argument("--reg-ent", type=float, default=0.0, help="Entropy loss coeff")
@@ -176,7 +176,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "explainer" : [explainer],
         "dataset"   : [dataset],
         "epochs"    : [eps],
-        "expl_arch" : [f"{conv}1->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
+        "expl_arch" : [f"{conv}2->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
         "heads"     : [heads],
         "note"      : [prefix],
         "metric"    : [round(metric,4)] if explainer != "PGEex" else ["n/a"],
