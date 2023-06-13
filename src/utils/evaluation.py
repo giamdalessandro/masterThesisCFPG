@@ -176,7 +176,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "explainer" : [explainer],
         "dataset"   : [dataset],
         "epochs"    : [eps],
-        "expl_arch" : [f"{conv}2->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
+        "expl_arch" : [f"1{conv}32->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
         "heads"     : [heads],
         "note"      : [prefix],
         "metric"    : [round(metric,4)] if explainer != "PGEex" else ["n/a"],

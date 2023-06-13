@@ -23,16 +23,16 @@ SEEDS = get8RandomBytesFromOS()[:4]
 
 script_cmd  = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
 rid = 0
-for c in CONVS:
-    for s in SEEDS:
-        for d in DATASETS:
-            #for curr in ENT_COEFFS:
-            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --seed {s} "
-            suffix_args = f"--prefix replCFPGv2-noDrop-rBest-{EPOCHS} --log"
-            cmd = script_cmd + script_args + suffix_args
+#for c in CONVS:
+for s in SEEDS:
+    for d in DATASETS:
+        #for curr in ENT_COEFFS:
+        script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT --seed {s} "
+        suffix_args = f"--prefix replCFPGv2-GATh32-rBest-{EPOCHS} --log"
+        cmd = script_cmd + script_args + suffix_args
 
-            print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
-            returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
-            rid += 1
+        print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
+        returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
+        rid += 1
 
 print("\n[runs]> Multi-run DONE...", returned_value)
