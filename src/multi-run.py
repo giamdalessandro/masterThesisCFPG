@@ -28,7 +28,7 @@ for s in SEEDS:
     for d in DATASETS:
         #for curr in ENT_COEFFS:
         script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT --seed {s} "
-        suffix_args = f"--prefix replCFPGv2-GATh32-rBest-{EPOCHS} --log"
+        suffix_args = f"--prefix replCFPGv2-2GATh50-rBest-{EPOCHS} --log"
         cmd = script_cmd + script_args + suffix_args
 
         print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")

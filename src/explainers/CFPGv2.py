@@ -12,7 +12,7 @@ from torch_geometric.loader import NeighborLoader
 from torch_geometric.nn import GCNConv, GATv2Conv
 
 from .BaseExplainer import BaseExplainer
-from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule
+from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule, GAALVExplModule
 from utils.graphs import index_edge, create_symm_matrix_from_vec
 
 
@@ -63,6 +63,7 @@ class CFPGv2(BaseExplainer):
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
+        self.conv = conv
         for k,v in coeffs.items():
             self.coeffs[k] = v
         print("\t>> explainer:", self.expl_name)
@@ -77,12 +78,12 @@ class CFPGv2(BaseExplainer):
         in_feats = self.model_to_explain.embedding_size
 
         if conv == "GCN": 
-            self.explainer_module = GCNExplModule(in_feats=in_feats, enc_hidden=20,
+            self.explainer_module = GCNExplModule(in_feats=in_feats, enc_hidden=20, # 20
                                         dec_hidden=64, device=device)
         elif conv == "GAT":
             heads    = self.coeffs["heads"] 
             add_att  = self.coeffs["add_att"]
-            self.explainer_module = GATExplModule(in_feats=in_feats, enc_hidden=20,
+            self.explainer_module = GATExplModule(in_feats=in_feats, enc_hidden=20, # 20
                                         dec_hidden=64, heads=heads, add_att=add_att,
                                         device=device)
         elif conv == "pGCN":
@@ -91,9 +92,12 @@ class CFPGv2(BaseExplainer):
             self.explainer_module = GCNPerturbExplModule(in_feats=in_feats, enc_hidden=20,
                                         dec_hidden=64, num_nodes=n_nodes, edges=edges, 
                                         device=device)
+        elif conv == "VAE":
+            self.explainer_module = GAALVExplModule(in_feats=in_feats, enc_hidden=50,
+                                        dec_hidden=64, device=device)
         
 
-    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor, kl_loss=None):
+    def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """Returns the loss score based on the given mask.
 
         #### Args
@@ -130,14 +134,57 @@ class CFPGv2(BaseExplainer):
         # Explanation loss
         pred_same = (masked_pred.argmax().item() == original_pred).float()
         #cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)
-        nll_loss = torch.nn.functional.nll_loss(masked_pred, original_pred)
-        pred_loss = pred_same * (-1 * nll_loss) * reg_cf
-
-        ## KL divergence loss
-        #kl_loss = self.kl_loss(masked_pred,original_pred)
+        nll_loss = -1 * torch.nn.functional.nll_loss(masked_pred, original_pred)
+        pred_loss = pred_same * nll_loss * reg_cf
 
         # ZAVVE: TODO tryin' to optimize objective function for cf case
         loss_total = size_loss + pred_loss + mask_ent_loss #+ kl_loss
+        return loss_total, size_loss, mask_ent_loss, pred_loss
+    
+    def lossVAE(self, 
+            masked_pred: torch.Tensor,
+            original_pred: torch.Tensor,
+            mask: torch.Tensor,
+            kl_loss
+        ):
+        """Returns the VAE loss score based on the given mask.
+
+        #### Args
+        masked_pred : `torch.Tensor`
+            Prediction based on the current explanation
+
+        original_pred : `torch.Tensor`
+            Predicion based on the original graph
+
+        edge_mask : `torch.Tensor`
+            Current explanaiton
+
+        reg_coefs : `torch.Tensor`
+            regularization coefficients
+
+        #### Return
+            Tuple of Tensors (loss,size_loss,mask_ent_loss,pred_loss)
+        """
+        reg_size = self.coeffs["reg_size"]
+        reg_ent  = self.coeffs["reg_ent"]
+        reg_cf   = self.coeffs["reg_cf"]
+        EPS = 1e-15
+
+        # Size loss
+        size_loss = -mask.sum()
+        size_loss = size_loss * reg_size
+
+        # Entropy loss (PGE)
+        mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
+        mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
+
+        # Misclassifiaction loss
+        pred_same = (masked_pred.argmax().item() == original_pred).float()
+        nll_loss = -1 * torch.nn.functional.nll_loss(masked_pred, original_pred)
+        pred_loss = pred_same * nll_loss * reg_cf
+
+        # ZAVVE: TODO tryin' to optimize objective function for cf case
+        loss_total = size_loss + pred_loss + mask_ent_loss + (0.01*kl_loss)  
         return loss_total, size_loss, mask_ent_loss, pred_loss
 
     def _train(self, indices=None):
@@ -248,11 +295,16 @@ class CFPGv2(BaseExplainer):
                             original_pred = op.argmax()
                             pred_same = (masked_pred.argmax() == original_pred)
 
-                            #kl_loss = nn.functional.kl_div(masked_pred,op,reduction="batchmean")
-
-                        id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
+                        if self.conv == "VAE":
+                            id_loss, size_loss, ent_loss, pred_loss = self.lossVAE(masked_pred=masked_pred, 
+                                                                    original_pred=original_pred, 
+                                                                    mask=mask,
+                                                                    kl_loss=self.explainer_module.kl)
+                        else:
+                            id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
                                                                     original_pred=original_pred, 
                                                                     mask=mask)
+
                         loss_total += id_loss
                         size_total += size_loss
                         ent_total  += ent_loss

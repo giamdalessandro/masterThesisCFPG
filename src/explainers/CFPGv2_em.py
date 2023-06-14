@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, GATv2Conv
 
 #from utils.graphs import create_symm_matrix_from_vec
@@ -67,7 +68,7 @@ def _sample_graph(sampling_weights, temperature=1.0, bias=0.0, training=True, de
 
 
 class GCNExplModule(torch.nn.Module):
-    """Class for the explanation module of CFPG-v.2"""
+    """Class for the GCN-conv explanation module of CFPG-v.2"""
     def __init__(self, 
             in_feats: int, 
             enc_hidden: int=20,
@@ -83,37 +84,23 @@ class GCNExplModule(torch.nn.Module):
         self.dropout  = dropout
 
         self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
+        self.enc_gc2 = GCNConv(self.enc_h, self.enc_h)
 
         self.latent_dim = self.enc_h*3
         self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(self.latent_dim, self.dec_h),
+            torch.nn.Linear(self.latent_dim*2, self.dec_h),
             torch.nn.ReLU(),
             torch.nn.Linear(self.dec_h, 1)
         ).to(self.device)
 
-        ## possible decoders
-        """n_heads = 7
-        #self.decoder = nn.Sequential(        # ZAVVE
-        #    nn.Linear(self.expl_embedding, 64),
-        #    nn.ReLU(),
-        #    nn.Linear(64, n_heads),
-        #    nn.LeakyReLU(),
-        #    #nn.Softmax(dim=1),
-        #    nn.AvgPool1d(n_heads),
-        #).to(self.device)
-
-        #self.decoder = nn.Sequential(
-        #    nn.Linear(self.expl_embedding, n_heads),
-        #    nn.LeakyReLU(),
-        #    nn.Softmax(dim=1),
-        #    nn.AvgPool1d(n_heads),
-        #).to(self.device)"""
-
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
         """Forward step with a GCN encoder."""
         # encoder step
-        x1 = self.enc_gc1(x, edge_index)
-        out_enc = torch.nn.functional.relu(x1)
+        x1 = F.relu(self.enc_gc1(x, edge_index))
+        x1 = F.dropout(x1,self.dropout)
+        x2 = F.relu(self.enc_gc2(x1, edge_index))
+        x2 = F.dropout(x2,self.dropout)
+        out_enc = torch.cat((x1,x2),dim=1)
         #out_enc = nn.functional.dropout(out_enc,self.dropout)
         # get edge representation
         z = _get_edge_repr(edge_index, out_enc, node_id)
@@ -126,7 +113,7 @@ class GCNExplModule(torch.nn.Module):
 
 
 class GATExplModule(torch.nn.Module):
-    """Class for the explanation module of CFPG-v.2"""
+    """Class for the GAT-conv explanation module of CFPG-v.2"""
     def __init__(self, 
             in_feats: int, 
             enc_hidden: int=20,
@@ -149,6 +136,7 @@ class GATExplModule(torch.nn.Module):
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
         else:
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
+            #self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
 
         self.latent_dim = self.enc_h*3
         self.decoder = torch.nn.Sequential(
@@ -161,7 +149,9 @@ class GATExplModule(torch.nn.Module):
         """Forward step with a GAT encoder."""
         # encoder step
         x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
-        out_enc = torch.nn.functional.relu(x1)
+        #x1 = F.relu(x1)
+        #x2, att_w = self.enc_gc2(x1, edge_index, return_attention_weights=True)
+        out_enc = F.relu(x1)
         #out_enc = nn.functional.dropout(out_enc,self.dropout)
         # get edge representation
         z = _get_edge_repr(edge_index, out_enc, node_id)
@@ -179,7 +169,7 @@ class GATExplModule(torch.nn.Module):
 
 
 class GCNPerturbExplModule(torch.nn.Module):
-    """Class for the explanation module of CFPG-v.2"""
+    """Class for the GCNPerturb-conv explanation module of CFPG-v.2"""
     def __init__(self, 
             in_feats: int, 
             enc_hidden: int=20,
@@ -215,9 +205,8 @@ class GCNPerturbExplModule(torch.nn.Module):
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
         """Forward step with a GCNSyntheticPerturb encoder."""
         # pre-encoder step
-#		# Same as normalize_adj in utils.py except includes P_hat in A_tilde
+		# Same as normalize_adj in utils.py except includes P_hat in A_tilde
         self.P_hat_symm = self._create_symm_matrix_from_vec(self.P_vec, self.num_nodes)  # Ensure symmetry
-        #self.P_hat_symm = self.P_vec  # Ensure symmetry
 
         A_tilde = torch.FloatTensor(self.num_nodes, self.num_nodes)
         #A_tilde = torch.FloatTensor(self.P_hat_symm.size())
@@ -239,11 +228,12 @@ class GCNPerturbExplModule(torch.nn.Module):
 		# Create norm_adj = (D + I)^(-1/2) * (A + I) * (D + I) ^(-1/2)
         norm_edge_index = torch.mul(torch.mul(D_tilde_exp, A_tilde), D_tilde_exp)
         #norm_edge_index = (D_tilde * A_tilde) * D_tilde_exp
+        # get values only for edges in edge_index (i.e. the current subgraph)
         norm_edge_index = norm_edge_index[edge_index[0],edge_index[1]]
 
         # encoder step
         x1 = self.enc_gc1(x, edge_index, norm_edge_index)
-        out_enc = torch.nn.functional.relu(x1)
+        out_enc = F.relu(x1)
         # get edge representation
         z = _get_edge_repr(edge_index, out_enc, node_id)
         # decoder step
@@ -260,3 +250,76 @@ class GCNPerturbExplModule(torch.nn.Module):
         matrix[r,c] = vector
         symm_mat = torch.tril(matrix) + torch.tril(matrix,-1)
         return symm_mat
+    
+
+class GAALVExplModule(torch.nn.Module):
+    """Class for the GCN-conv explanation module of CFPG-v.2"""
+    def __init__(self, 
+            in_feats: int, 
+            enc_hidden: int=20,
+            dec_hidden: int=64,
+            dropout: float=0.2, 
+            edge_repr: bool=True,
+            device: str="cpu"
+        ) -> None:
+        super().__init__()
+        self.in_feats = in_feats
+        self.enc_h    = enc_hidden
+        self.dec_h    = dec_hidden
+        self.device   = device
+        self.dropout  = dropout
+        self.enc_out_dim = self.enc_h*3 if edge_repr else self.enc_h
+
+        self.Normal = torch.distributions.Normal(0, 1)
+
+        self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
+        
+        self.enc_fc_mu  = torch.nn.Linear(self.enc_out_dim, self.enc_h)
+        self.enc_fc_var = torch.nn.Linear(self.enc_out_dim, self.enc_h)
+
+        self.decoder = torch.nn.Sequential(
+            torch.nn.Linear(self.enc_h, self.dec_h),
+            torch.nn.ReLU(),
+            torch.nn.Linear(self.dec_h, self.dec_h),
+            torch.nn.ReLU(),
+            torch.nn.Linear(self.dec_h, 1),
+            torch.nn.ReLU()
+        ).to(self.device)
+
+        ## possible decoders
+        """n_heads = 7
+        #self.decoder = nn.Sequential(        # ZAVVE
+        #    nn.Linear(self.expl_embedding, 64),
+        #    nn.ReLU(),
+        #    nn.Linear(64, n_heads),
+        #    nn.LeakyReLU(),
+        #    #nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)
+
+        #self.decoder = nn.Sequential(
+        #    nn.Linear(self.expl_embedding, n_heads),
+        #    nn.LeakyReLU(),
+        #    nn.Softmax(dim=1),
+        #    nn.AvgPool1d(n_heads),
+        #).to(self.device)"""
+
+    def forward(self, x, edge_index, node_id, bias: float= 0.0, train: bool=True):
+        """Forward step with a GCN encoder."""
+        # encoder step
+        x1 = F.relu(self.enc_gc1(x, edge_index))
+        # get edge representation
+        x2 = _get_edge_repr(edge_index, x1, node_id)
+        
+        # compute KLdiv loss
+        mu =  self.enc_fc_mu(x2)
+        sigma = torch.exp(self.enc_fc_var(x2))
+        z = mu + sigma*self.Normal.sample(mu.shape)
+        self.kl = (sigma**2 + mu**2 - torch.log(sigma) - 1/2).sum()
+
+        # decoder step
+        out_dec = self.decoder(z)
+        sampled_mask = _sample_graph(out_dec, bias=bias, training=train)
+
+        return sampled_mask
+
