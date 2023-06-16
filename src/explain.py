@@ -139,6 +139,7 @@ inference_eval.start_explaining()
 explanations = []
 with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
     top_k = 12 if DATASET != "syn4" else 24
+    top_k = 0 if EXPLAINER == "1hop" else top_k
     verbose = False
     curr_id = 0
     n_tests = len(test_epoch)
