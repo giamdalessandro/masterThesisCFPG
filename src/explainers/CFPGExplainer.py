@@ -171,8 +171,8 @@ class CFPGExplainer(BaseExplainer):
         #tot_edges = torch.ones(mask.size()).to(self.device).sum()
         #size_loss = ((tot_edges - cf_edges).abs()) / 2
 
-        size_loss = -((mask > mask_mean)).sum()   # working fine
-        #size_loss = (mask.sigmoid()).sum()     # old
+        #size_loss = -((mask > mask_mean)).sum()   # working fine
+        size_loss = (mask.sigmoid()).sum()     # old
         size_loss = size_loss * reg_size
 
         #scale = 0.99
