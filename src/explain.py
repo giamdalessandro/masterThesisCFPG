@@ -8,20 +8,22 @@ init(autoreset=True) # initializes Colorama
 import torch
 from explainers.PGExplainer import PGExplainer
 from explainers.CFPGExplainer import CFPGExplainer
-from explainers.PCFExplainer import PCFExplainer
 from explainers.CFPGv2 import CFPGv2
+from explainers.OneHopExplainer import OneHopExplainer
+#from explainers.PCFExplainer import PCFExplainer
+#from utils.graphs import normalize_adj
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.graphs import normalize_adj
 from utils.plots import plot_graph, plot_expl_loss
 from utils.evaluation import store_expl_log, parser_add_args
 
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 
-CUDA = True
 
+
+CUDA = True
 # explainer training
 parser = argparse.ArgumentParser()
 parser = parser_add_args(parser)
@@ -48,6 +50,7 @@ if torch.cuda.is_available() and device == "cuda" and CUDA:
     print(">> cuda available", cuda_dev)
     print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
     
+
 
 #### STEP 1: load a BAshapes dataset
 cfg = parse_config(dataset=DATASET, to_load=EXPLAINER)
@@ -98,6 +101,7 @@ print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
 cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
 cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"] if args.reg_cf == 0.0 else args.reg_cf
+
 if EXPLAINER == "PGEex":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
 elif EXPLAINER == "CFPG":
@@ -108,6 +112,8 @@ elif EXPLAINER == "CFPGv2":
     cfg["expl_params"]["heads"]   = args.heads
     cfg["expl_params"]["add_att"] = args.add_att
     explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
+elif EXPLAINER == "1hop":
+    explainer = OneHopExplainer(model, graph, device=device)
 #elif EXPLAINER == "CF-GNN":
 #    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 
@@ -160,6 +166,8 @@ print("\t>> time elapsed:",f"{time_score:.4f}")
 #### STEP 5: Logs and plots
 # CF explanations data to log
 if EXPLAINER != "PGEex":      # PGE does not produce CF examples
+    if EXPLAINER == "CFPG" :explainer.coeffs["heads"] = "n/a"    
+
     cf_examples = explainer.cf_examples
     found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)

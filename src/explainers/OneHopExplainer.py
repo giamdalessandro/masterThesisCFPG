@@ -1,0 +1,90 @@
+import torch
+import torch_geometric
+
+from utils.graphs import index_edge
+
+from .BaseExplainer import BaseExplainer
+
+
+class OneHopExplainer(BaseExplainer):
+    """Class implementing a counterfactual baseline, considering the cases when 
+    the counterfactual perturbation coincide exactly with the exaplanation, and 
+    the case when the CF perturbation is the 1hop-neighborhood of a node."""
+    def __init__(self, 
+            model_to_explain, 
+            data_graph: torch_geometric.data.Data, 
+            task: str="node", 
+            device: str="cpu"
+        ):
+        super().__init__(model_to_explain, data_graph, task, device)
+        self.expl_name = "OneHopExpl"
+        self.features = self.data_graph.x.to(self.device)
+        self.adj = self.data_graph.edge_index.to(self.device)
+        print("\t>> explainer:", self.expl_name)
+        
+    def _get_1hop_mask(self, index, sub_graph):
+        """Get 1hop-neighbors of node `index` as the explanation mask."""
+        n_rows = self.adj.size(1)
+        matrix = torch.zeros((n_rows,n_rows))
+        mask = matrix.new_full(matrix.size(), 0.001)
+        
+        one_hop = torch_geometric.utils.k_hop_subgraph(index, 1, self.adj)[1]
+        mask[one_hop[0],one_hop[1]] = 0.999
+
+        mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()        
+        return mask.values()
+    
+    def _extract_cf_example(self, index, sub_graph, cf_mask):
+        """Given the computed CF edge mask for a node prediction extracts
+        the related CF example, if any."""
+        masked_pred, cf_feat = self.model_to_explain(self.features, sub_graph, edge_weights=cf_mask, cf_expl=True)
+        original_pred = self.model_to_explain(self.features, sub_graph)
+        
+        masked_pred   = masked_pred[index]
+        original_pred = original_pred[index].argmax()
+        pred_same = (masked_pred.argmax() == original_pred)
+
+        if pred_same == 0:
+            cf_ex = {"mask": cf_mask, "feats": cf_feat[index]}
+            try: 
+                self.cf_examples[str(index)] = cf_ex
+            except KeyError:
+                self.cf_examples[str(index)] = cf_ex
+
+        return
+
+
+    def prepare(self, indices=None):
+        """Prepars the explanation method for explaining."""
+        self.cf_examples = {}
+        print(f"[{self.expl_name}]> Getting 1hop-neighbors as explanation, no training needed.")
+        return
+
+    def explain(self, index):
+        """Given the index of a node/graph this method returns its explanation. 
+        This only gives sensible results if the prepare method has already been called.
+
+        Args
+        - index: index of the node/graph that we wish to explain
+
+        Return
+            explanaiton graph and edge weights
+        """
+        index = int(index)
+        # Similar to the original paper we only consider a subgraph for explaining
+        sub_graph = torch_geometric.utils.k_hop_subgraph(index, 3, self.adj)[1]
+        embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
+
+        # Use explainer mlp to get an explanation
+        mask = self._get_1hop_mask(index,sub_graph)
+        cf_mask = (1 - mask).abs()
+
+        self._extract_cf_example(index, sub_graph, cf_mask)
+
+        expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph
+        for i in range(0, mask.size(0)):
+            pair = sub_graph.T[i]
+            t = index_edge(sub_graph, pair)
+            expl_graph_weights[t] = mask[i]
+
+        return sub_graph, expl_graph_weights

@@ -13,16 +13,15 @@ DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
 
 def parse_config(to_load: str, dataset: str):
     """Parse config file (.json) for chosen `dataset` and `gnn` into a dictionary."""
-    #if dataset   == "syn1": data_cfg = dataset + "_BAshapes"
-    #elif dataset == "syn2": data_cfg = dataset + "_BAcommunities"
-    #elif dataset == "syn3": data_cfg = dataset + "_treeCycles"
-    #elif dataset in ["syn4","cfg_syn4"]: data_cfg = "syn4" + "_treeGrids"
     if to_load in ["PGE", "CF-GNN"]:  # only need to load gnn model config
         gnn = to_load
         explainer = ""
     elif to_load in ["PGEex", "CFPG", "CFPGv2"]:  # need to load explainer and related gnn configs
         gnn = "PGE"
         explainer = to_load
+    elif to_load in ["1hop"]:  # baseline experiments
+        gnn = "PGE"
+        explainer = "CFPG"
 
     if gnn   == "PGE":    gnn_file = "pgeGNN" 
     elif gnn == "CF-GNN": gnn_file = "cfGNN"
@@ -35,7 +34,7 @@ def parse_config(to_load: str, dataset: str):
         
     if explainer == "":  
         gnn_cfg["train_params"] = gnn_cfg["datasets"][dataset]
-        return gnn_cfg     # only need gnn model config
+        return gnn_cfg   # only need gnn model config
     else: 
         # need to load also explainer config 
         if explainer   == "PGEex":  expl_file = "pge" 
