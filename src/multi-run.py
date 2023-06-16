@@ -4,7 +4,7 @@ import os
 
 DATASETS = ["syn1","syn2","syn3","syn4"]
 CONVS = ["pGCN","GCN","GAT"]
-EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
+EXPLAINER = "CFPG" # "CFPG", "CFPGv2", "PGEex"
 EPOCHS = 20
 
 # returns a list of 8 random small integers between 0 and 255
@@ -18,7 +18,7 @@ def get8RandomBytesFromOS():
 #SIZE_COEFFS = [0.1, 0.01, 0.001]
 #CF_COEFFS = [0.5, 1.0, 2.0, 5.0]
 #NUM_HEADS = [3, 5, 8]
-SEEDS = get8RandomBytesFromOS()[:4]
+SEEDS = get8RandomBytesFromOS()
 
 
 script_cmd  = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
@@ -27,8 +27,8 @@ rid = 0
 for s in SEEDS:
     for d in DATASETS:
         #for curr in ENT_COEFFS:
-        script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT --seed {s} "
-        suffix_args = f"--prefix replCFPGv2-2GATh50-rBest-{EPOCHS} --log"
+        script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --seed {s} "
+        suffix_args = f"--prefix replCFPG-maskSum-rBest-{EPOCHS} --log"
         cmd = script_cmd + script_args + suffix_args
 
         print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
