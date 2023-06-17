@@ -68,7 +68,7 @@ def _eval_AUC_node(explanations, explanation_labels):
 
             #print("\n\t>> sub graph:", sub_graph.size())
             #print("\t>> preds    :", pred_scores.size())
-            #print("\t>> groud truth:", len(ground_truth_node))
+            #print("\n\t>> groud truth:", torch.Tensor(ground_truth_node).sum()//2)
             #exit("\n[DEBUG]: sto a debbuggà, stacce.")            
 
             ground_truth.extend(ground_truth_node)

@@ -9,7 +9,7 @@ import torch
 from explainers.PGExplainer import PGExplainer
 from explainers.CFPGExplainer import CFPGExplainer
 from explainers.CFPGv2 import CFPGv2
-from explainers.OneHopExplainer import OneHopExplainer
+from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer
 #from explainers.PCFExplainer import PCFExplainer
 #from utils.graphs import normalize_adj
 
@@ -114,6 +114,8 @@ elif EXPLAINER == "CFPGv2":
     explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
 elif EXPLAINER == "1hop":
     explainer = OneHopExplainer(model, graph, device=device)
+elif EXPLAINER == "perfEx":
+    explainer = PerfectExplainer(model, graph, device=device)
 #elif EXPLAINER == "CF-GNN":
 #    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 
@@ -139,7 +141,7 @@ inference_eval.start_explaining()
 explanations = []
 with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
     top_k = 12 if DATASET != "syn4" else 24
-    top_k = 0 if EXPLAINER == "1hop" else top_k
+    top_k = 0 if EXPLAINER in ["1hop","perfEx"] else top_k
     verbose = False
     curr_id = 0
     n_tests = len(test_epoch)
