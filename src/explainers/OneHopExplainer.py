@@ -24,8 +24,8 @@ class OneHopExplainer(BaseExplainer):
     def _get_1hop_mask(self, index, sub_graph):
         """Get 1hop-neighbors of node `index` as the explanation mask."""
         n_rows = self.features.size(0)   # number of nodes
-        matrix = torch.zeros((n_rows,n_rows))
-        mask = matrix.new_full(matrix.size(), 0.001)
+        mask = torch.zeros((n_rows,n_rows)) + 0.001
+        #mask = matrix.new_full(matrix.size(), 0.001)
         
         one_hop = torch_geometric.utils.k_hop_subgraph(index, 1, self.adj)[1]
         mask[one_hop[0],one_hop[1]] = 0.999
@@ -43,7 +43,7 @@ class OneHopExplainer(BaseExplainer):
         original_pred = original_pred[index].argmax()
         pred_same = (masked_pred.argmax() == original_pred)
 
-        if pred_same == 0:
+        if not pred_same:
             cf_ex = {"mask": cf_mask, "feats": cf_feat[index]}
             try: 
                 self.cf_examples[str(index)] = cf_ex
@@ -109,7 +109,8 @@ class PerfectExplainer(BaseExplainer):
         """Get explanation ground truth of a node `index` as the explanation mask."""
         n_rows = self.features.size(0)   # number of nodes
         mask = torch.zeros((n_rows,n_rows)) + 0.002
-        
+        #mask = matrix.new_full(matrix.size(), 0.002)
+
         expl_labels = (self.expl_labels.to_dense() - 0.001)
         mask = (mask + expl_labels).float()
         
@@ -127,7 +128,7 @@ class PerfectExplainer(BaseExplainer):
         original_pred = original_pred[index].argmax()
         pred_same = (masked_pred.argmax() == original_pred)
 
-        if pred_same == 0:
+        if not pred_same:
             cf_ex = {"mask": cf_mask, "feats": cf_feat[index]}
             try: 
                 self.cf_examples[str(index)] = cf_ex
@@ -139,7 +140,7 @@ class PerfectExplainer(BaseExplainer):
     def prepare(self, indices=None):
         """Prepars the explanation method for explaining."""
         self.cf_examples = {}
-        print(f"[{self.expl_name}]> Getting 1hop-neighbors as explanation, no training needed.")
+        print(f"[{self.expl_name}]> Getting ground truth explanation to check CF performances.")
         return
 
     def explain(self, index):
