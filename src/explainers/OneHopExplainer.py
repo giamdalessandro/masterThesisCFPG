@@ -29,6 +29,7 @@ class OneHopExplainer(BaseExplainer):
         
         one_hop = torch_geometric.utils.k_hop_subgraph(index, 1, self.adj)[1]
         mask[one_hop[0],one_hop[1]] = 0.999
+        #mask[one_hop[1],one_hop[0]] = 0.999  # graph is undirected
 
         mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()        
         return mask.values()
@@ -108,14 +109,13 @@ class PerfectExplainer(BaseExplainer):
     def _get_expl_mask(self, index, sub_graph):
         """Get explanation ground truth of a node `index` as the explanation mask."""
         n_rows = self.features.size(0)   # number of nodes
-        mask = torch.zeros((n_rows,n_rows)) + 0.002
-        #mask = matrix.new_full(matrix.size(), 0.002)
-
-        expl_labels = (self.expl_labels.to_dense() - 0.001)
-        mask = (mask + expl_labels).float()
+        mask = torch.zeros((n_rows,n_rows)) + 0.001
         
-        mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()        
-        #print("\n\t>> expl labels:", (mask.values() > 0.5).sum())
+        idxs_labels = self.expl_labels.indices()
+        mask[idxs_labels[0],idxs_labels[1]] = 0.999   
+        mask[idxs_labels[1],idxs_labels[0]] = 0.999  # graph is undirected 
+        
+        mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()
         return mask.values()
     
     def _extract_cf_example(self, index, sub_graph, cf_mask):
