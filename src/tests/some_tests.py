@@ -1,5 +1,6 @@
 import os
 import torch 
+import json
 import pickle as pkl
 import pandas as pd
 from colorama import init, Fore 
@@ -117,8 +118,71 @@ def store_run_csv(save_path: str=""):
     return
 
 
+def clean_sep_lables_data(dataset: str="syn1"):
+    full_path = DATA_DIR + f"/{dataset}_sep_labels.json"
+
+    motif_size = 6 if dataset != "syn4" else 12
+    to_write = {
+        "dataset" : dataset,
+        "motif_size" : motif_size,
+        "n_nodes" : 0,
+        "per_node_labels" : {}
+    }
+
+    with open(full_path, "r") as fr:
+        data = json.load(fr)
+        print(f"\n[{dataset}]> data loaded...")
+        print(">> num of labeled:", len(data.keys()))
+        #print(">> labeled nodes :", list(data.keys()))
+
+        for k,v in data.items():
+            if v["n_edges"] > motif_size:
+                correct = []
+                for i,j in v["expl_edges"]:
+                    if (i >= int(k))  and (j >= int(k)): correct.append([i,j])
+
+                to_write["per_node_labels"][k] = str(correct)
+
+            else:
+                to_write["per_node_labels"][k] = str(v["expl_edges"])
+
+            #if len(to_write["per_node_labels"][k]) != motif_size:
+            #    exit(f"[ERR]> {k} has {len(to_write['per_node_labels'][k])}... Daina cinciallegra!!!")
+
+    to_write["n_nodes"] = len(to_write["per_node_labels"].keys())
+    print("\nlabeled found:", len(to_write["per_node_labels"].keys()))
+    
+    with open(full_path[:-5] + "_clean.json", "w+") as fw:
+        json.dump(to_write,fw,indent=4)
+        fw.close()
+
+    ### health check on labels (explain.py)
+    #print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
+    #print("\t>> correct expl labels :", explainer.correct_labels.sum())
+    #print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
+    #
+    #fuffa = True
+    #if fuffa:
+    #    import json
+    #
+    #    thres = 10 if DATASET == "syn4" else 6
+    #    to_json = {}
+    #    for k,v in explainer.labeled_nodes.items():
+    #        #print(f"\t>> node {k}, edges -> {v['n_edges']}")
+    #        if v['n_edges'] >= thres: 
+    #            to_json[k] = v
+    #    print(f"\n\t>> found labels for {len(explainer.labeled_nodes.keys())} nodes")
+    #
+    #    with open(f"./datasets/{DATASET}_sep_labels.json","w+") as f:
+    #        json.dump(to_json, f, indent=4)
+    #        f.close()
+
+    return
+
+
 
 if __name__ == "__main__":
     #syn_dataset_from_file(dataset="syn5", save=False)
     #load_saved_test("pkls/pge_syn4.pkl")
-    store_run_csv()
+    #store_run_csv()
+    clean_sep_lables_data("syn4")
