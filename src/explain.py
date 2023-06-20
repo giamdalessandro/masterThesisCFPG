@@ -158,6 +158,28 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
 
 inference_eval.done_explaining()
 
+### health check on labels
+print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
+print("\t>> correct expl labels :", explainer.correct_labels.sum())
+print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
+
+fuffa = True
+if fuffa:
+    import json
+
+    thres = 10 if DATASET == "syn4" else 6
+    to_json = {}
+    for k,v in explainer.labeled_nodes.items():
+        #print(f"\t>> node {k}, edges -> {v['n_edges']}")
+        if v['n_edges'] >= thres: 
+            to_json[k] = v
+    print(f"\n\t>> found labels for {len(explainer.labeled_nodes.keys())} nodes")
+
+    with open(f"./datasets/{DATASET}_sep_labels.json","w+") as f:
+        json.dump(to_json, f, indent=4)
+        f.close()
+
+
 # Metrics: compute AUC score for computed explanation
 print(Fore.MAGENTA + "\n[explain]> explanation metrics")
 auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
@@ -174,7 +196,7 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     cf_examples = explainer.cf_examples
     found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)
-    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:")
+    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example")
     perc_cf = (found_cf_ex/max_cf_ex)
     print(f"\t>> with CF: {found_cf_ex}/{max_cf_ex}  ({perc_cf*100:.2f}%)")
 else:

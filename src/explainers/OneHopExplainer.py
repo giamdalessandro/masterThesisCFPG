@@ -112,9 +112,31 @@ class PerfectExplainer(BaseExplainer):
         mask = torch.zeros((n_rows,n_rows)) + 0.001
         
         idxs_labels = self.expl_labels.indices()
+        #print("\n\t>> mask indices:", idxs_labels.size())
         mask[idxs_labels[0],idxs_labels[1]] = 0.999   
-        mask[idxs_labels[1],idxs_labels[0]] = 0.999  # graph is undirected 
+        #mask[idxs_labels[1],idxs_labels[0]] = 0.999  # graph is undirected
         
+        for i,j in sub_graph.T:
+            if mask[i][j] == 0.999:
+                check_row = (i < (index + 12))
+                check_col = (j < (index + 12))
+                if (check_row and check_col): 
+                    try: 
+                        tmp = self.labeled_nodes[str(index)]["expl_edges"] 
+                        self.labeled_nodes[str(index)]["expl_edges"] = tmp[:-1] + f",[{i.item()},{j.item()}]" + tmp[-1:]
+                        self.labeled_nodes[str(index)]["n_edges"] += 1
+                    except: 
+                        self.labeled_nodes[str(index)] = {"expl_edges" : f"[[{i.item()},{j.item()}]]", "n_edges" : 1}
+                
+                self.correct_labels[i][j] = 1.0 #1.0 if (check_row and check_col) else 0.0
+                #mask[i][j] = 0.999 if (check_row and check_col) else 0.001
+                #mask[j][i] = 0.999 if (check_row and check_col) else 0.001  # graph is undirected
+            if mask[j][i] == 0.999:
+                self.correct_labels[j][i] = 1.0
+
+        #in_expl = torch.where(mask > 0.5, 1, 0)
+        #exit(0)
+
         mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()
         return mask.values()
     
@@ -139,6 +161,9 @@ class PerfectExplainer(BaseExplainer):
 
     def prepare(self, indices=None):
         """Prepars the explanation method for explaining."""
+        self.correct_labels = torch.zeros((self.features.size(0),self.features.size(0))).to(self.device)
+        self.labeled_nodes = {}
+
         self.cf_examples = {}
         print(f"[{self.expl_name}]> Getting ground truth explanation to check CF performances.")
         return

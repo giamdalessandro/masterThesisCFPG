@@ -117,7 +117,7 @@ def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproc
         elif dataset == "syn3":
             test_indices = range(511,871,6)
         elif dataset in ["syn4","cfg_syn4"]:
-            test_indices = range(511,800,1)
+            test_indices = range(511,1231,3)
 
         filename = dataset + ".pkl"
         print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
