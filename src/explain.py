@@ -63,7 +63,7 @@ cfg.update({
 
 graph = dataset.get(0)
 print(Fore.GREEN + "[dataset]> data graph from",f"{dataset}")
-print("\t>>", graph)
+#print("\t>>", graph)
 class_labels = graph.y
 class_labels = torch.argmax(class_labels, dim=1)
 x = graph.x
@@ -122,7 +122,7 @@ elif EXPLAINER == "perfEx":
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
-gt = (graph.edge_index,graph.edge_label)
+gt = (graph.edge_index,graph.edge_label,graph.pn_labels)
 auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
 inference_eval = EfficiencyEvaluation()
 inference_eval.reset()
@@ -153,14 +153,14 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
         elif idx == test_idxs[-1]: 
             plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         
-        explanations.append((graph, expl))
+        explanations.append((graph, expl, idx))
         curr_id += 1
 
 inference_eval.done_explaining()
 
-print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
-print("\t>> correct expl labels :", explainer.correct_labels.sum())
-print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
+#print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
+#print("\t>> correct expl labels :", explainer.correct_labels.sum())
+#print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
 
 
 # Metrics: compute AUC score for computed explanation

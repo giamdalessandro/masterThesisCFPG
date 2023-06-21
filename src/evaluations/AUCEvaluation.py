@@ -26,21 +26,30 @@ def _eval_AUC_node(explanations, explanation_labels):
     predictions = []
     # for easier access densify explanation labels matrix
     expl_labels_dense = explanation_labels[1].to_dense()
-    expl_labels_sparse = explanation_labels[1].indices()
-
+    #expl_labels_sparse = explanation_labels[1].indices()
     #print("\n\t[DEBUG]> labels:", expl_labels_sparse.size(1))
 
-    visited_edges = torch.zeros(explanation_labels[1].size())
-    visited_l = []
+    # Need per-node labels to avoid overlapping between explanation
+    # edges of different nodes that may be in the same 3-hop-neighborhood,
+    # i.e. those explanation edges that are in the 3-hop-neighborhood of a
+    # node even though they belong to some other node explanation. 
+    expl_pn_labels = explanation_labels[2]["per_node_labels"]
     
     with tqdm(explanations, desc="[metrics]> AUC score", disable=False) as eval_step:
         for expl in eval_step: # Loop over each node explanations 
             sub_graph   = expl[0]    # explanation edge-index (i.e. expl. subgraph)
             pred_scores = expl[1]    # explanation edge weights
+            node_idx    = expl[2]
 
             ground_truth_node = []
             prediction_node = []
             
+            # node explanation labels as a matrix
+            mask = torch.zeros(expl_labels_dense.size())
+            expl_edges = torch.LongTensor(expl_pn_labels[str(node_idx)]).T  # use sparse repr for better indexing
+            mask[expl_edges[0],expl_edges[1]] = 1
+            mask[expl_edges[1],expl_edges[0]] = 1  # graph is undirected
+
             n_edges = sub_graph.size(1)
             for i in range(0, n_edges): # Loop over each edge in the explanation sub-graph
                 edge_pred = pred_scores[i].item()
@@ -48,17 +57,12 @@ def _eval_AUC_node(explanations, explanation_labels):
 
                 # Graphs are defined bidirectional, so we need to retrieve both edges
                 # If any of the edges is in the ground truth set, the edge should be in the explanation
-                pair = expl[0].T[i].long() #.numpy()          
-
-                edge = expl_labels_dense[pair[0]][pair[1]].item() 
-                edge_rev = expl_labels_dense[pair[1]][pair[0]].item() 
-                if edge == 1.0 and visited_edges[pair[0]][pair[1]] == 0.0: 
-                    visited_edges[pair[0]][pair[1]] = edge_pred
-                    visited_l.append(pair)
-                #elif edge_rev == 1 and visited_edges[pair[1]][pair[0]] == 0: 
-                #    visited_edges[pair[1]][pair[0]] = edge_pred
-                #    visited_l.append(pair)
-
+                #edge     = expl_labels_dense[pair[0]][pair[1]].item()  # to use old labels
+                #edge_rev = expl_labels_dense[pair[1]][pair[0]].item()  # to use old labels
+                pair = sub_graph.T[i].long() #.numpy()          
+                edge = mask[pair[0]][pair[1]]
+                edge_rev = mask[pair[1]][pair[0]]
+                
                 gt = edge + edge_rev
                 #print("ground truth:", gt)
                 if gt == 0:
@@ -66,25 +70,9 @@ def _eval_AUC_node(explanations, explanation_labels):
                 else:
                     ground_truth_node.append(1)
 
-            #print("\n\t>> sub graph:", sub_graph.size())
-            #print("\t>> preds    :", pred_scores.size())
-            #print("\n\t>> groud truth:", torch.Tensor(ground_truth_node).sum()//2)
             #exit("\n[DEBUG]: sto a debbuggà, stacce.")            
-
             ground_truth.extend(ground_truth_node)
             predictions.extend(prediction_node)
-
-    visited_sparse = visited_edges.to_sparse_coo()
-    expl_pred = visited_sparse.values()
-
-    #print("\n\t[DEBUG]> gt:   ", len(ground_truth), "\t#1s:", torch.LongTensor(ground_truth).sum())
-    #print("\t[DEBUG]> preds:", len(predictions))
-    #missed = (expl_labels_dense - (visited_edges > 0.0).long()).sum()
-    #print("\n\t[DEBUG]> expl-edge preds:", expl_pred.size())
-    #print("\t[DEBUG]> visited:", len(visited_l))
-    #print("\t[DEBUG]> missed: ", missed.item())
-
-    #exit("\n[DEBUG]: sto a debbuggà, stacce.")    
 
     #fpr, tpr, thres = roc_curve(ground_truth, predictions)
     #print("[eval]> ROC thresholds:", len(thres)) 

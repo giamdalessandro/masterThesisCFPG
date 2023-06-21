@@ -105,35 +105,6 @@ class PerfectExplainer(BaseExplainer):
         self.adj = self.data_graph.edge_index.to(self.device)
         self.expl_labels = self.data_graph.edge_label.to(self.device)
         print("\t>> explainer:", self.expl_name)
-        
-    def _new_get_expl_mask(self, index, sub_graph):
-        """Get explanation ground truth of a node `index` as the explanation mask."""
-        n_rows = self.features.size(0)   # number of nodes
-        mask = torch.zeros((n_rows,n_rows)) + 0.001
-        
-        idxs_labels = self.expl_labels.indices()
-        #print("\n\t>> mask indices:", idxs_labels.size())
-        mask[idxs_labels[0],idxs_labels[1]] = 0.999   
-        #mask[idxs_labels[1],idxs_labels[0]] = 0.999  # graph is undirected
-        
-        for i,j in sub_graph.T:
-            if mask[i][j] == 0.999:
-                check_row = (i < (index + 12))
-                check_col = (j < (index + 12))
-                if (check_row and check_col): 
-                    try: 
-                        tmp = self.labeled_nodes[str(index)]["expl_edges"] 
-                        self.labeled_nodes[str(index)]["expl_edges"] = tmp[:-1] + f",[{i.item()},{j.item()}]" + tmp[-1:]
-                        self.labeled_nodes[str(index)]["n_edges"] += 1
-                    except: 
-                        self.labeled_nodes[str(index)] = {"expl_edges" : f"[[{i.item()},{j.item()}]]", "n_edges" : 1}
-                
-                self.correct_labels[i][j] = 1.0 #1.0 if (check_row and check_col) else 0.0
-            if mask[j][i] == 0.999:
-                self.correct_labels[j][i] = 1.0
-
-        mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()
-        return mask.values()
     
     def _get_expl_mask(self, index, sub_graph):
         """Get explanation ground truth of a node `index` as the explanation mask."""
@@ -142,7 +113,6 @@ class PerfectExplainer(BaseExplainer):
 
         # labels are a list of edges in the form: e -> [i,j]
         pn_labels = self.data_graph.pn_labels["per_node_labels"][str(index)]
-        #print(f"\n\t>> node {index} expl edges:", pn_labels)
 
         expl_edges = torch.LongTensor(pn_labels).T  # use sparse repr for better indexing
         mask[expl_edges[0],expl_edges[1]] = 0.999
@@ -210,3 +180,34 @@ class PerfectExplainer(BaseExplainer):
 
         return sub_graph, expl_graph_weights
     
+
+
+
+#def _extract_per_node_expl_mask(self, index, sub_graph):
+#    """Get explanation ground truth of a node `index` as the explanation mask."""
+#    n_rows = self.features.size(0)   # number of nodes
+#    mask = torch.zeros((n_rows,n_rows)) + 0.001
+#    
+#    idxs_labels = self.expl_labels.indices()
+#    #print("\n\t>> mask indices:", idxs_labels.size())
+#    mask[idxs_labels[0],idxs_labels[1]] = 0.999   
+#    #mask[idxs_labels[1],idxs_labels[0]] = 0.999  # graph is undirected
+#    
+#    for i,j in sub_graph.T:
+#        if mask[i][j] == 0.999:
+#            check_row = (i < (index + 12))
+#            check_col = (j < (index + 12))
+#            if (check_row and check_col): 
+#                try: 
+#                    tmp = self.labeled_nodes[str(index)]["expl_edges"] 
+#                    self.labeled_nodes[str(index)]["expl_edges"] = tmp[:-1] + f",[{i.item()},{j.item()}]" + tmp[-1:]
+#                    self.labeled_nodes[str(index)]["n_edges"] += 1
+#                except: 
+#                    self.labeled_nodes[str(index)] = {"expl_edges" : f"[[{i.item()},{j.item()}]]", "n_edges" : 1}
+#            
+#            self.correct_labels[i][j] = 1.0 #1.0 if (check_row and check_col) else 0.0
+#        if mask[j][i] == 0.999:
+#            self.correct_labels[j][i] = 1.0
+#
+#    mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()
+#    return mask.values()
