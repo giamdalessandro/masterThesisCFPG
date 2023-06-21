@@ -158,6 +158,10 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
 
 inference_eval.done_explaining()
 
+print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
+print("\t>> correct expl labels :", explainer.correct_labels.sum())
+print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
+
 
 # Metrics: compute AUC score for computed explanation
 print(Fore.MAGENTA + "\n[explain]> explanation metrics")
@@ -170,7 +174,7 @@ print("\t>> time elapsed:",f"{time_score:.4f}")
 #### STEP 5: Logs and plots
 # CF explanations data to log
 if EXPLAINER != "PGEex":      # PGE does not produce CF examples
-    if EXPLAINER == "CFPG" :explainer.coeffs["heads"] = "n/a"    
+    if EXPLAINER == "CFPG": explainer.coeffs["heads"] = "n/a"    
 
     cf_examples = explainer.cf_examples
     found_cf_ex = len(cf_examples.keys())

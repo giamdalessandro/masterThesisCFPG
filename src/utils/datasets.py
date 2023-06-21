@@ -90,6 +90,12 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
             loaded_data["val_mask"]   = data[6]
             loaded_data["test_mask"]  = data[7]
             loaded_data["edge_label"] = data[8]
+
+    # load per-node labels
+    l_path = data_dir + f"{dataset}_sep_labels.json"
+    with open(l_path, "r") as fl:
+        pn_lables = json.load(fl) 
+        loaded_data["pn_labels"] = pn_lables
     
     return loaded_data
 
@@ -178,6 +184,7 @@ class BAGraphDataset(Dataset):
 
         edge_label_matrix = data["edge_label"]
         edge_label = torch.tensor(edge_label_matrix).to_sparse_coo()
+        self.pn_labels = data["pn_labels"]
 
         self.train_mask = data["train_mask"]
         self.val_mask   = data["val_mask"]
@@ -200,7 +207,8 @@ class BAGraphDataset(Dataset):
             edge_label=edge_label, #.indices(),  
             y=labels, 
             expl_mask=expl_mask,
-            n_id=torch.arange(num_nodes))
+            n_id=torch.arange(num_nodes),
+            pn_labels=data["pn_labels"])
 
         # collate function needs a list of Data objects
         data_list = [data]
