@@ -3,8 +3,8 @@ import os
 
 
 DATASETS = ["syn1","syn2","syn3","syn4"]
-CONVS = ["pGCN","GCN","GAT"]
-EXPLAINER = "CFPG" # "CFPG", "CFPGv2", "PGEex"
+CONVS = ["GCN","GAT"] # "pGCN"
+EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
 EPOCHS = 20
 
 # returns a list of 8 random small integers between 0 and 255
@@ -21,18 +21,18 @@ def get8RandomBytesFromOS():
 SEEDS = get8RandomBytesFromOS()
 
 
-script_cmd  = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
+script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
 rid = 0
-#for c in CONVS:
-for s in SEEDS:
-    for d in DATASETS:
-        #for curr in ENT_COEFFS:
-        script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --seed {s} "
-        suffix_args = f"--prefix replCFPG-maskSum-rBest-{EPOCHS} --log"
-        cmd = script_cmd + script_args + suffix_args
+for c in CONVS:
+    for s in SEEDS:
+        for d in DATASETS:
+            #for curr in ENT_COEFFS:
+            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --seed {s} "
+            suffix_args = f"--prefix replCFPGv2-pnMask-negSize-rBest-{EPOCHS} --log"
+            cmd = script_cmd + script_args + suffix_args
 
-        print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
-        returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
-        rid += 1
+            print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
+            returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
+            rid += 1
 
 print("\n[runs]> Multi-run DONE...", returned_value)

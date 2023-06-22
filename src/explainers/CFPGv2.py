@@ -124,7 +124,7 @@ class CFPGv2(BaseExplainer):
         # Size loss
         #mask_mean = mask.mean()
         #size_loss = ((mask > mask_mean)).sum()   # working fine
-        size_loss = -mask.sum()
+        size_loss = mask.sum()  # -1
         size_loss = size_loss * reg_size
 
         # Entropy loss (PGE)

@@ -147,7 +147,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
     log_file = f"{prefix}{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
     
     e_c = logs["cfg"]
-    heads = "n/a" if conv == "GCN" else e_c["heads"]     # no meaning if using GCNconv
+    heads = "n/a" if conv in ["GCN","base"] else e_c["heads"]     # no meaning if using GCNconv
 
     date_str = datetime.now().strftime("%d-%B_%H:%M")
     log_file = save_dir + "/" + log_file
@@ -190,6 +190,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "reg_size"  : [e_c['reg_size']],
     }
     df = pd.DataFrame.from_dict(to_csv)
+    save_dir = LOG_DIR + f"{explainer}"
     csv_path = save_dir + f"/{explainer}_{dataset}.csv"
     df.to_csv(csv_path, mode="a+", header=not os.path.exists(csv_path))
 
