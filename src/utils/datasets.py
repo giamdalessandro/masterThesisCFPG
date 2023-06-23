@@ -11,24 +11,131 @@ path_to_data = "/../../datasets/"
 DATA_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_data
 
 
-def parse_config(dataset: str, gnn: str):
+def parse_config(to_load: str, dataset: str):
     """Parse config file (.json) for chosen `dataset` and `gnn` into a dictionary."""
-    if dataset == "syn1": data_cfg = dataset + "_BAshapes"
-    elif dataset == "syn2": data_cfg = dataset + "_BAcommunities"
-    elif dataset == "syn3": data_cfg = dataset + "_treeCycles"
-    elif dataset == "syn4": data_cfg = dataset + "_treeGrids"
+    if to_load in ["PGE", "CF-GNN"]:  # only need to load gnn model config
+        gnn = to_load
+        explainer = ""
+    elif to_load in ["PGEex", "CFPG", "CFPGv2"]:  # need to load explainer and related gnn configs
+        gnn = "PGE"
+        explainer = to_load
+    elif to_load in ["1hop","perfEx"]:  # baseline experiments
+        gnn = "PGE"
+        explainer = "CFPG"
+
+    if gnn   == "PGE":    gnn_file = "pgeGNN" 
+    elif gnn == "CF-GNN": gnn_file = "cfGNN"
 
     #gnn = "PGE" # to force PGE params
-    rel_path = f"/../configs/{gnn}/{data_cfg}.json"
+    rel_path = f"/../configs/gnns/{gnn_file}.json"
     cfg_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
+    with open(cfg_path) as config_parser:
+        gnn_cfg = json.loads(json.dumps(json.load(config_parser)))
+        
+    if explainer == "":  
+        gnn_cfg["train_params"] = gnn_cfg["datasets"][dataset]
+        return gnn_cfg   # only need gnn model config
+    else: 
+        # need to load also explainer config 
+        if explainer   == "PGEex":  expl_file = "pge" 
+        elif explainer == "CFPG":   expl_file = "cfpg_base"
+        elif explainer == "CFPGv2": expl_file = "cfpg_v2"
 
-    try:    
-        with open(cfg_path) as config_parser:
-            config = json.loads(json.dumps(json.load(config_parser)))
-        return config
-    except FileNotFoundError:
-        print(f"No config found for '{cfg_path}'")
-        exit(0)
+        rel_path = f"/../configs/explainers/{expl_file}.json"
+        expl_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
+        with open(expl_path) as config_parser:
+            expl_cfg = json.loads(json.dumps(json.load(config_parser)))
+
+        cfg = gnn_cfg
+        cfg["expl_params"] = expl_cfg["datasets"][dataset]
+
+        return cfg
+    
+
+def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
+    """Loads data from a binary (.pkl) file representing one of the
+    synthetic Barabasi-Albert graph datasets from the GNNExplainer paper.
+
+    #### Args:
+
+    dataset : (str)
+        which synthetic dataset to load, one of "syn1", "syn2", "syn3", "syn4".
+    
+    data_dir : `str`
+        directory path where dataset files are stored.
+    """
+    # syn4 (treeGrids) comes from CF-GNN, the others from PGE code
+    f_type = ".pkl"
+    filename = dataset + f_type
+    path = data_dir + "pkls/" + filename
+        
+    # load raw data
+    loaded_data = {}
+    with open(path, 'rb') as fin:
+        if dataset == "cfg_syn4":
+            data = torch.load(fin)
+            loaded_data = data
+        else:
+            data = pkl.load(fin)
+            loaded_data["adj"]        = data[0]
+            loaded_data["features"]   = data[1]
+            loaded_data["y_train"]    = data[2]
+            loaded_data["y_val"]      = data[3]
+            loaded_data["y_test"]     = data[4]
+            loaded_data["train_mask"] = data[5]
+            loaded_data["val_mask"]   = data[6]
+            loaded_data["test_mask"]  = data[7]
+            loaded_data["edge_label"] = data[8]
+
+    # load per-node labels
+    l_path = data_dir + f"{dataset}_sep_labels.json"
+    with open(l_path, "r") as fl:
+        pn_lables = json.load(fl) 
+        loaded_data["pn_labels"] = pn_lables
+    
+    return loaded_data
+
+
+def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproccessing: bool=False, shuffle: bool=True):
+    r"""High level function which loads the dataset by calling the proper method 
+    for node-classification or graph-classification datasets.
+
+    Args:
+    - `_dataset`(str): Which dataset to load. Choose from "syn1", "syn2", "syn3", 
+        "syn4", "ba2" or "mutag";
+    - `load_adv`(bool): whether or not to load the adversarial example graph;
+    - `skip_preproccessing`(bool): Whether or not to convert the adjacency matrix 
+        to an edge matrix.
+    - `shuffle`(bool): Should the returned dataset be shuffled or not.
+    
+    Returns:    
+        The couple (`torch_geometric.data.Dataset`,list). 
+    """
+    print(Fore.GREEN + f"[dataset]> loading dataset...")
+    if "syn" in dataset: 
+        # Load node-classification datasets
+        if dataset == "syn1" or dataset == "syn2":
+            test_indices = range(400, 700, 5)
+        elif dataset == "syn3":
+            test_indices = range(511,871,6)
+        elif dataset in ["syn4","cfg_syn4"]:
+            test_indices = range(511,800,1)
+
+        filename = dataset + ".pkl"
+        print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
+
+        # create dataset class with loaded data
+        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv)
+        print("\t>> #graphs:       ", len(pyg_dataset))
+        print("\t>> #classes:      ", pyg_dataset.num_classes)
+        print("\t>> #node_features:", pyg_dataset.num_node_features)
+
+        return pyg_dataset, test_indices
+        
+    else: 
+        # TODO Load graph-classification datasets
+        #return load_graph_dataset(dataset, shuffle)
+        return NotImplementedError("Graph classification datasets not yet implemented.")
 
 
 class BAGraphDataset(Dataset):
@@ -48,35 +155,41 @@ class BAGraphDataset(Dataset):
         """The data are loaded from a stored `.pkl` file representing one of 
         the synthetic Barabasi-Albert graph datasets from the paper mentioned above. 
         
-        Args:
-        - `dataset`(str) : which synthetic dataset to load, one of "syn1", "syn2", "syn3", "syn4".
-        - `data_dir`(str): directory path where dataset files are stored. 
-        """
-        super().__init__(None, transform, pre_transform)
+        #### Args:
+        dataset : `str`
+            which synthetic dataset to load, one of "syn1", "syn2", "syn3", "syn4".
         
-        filename = dataset + ".pkl"
-        path = data_dir + "pkls/" + filename
-        # load raw data
-        with open(path, 'rb') as fin:
-            data = pkl.load(fin)
-            adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label_matrix = data
+        data_dir : `str`
+            directory path where dataset files are stored. 
+        """
+        super().__init__(None, transform, pre_transform)   
+        # Data are retrieved aws a dictonary with the following keys:
+        # {adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask, edge_label}
+        data = syn_dataset_from_file(dataset=dataset,data_dir=data_dir)
 
-        self.train_mask = train_mask
-        self.val_mask   = val_mask
-        self.test_mask  = test_mask
-
-
+        features = data["features"]
         x = torch.tensor(features, dtype=torch.float)
         num_nodes = x.size(0)
         expl_mask = torch.zeros(num_nodes, dtype=torch.bool)
         expl_mask[torch.arange(400, num_nodes, 5)] = True
 
-        # pyg uses sparse matrix representation as default
-        edge_index = torch.tensor(adj).to_sparse()
-        edge_label = torch.tensor(edge_label_matrix).to_sparse()
+        # pyg uses sparse matrix representation for adjacency matrix as default
+        adj = data["adj"]
+        edge_index = torch.tensor(adj).squeeze().to_sparse()
 
-        y_train[val_mask]  = y_val[val_mask]
-        y_train[test_mask] = y_test[test_mask]
+        edge_label_matrix = data["edge_label"]
+        edge_label = torch.tensor(edge_label_matrix).to_sparse_coo()
+        self.pn_labels = data["pn_labels"]
+
+        self.train_mask = data["train_mask"]
+        self.val_mask   = data["val_mask"]
+        self.test_mask  = data["test_mask"]
+
+        y_train = data["y_train"]
+        y_val = data["y_val"]
+        y_test = data["y_test"]
+        y_train[self.val_mask]  = y_val[self.val_mask]
+        y_train[self.test_mask] = y_test[self.test_mask]
         labels = torch.tensor(y_train)
         if verbose:
             print("\n[DEBUG]> edge_index:", edge_index)
@@ -89,7 +202,8 @@ class BAGraphDataset(Dataset):
             edge_label=edge_label, #.indices(),  
             y=labels, 
             expl_mask=expl_mask,
-            n_id=torch.arange(num_nodes))
+            n_id=torch.arange(num_nodes),
+            pn_labels=data["pn_labels"])
 
         # collate function needs a list of Data objects
         data_list = [data]
@@ -133,45 +247,3 @@ class BAGraphDataset(Dataset):
         #data = torch.load(osp.join(self.processed_dir, f'data_{idx}.pt'))
         return self.data[idx]
 
-
-
-def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproccessing: bool=False, shuffle: bool=True):
-    r"""High level function which loads the dataset by calling the proper method 
-    for node-classification or graph-classification datasets.
-
-    Args:
-    - `_dataset`(str): Which dataset to load. Choose from "syn1", "syn2", "syn3", 
-        "syn4", "ba2" or "mutag";
-    - `load_adv`(bool): whether or not to load the adversarial example graph;
-    - `skip_preproccessing`(bool): Whether or not to convert the adjacency matrix 
-        to an edge matrix.
-    - `shuffle`(bool): Should the returned dataset be shuffled or not.
-    
-    Returns:    
-        A couple (`torch_geometric.data.Dataset`,list). 
-    """
-    print(Fore.GREEN + f"[dataset]> loading dataset...")
-    if dataset[:3] == "syn": 
-        # Load node-classification datasets
-        if dataset == "syn1" or dataset == "syn2":
-            test_indices = range(400, 700, 5)
-        elif dataset == "syn3":
-            test_indices = range(511,871,6)
-        elif dataset == "syn4":
-            test_indices = range(511,800,1)
-
-        filename = dataset + ".pkl"
-        print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
-
-        # create dataset class with loaded data
-        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv)
-        print("\t>> #graphs:       ", len(pyg_dataset))
-        print("\t>> #classes:      ", pyg_dataset.num_classes)
-        print("\t>> #node_features:", pyg_dataset.num_node_features)
-
-        return pyg_dataset, test_indices
-        
-    else: 
-        # TODO Load graph-classification datasets
-        #return load_graph_dataset(dataset, shuffle)
-        return NotImplementedError("Graph classification datasets not yet implemented.")

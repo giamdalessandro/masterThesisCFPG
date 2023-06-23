@@ -3,7 +3,7 @@ import time
 from .BaseEvaluation import BaseEvaluation
 
 
-class EfficiencyEvluation(BaseEvaluation):
+class EfficiencyEvaluation(BaseEvaluation):
     def __init__(self):
         self.t_prep = 0
         self.t_expl = 0

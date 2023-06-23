@@ -12,7 +12,7 @@ from torch_geometric.utils import k_hop_subgraph
 from torch_geometric.loader import NeighborLoader
 
 from .BaseExplainer import BaseExplainer
-from gnns.CFGNNpaper.gcn_perturb import GCNSyntheticPerturb
+from gnns.CFGNNpaper import GCNSyntheticPerturb
 
 from utils.graphs import index_edge
 from utils.graphs import normalize_adj

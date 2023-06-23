@@ -10,8 +10,7 @@ from utils.graphs import index_edge
 
 
 class PGExplainer(BaseExplainer):
-    """
-    A class encaptulating the PGExplainer (https://arxiv.org/abs/2011.04573).
+    """A class encaptulating the PGExplainer (https://arxiv.org/abs/2011.04573).
     
     :param model_to_explain: graph classification model who's predictions we wish to explain.
     :param graphs: the collections of edge_indices representing the graphs.
@@ -68,26 +67,20 @@ class PGExplainer(BaseExplainer):
             nn.Linear(64, 1),
         ).to(self.device)
 
-        #n_heads = 3
-        #self.explainer_model = nn.Sequential(
-        #    nn.Linear(self.expl_embedding, n_heads),
-        #    nn.LeakyReLU(),
-        #    nn.Softmax(dim=1),
-        #    nn.AvgPool1d(n_heads),
-        #).to(self.device)
-
 
     def _create_explainer_input(self, pair, embeds, node_id):
-        """
-        Given the embeddign of the sample by the model that we wish to explain, 
+        """Given the embeddign of the sample by the model that we wish to explain, 
         this method construct the input to the mlp explainer model. Depending on
         if the task is to explain a graph or a sample, this is done by either 
         concatenating two or three embeddings.
         
-        :param pair: edge pair
-        :param embeds: embedding of all nodes in the graph
-        :param node_id: id of the node, not used for graph datasets
-        :return: concatenated embedding
+        Args
+        - `pair`: edge pair
+        - `embeds`: embedding of all nodes in the graph
+        - `node_id`: id of the node, not used for graph datasets
+        
+        Return
+            concatenated embedding
         """
         rows = pair[0]
         cols = pair[1]
@@ -102,8 +95,7 @@ class PGExplainer(BaseExplainer):
         return input_expl
 
     def _sample_graph(self, sampling_weights, temperature=1.0, bias=0.0, training=True):
-        """
-        Implementation of the reparamerization trick to obtain a sample 
+        """Implementation of the reparamerization trick to obtain a sample 
         graph while maintaining the posibility to backprop.
         
         Args
@@ -126,13 +118,13 @@ class PGExplainer(BaseExplainer):
         return graph
 
     def loss(self, masked_pred, original_pred, mask):
-        """
-        Returns the loss score based on the given mask.
+        """Returns the loss score based on the given mask.
 
-        -  `masked_pred`   : Prediction based on the current explanation
-        -  `original_pred` : Predicion based on the original graph
-        -  `edge_mask`     : Current explanaiton
-        -  `reg_coefs`     : regularization coefficients
+        Args
+        - `masked_pred`   : Prediction based on the current explanation
+        - `original_pred` : Predicion based on the original graph
+        - `edge_mask`     : Current explanaiton
+        - `reg_coefs`     : regularization coefficients
 
         Return
             loss
@@ -152,8 +144,7 @@ class PGExplainer(BaseExplainer):
         return total_loss, cce_loss, size_loss, mask_ent_loss
 
     def _train(self, indices = None):
-        """
-        Main method to train the model
+        """Main method to train the model
         
         Args: 
         - indices: Indices that we want to use for training.
@@ -171,6 +162,12 @@ class PGExplainer(BaseExplainer):
         # If we are explaining a graph, we can determine the embeddings before we run
         if self.type == 'node':
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
+
+        self.history = {}
+        epoch_loss_tot  = []
+        epoch_loss_size = []
+        epoch_loss_ent  = []
+        epoch_loss_pred = []
 
         # Start training loop
         with tqdm(range(0, self.epochs), desc="[PGE]> ...training") as epochs_bar:
@@ -215,16 +212,29 @@ class PGExplainer(BaseExplainer):
 
                 epochs_bar.set_postfix(loss=f"{loss.item():.4f}", l_size=f"{size_total.item():.4f}",
                                 l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
+                
+                # metrics to plot
+                epoch_loss_tot.append(loss.item())
+                epoch_loss_size.append(size_total.item())
+                epoch_loss_ent.append(ent_total.item())
+                epoch_loss_pred.append(pred_total.item())
 
                 loss.backward()
                 optimizer.step()
 
+            self.history["train_loss"] = {
+                "loss_tot"  : epoch_loss_tot,
+                "loss_size" : epoch_loss_size,
+                "loss_ent"  : epoch_loss_ent,
+                "loss_pred" : epoch_loss_pred,
+            }
+
 
     def prepare(self, indices=None):
-        """
-        Before we can use the explainer we first need to train it. This is done here.
+        """Before we can use the explainer we first need to train it. This is done here.
 
-        :param indices: Indices over which we wish to train.
+        Args
+        - indices: Indices over which we wish to train.
         """
         # Creation of the explainer_model is done here to make sure that the seed is set
         if indices is None: # Consider all indices
@@ -234,8 +244,7 @@ class PGExplainer(BaseExplainer):
         self._train(indices=indices)
 
     def explain(self, index):
-        """
-        Given the index of a node/graph this method returns its explanation. 
+        """Given the index of a node/graph this method returns its explanation. 
         This only gives sensible results if the prepare method has already been called.
 
         Args
@@ -258,7 +267,6 @@ class PGExplainer(BaseExplainer):
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
         sampling_weights = self.explainer_model(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
-        #print("[explain]> mask:", torch.sum(mask > mask.mean()))
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

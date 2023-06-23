@@ -1,0 +1,55 @@
+{
+    "paper" : "CF-GNN",
+    "num_hidden" : 20,
+    "num_layers" : 3,
+    "datasets" : {
+        "syn1" : {
+            "name" : "BAshapes",
+            "lr" : 0.005,
+            "inner_lr" : 0.0001,
+            "epochs" : 1000,
+            "early_stop" : 100,
+            "dropout" : 0.2,
+            "clip_max" : 2.0,
+            "weight_decay" : 0.0001,
+            "eval_enabled" : true,
+            "T" : 5
+        },
+        "syn2" : {
+            "name" : "BAcommunities",
+            "lr" : 0.002,
+            "inner_lr" : 0.0001,
+            "epochs" : 1000,
+            "early_stop" : 100,
+            "dropout" : 0.0,
+            "clip_max" : 2.0,
+            "weight_decay" : 0.0001,
+            "eval_enabled" : true,
+            "T" : 5
+        },
+        "syn3" : {
+            "name" : "TreeCycles",
+            "lr" : 0.01,
+            "epochs" : 1000,
+            "inner_lr" : 0.0001,
+            "early_stop" : 100,
+            "dropout" : 0.0,
+            "clip_max" : 2.0,
+            "weight_decay" : 0.0001,
+            "eval_enabled" : true,
+            "T" : 5
+        },
+        "syn4" : {
+            "name" : "TreeGrids",
+            "lr" : 0.01,
+            "inner_lr" : 0.0001,
+            "epochs" : 1000,
+            "early_stop" : 100,
+            "dropout" : 0.0,
+            "clip_max" : 2.0,
+            "weight_decay" : 0.0001,
+            "eval_enabled" : true,
+            "T" : 5
+        }
+    }
+}

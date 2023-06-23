@@ -8,40 +8,36 @@ init(autoreset=True) # initializes Colorama
 import torch
 from explainers.PGExplainer import PGExplainer
 from explainers.CFPGExplainer import CFPGExplainer
-from explainers.PCFExplainer import PCFExplainer
+from explainers.CFPGv2 import CFPGv2
+from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer
+#from explainers.PCFExplainer import PCFExplainer
+#from utils.graphs import normalize_adj
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.graphs import normalize_adj
-from utils.plots import plot_graph
+from utils.plots import plot_graph, plot_expl_loss
+from utils.evaluation import store_expl_log, parser_add_args
 
 from evaluations.AUCEvaluation import AUCEvaluation
-from evaluations.EfficiencyEvaluation import EfficiencyEvluation
+from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
+
+
 
 CUDA = True
-
 # explainer training
 parser = argparse.ArgumentParser()
-parser.add_argument("--explainer", "-E", type=str, default="GNN")
-parser.add_argument("--dataset", "-D", type=str, default="syn1")
-parser.add_argument("--epochs", "-e", type=int, default=5, help="Number of explainer epochs.")
-parser.add_argument("--seed", "-s", type=int, default=42, help="Random seed.")
-parser.add_argument('--plot', default=False, action=argparse.BooleanOptionalAction)
-
-# other arguments
-parser.add_argument("--device", "-d", default="cpu", help="'cpu' or 'cuda'.")
-parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction)
-parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction)
+parser = parser_add_args(parser)
 
 args = parser.parse_args()
 print(">>", args)
 DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
-GNN_MODEL = args.explainer    # "GNN", "CF-GNN" or "PGE"
+EXPLAINER = args.explainer    # "GNN", "CF-GNN" or "PGE"
 EPOCHS    = args.epochs       # explainer epochs
 SEED      = args.seed
-PLOT      = args.plot
+PLOT      = args.plot_expl
 TRAIN_NODES = args.train_nodes
 STORE_ADV   = args.store_adv
+STORE_LOG   = args.log
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -55,8 +51,9 @@ if torch.cuda.is_available() and device == "cuda" and CUDA:
     print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
     
 
+
 #### STEP 1: load a BAshapes dataset
-cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
+cfg = parse_config(dataset=DATASET, to_load=EXPLAINER)
 dataset, test_idxs = load_dataset(dataset=DATASET)
 train_idxs = dataset.train_mask
 # add some dataset info to config 
@@ -66,7 +63,7 @@ cfg.update({
 
 graph = dataset.get(0)
 print(Fore.GREEN + "[dataset]> data graph from",f"{dataset}")
-print("\t>>", graph)
+#print("\t>>", graph)
 class_labels = graph.y
 class_labels = torch.argmax(class_labels, dim=1)
 x = graph.x
@@ -74,14 +71,15 @@ edge_index = graph.edge_index
 
 
 #### STEP 2: instantiate GNN model, one of GNN or CF-GNN
-if GNN_MODEL == "CF-GNN":
-    # need dense-normalized adjacency matrix for GCNSynthetic model
-    v = torch.ones(edge_index.size(1))
-    s = (graph.num_nodes,graph.num_nodes)
-    dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
-    norm_adj = normalize_adj(dense_index)
+#if EXPLAINER == "CF-GNN":
+#    # need dense-normalized adjacency matrix for GCNSynthetic model
+#    v = torch.ones(edge_index.size(1))
+#    s = (graph.num_nodes,graph.num_nodes)
+#    dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
+#    norm_adj = normalize_adj(dense_index)
 
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=True, config=cfg, device=device)
+if DATASET == "cfg_syn4": DATASET = "syn4"
+model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=True, config=cfg, device=device)
 
 
 # loading tensors for CUDA computation 
@@ -100,19 +98,36 @@ if device == "cuda" and CUDA:
 #### STEP 3: select explainer
 print(Fore.MAGENTA + "\n[explain]> loading explainer...")
 #explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
-if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
-elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
-elif GNN_MODEL == "PGE":
+cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
+cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
+
+if EXPLAINER == "PGEex":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
+else:
+    cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"] if args.reg_cf == 0.0 else args.reg_cf
+    
+    if EXPLAINER == "CFPG":
+        explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
+    elif EXPLAINER == "CFPGv2":
+        conv = cfg["expl_params"]["conv"] if args.conv == "base" else args.conv
+        cfg["expl_params"]["conv"]    = conv
+        cfg["expl_params"]["heads"]   = args.heads
+        cfg["expl_params"]["add_att"] = args.add_att
+        cfg["expl_params"]["hid_gcn"] = args.hid_gcn
+        explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
+    elif EXPLAINER == "1hop":
+        explainer = OneHopExplainer(model, graph, device=device)
+    elif EXPLAINER == "perfEx":
+        explainer = PerfectExplainer(model, graph, device=device)
+#elif EXPLAINER == "CF-GNN":
+#    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
 
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency
-gt = (graph.edge_index,graph.edge_label)
+gt = (graph.edge_index,graph.edge_label,graph.pn_labels)
 auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
-inference_eval = EfficiencyEvluation()
+inference_eval = EfficiencyEvaluation()
 inference_eval.reset()
 
 # prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
@@ -121,52 +136,96 @@ if TRAIN_NODES:
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
 else:                              
     train_idxs = test_idxs   # use only nodes that have an explanation ground truth
-explainer.prepare(indices=train_idxs)
+explainer.prepare(indices=train_idxs)  # actually train the explainer model
 
 
-# actually explain GNN predictions for all test indices
+# Actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
 explanations = []
 with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
     top_k = 12 if DATASET != "syn4" else 24
+    top_k = 0 if EXPLAINER in ["1hop","perfEx"] else top_k
     verbose = False
     curr_id = 0
     n_tests = len(test_epoch)
     for idx in test_epoch:
         graph, expl = explainer.explain(idx)
 
-        #print("subg :", graph.size())
-        #print("expl :", expl.size())
-        #print("mask :", mask.size())
         if (curr_id%(n_tests//5)) == 0: 
             plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         elif idx == test_idxs[-1]: 
             plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         
-        explanations.append((graph, expl))
+        explanations.append((graph, expl, idx))
         curr_id += 1
-        #exit(0)
 
 inference_eval.done_explaining()
 
-# compute AUC score for computed explanation
+#print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
+#print("\t>> correct expl labels :", explainer.correct_labels.sum())
+#print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
+
+
+# Metrics: compute AUC score for computed explanation
 print(Fore.MAGENTA + "\n[explain]> explanation metrics")
-auc_score = auc_eval.get_score(explanations)
+auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 print("\t>> final score:",f"{auc_score:.4f}")
 print("\t>> time elapsed:",f"{time_score:.4f}")
 
-if GNN_MODEL != "PGE":      # PGE does not produce CF examples
-    cf_examples = explainer.cf_examples
+
+#### STEP 5: Logs and plots
+# CF explanations data to log
+if EXPLAINER != "PGEex":      # PGE does not produce CF examples
+    if EXPLAINER == "CFPG": explainer.coeffs["heads"] = "n/a"    
+
+    cf_examples = explainer.test_cf_examples   # explainer.cf_examples
+    found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)
-    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example:",f"{len(cf_examples.keys())}/{max_cf_ex}")
-    perc_cf = (len(cf_examples.keys())/max_cf_ex)
-    print("\t>> with CF:",f"{perc_cf*100:.2f} %")
-    #print("\t>> w/o CF :",f"{(1-perc_cf)*100:.2f} %")
+    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example")
+    perc_cf = (found_cf_ex/max_cf_ex)
+    print(f"\t>> with CF: {found_cf_ex}/{max_cf_ex}  ({perc_cf*100:.2f}%)")
+else:
+    # add some log info for log function    
+    explainer.coeffs["lr"] = explainer.lr 
+    explainer.coeffs["opt"] = "Adam"      
+    explainer.coeffs["reg_cf"] = "n/a"    
 
 
+# performances plots
+if args.roc:
+    e_name = explainer.expl_name
+    e_h = explainer.history
+    plot_expl_loss(
+        expl_name=e_name,
+        dataset=DATASET,
+        losses=e_h["train_loss"],
+        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
+        roc_gt=roc_gts,
+        roc_preds=roc_preds
+    )
+#exit("[DEBUGGONE]> sto a fixà i plot")
 
-#### STEP 5: build the node_features for the adversarial graph based on the cf examples 
+
+# store explanation results into a log file
+if STORE_LOG:
+    logs_d = {
+        "seed"    : SEED,
+        "epochs"  : EPOCHS,
+        "conv"    : args.conv,
+        "e_cfg"     : explainer.coeffs,
+        "nodes"   : "train" if TRAIN_NODES else "test",
+        "AUC"     : auc_score,
+        "time"    : time_score,
+        "cf_perc" : perc_cf if EXPLAINER != "PGEex" else -1.0,
+        "cf_tot"  : max_cf_ex if EXPLAINER != "PGEex" else "a",
+        "cf_fnd"  : found_cf_ex if EXPLAINER != "PGEex" else "n",
+    }
+    store_expl_log(explainer=EXPLAINER, dataset=DATASET, logs=logs_d, prefix=args.prefix)
+
+
+#### STEP 6: build the node_features for the adversarial graph based on the cf examples 
 if STORE_ADV:
     adv_node_feats = []
     for n_idx in range(x.size(0)):
@@ -190,6 +249,6 @@ if STORE_ADV:
     print("adv_features :", adv_node_feats.size()) 
 
     # store in a .pkl file the adv examples
-    rel_path = f"/../datasets/pkls/{DATASET}_adv_train_{GNN_MODEL}.pt"
+    rel_path = f"/../datasets/pkls/{DATASET}_adv_train_{EXPLAINER}.pt"
     save_path = os.path.dirname(os.path.realpath(__file__)) + rel_path
     torch.save(adv_data, save_path)

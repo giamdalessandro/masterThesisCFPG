@@ -1,0 +1,50 @@
+{
+    "paper" : "PGE",
+    "num_hidden" : 20,
+    "datasets" : { 
+        "syn1" : {
+            "name" : "BAshapes",
+            "lr" : 0.003,
+            "opt" : "Adam",
+            "inner_lr" : 0.0001,
+            "epochs" : 1000,
+            "early_stop" : 100,
+            "clip_max" : 2.0,
+            "T" : 5,
+            "eval_enabled" : true
+        },
+        "syn2" : {
+            "name" : "BAcommunities",
+            "lr" : 0.002,
+            "opt" : "Adam",
+            "inner_lr" : 0.0001,
+            "epochs" : 1000,
+            "early_stop" : 100,
+            "clip_max" : 2.0,
+            "T" : 5,
+            "eval_enabled" : true
+        },
+        "syn3" : {
+            "name" : "TreeCycles",
+            "lr" : 0.003,
+            "opt" : "Adam",
+            "inner_lr" : 0.0001,
+            "epochs" : 1000,
+            "early_stop" : 100,
+            "clip_max" : 2.0,
+            "T" : 5,
+            "eval_enabled" : true
+        },
+        "syn4" : {
+            "name" : "TreeGrids",
+            "lr" : 0.003,
+            "opt" : "Adam",
+            "inner_lr" : 0.0001,
+            "epochs" : 1000,
+            "early_stop" : 100,
+            "clip_max" : 2.0,
+            "T" : 5,
+            "eval_enabled" : true
+        }
+    }
+}

@@ -1,0 +1,37 @@
+{
+    "explainer" : "PGE",
+    "datasets" : { 
+        "syn1" : {
+            "name" : "BAshapes",
+            "epochs" : 20,
+            "reg_ent" : 1.0,
+            "reg_size" : 0.05,
+            "temps" : [5.0, 2.0],
+            "sample_bias" : 0.0
+        },
+        "syn2" : {
+            "name" : "BAcommunities",
+            "epochs" : 20,
+            "reg_ent" : 1.0,
+            "reg_size" : 0.005,
+            "temps" : [1.0, 1.0],
+            "sample_bias" : 0.5
+        },
+        "syn3" : {
+            "name" : "TreeCycles",
+            "epochs" : 20,
+            "reg_ent" : 10.0,
+            "reg_size" : 0.1,
+            "temps" : [1.0, 5.0],
+            "sample_bias" : 0.0
+        },
+        "syn4" : {
+            "name" : "TreeGrids",
+            "epochs" : 20,
+            "reg_ent" : 1.0,
+            "reg_size" : 1.0,
+            "temps" : [5.0, 2.0],
+            "sample_bias" : 0.0
+        }
+    }
+}

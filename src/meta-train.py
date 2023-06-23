@@ -74,7 +74,7 @@ if GNN_MODEL == "CF-GNN":
     dense_edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     norm_edge_index = normalize_adj(dense_edge_index)
 
-model, ckpt = model_selector(paper=GNN_MODEL, dataset=DATASET, pretrained=not(TRAIN), config=cfg)
+model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=not(TRAIN), config=cfg)
 
 
 # extract explainer loss function for meta-train loop
