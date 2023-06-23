@@ -113,6 +113,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
     parser.add_argument("--conv", "-c", type=str, default="base", 
                         choices=["base","GCN","GAT","pGCN","VAE"], help="Explainer graph convolution")
     parser.add_argument("--heads", type=int, default=1, help="Attention heads (if conv is 'GAT')")
+    parser.add_argument("--hid-gcn", type=int, default=20, help="Graph convolution hidden dimension.")
     parser.add_argument("--add-att", type=float, default=0.0, help="Attention coeff")
     parser.add_argument("--reg-ent", type=float, default=0.0, help="Entropy loss coeff")
     parser.add_argument("--reg-size", type=float, default=0.0, help="Size loss coeff")
@@ -142,11 +143,11 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         header = False
 
     eps = logs["epochs"]
-    opt = logs["cfg"]["opt"]
+    opt = logs["e_cfg"]["opt"]
     conv = logs["conv"]
     log_file = f"{prefix}{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
     
-    e_c = logs["cfg"]
+    e_c = logs["e_cfg"]
     heads = "n/a" if conv in ["GCN","base"] else e_c["heads"]     # no meaning if using GCNconv
 
     date_str = datetime.now().strftime("%d-%B_%H:%M")
@@ -176,7 +177,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "explainer" : [explainer],
         "dataset"   : [dataset],
         "epochs"    : [eps],
-        "expl_arch" : [f"2{conv}50->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
+        "expl_arch" : [f"1{conv}{e_c['hid_gcn']}->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
         "heads"     : [heads],
         "note"      : [prefix],
         "metric"    : [round(metric,4)] if explainer != "PGEex" else ["n/a"],

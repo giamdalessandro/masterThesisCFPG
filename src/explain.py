@@ -113,6 +113,7 @@ else:
         cfg["expl_params"]["conv"]    = conv
         cfg["expl_params"]["heads"]   = args.heads
         cfg["expl_params"]["add_att"] = args.add_att
+        cfg["expl_params"]["hid_gcn"] = args.hid_gcn
         explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
     elif EXPLAINER == "1hop":
         explainer = OneHopExplainer(model, graph, device=device)
@@ -213,7 +214,7 @@ if STORE_LOG:
         "seed"    : SEED,
         "epochs"  : EPOCHS,
         "conv"    : args.conv,
-        "cfg"     : explainer.coeffs,
+        "e_cfg"     : explainer.coeffs,
         "nodes"   : "train" if TRAIN_NODES else "test",
         "AUC"     : auc_score,
         "time"    : time_score,

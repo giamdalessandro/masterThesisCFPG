@@ -27,9 +27,12 @@ def meta_update_weights(model, params, gnn: str, verbose: bool=False):
     parameters for the main calssification task w.r.t the adapted parameters 
     computed optimizing the explanation task.
 
-    Args
-    - `model`  : model for the main calssification task to be meta-updated;
-    - `params` : params needed for the update;
+    ### Args
+    model : `torch.nn.Module` 
+        model for the main calssification task to be meta-updated;
+
+    params : `torch.Tensor`
+        updated params for the model;
     """
     # check that there are enough parameters for the update, i.e. 
     # that update parameters were computed correctly for the model 

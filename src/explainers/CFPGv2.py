@@ -77,23 +77,24 @@ class CFPGv2(BaseExplainer):
         # Instantiate the explainer model
         in_feats = self.model_to_explain.embedding_size
 
+        hid_gcn  = self.coeffs["hid_gcn"]
         if conv == "GCN": 
-            self.explainer_module = GCNExplModule(in_feats=in_feats, enc_hidden=20, # 20
+            self.explainer_module = GCNExplModule(in_feats=in_feats, enc_hidden=hid_gcn, # 20
                                         dec_hidden=64, device=device)
         elif conv == "GAT":
             heads    = self.coeffs["heads"] 
             add_att  = self.coeffs["add_att"]
-            self.explainer_module = GATExplModule(in_feats=in_feats, enc_hidden=20, # 20
+            self.explainer_module = GATExplModule(in_feats=in_feats, enc_hidden=hid_gcn, # 20
                                         dec_hidden=64, heads=heads, add_att=add_att,
                                         device=device)
         elif conv == "pGCN":
             n_nodes = self.features.size(0)
             edges = self.adj
-            self.explainer_module = GCNPerturbExplModule(in_feats=in_feats, enc_hidden=20,
+            self.explainer_module = GCNPerturbExplModule(in_feats=in_feats, enc_hidden=hid_gcn,
                                         dec_hidden=64, num_nodes=n_nodes, edges=edges, 
                                         device=device)
         elif conv == "VAE":
-            self.explainer_module = GAALVExplModule(in_feats=in_feats, enc_hidden=50,
+            self.explainer_module = GAALVExplModule(in_feats=in_feats, enc_hidden=hid_gcn,
                                         dec_hidden=64, device=device)
         
 
