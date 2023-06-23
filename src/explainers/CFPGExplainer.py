@@ -19,9 +19,10 @@ NODE_BATCH_SIZE = 32
 class CFPGExplainer(BaseExplainer):
     """A class encaptulating CF-PGExplainer (Counterfactual-PGExplainer).
     
-    Methods:
-        `prepare`: prepare the explanation method for explaining;
-        `explain`: search for the subgraph which contributes most to the clasification
+    #### Methods:
+    `prepare`: prepare the explanation method for explaining;
+
+    `explain`: search for the subgraph which contributes most to the clasification
              decision of the model-to-be-explained.
     """
     ## default values for explainer parameters
@@ -283,12 +284,12 @@ class CFPGExplainer(BaseExplainer):
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias, training=False).squeeze()
                         
                         # to get opposite of cf-mask, i.e. explanation
-                        cf_adj = torch.ones(mask.size()).to(self.device) 
-                        cf_adj = (cf_adj - mask).abs()
+                        #cf_adj = torch.ones(mask.size()).to(self.device) 
+                        cf_mask = (1 - mask).abs()
                         #print("\t>> cf_adj:", cf_adj.size())
                         #exit(0)
 
-                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=mask, cf_expl=True)
+                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
 
                         sub_node_idx = n_map.item()
@@ -350,11 +351,31 @@ class CFPGExplainer(BaseExplainer):
         indices : `list`
             node indices over which we wish to train.
         """
+        self.test_cf_examples = {}
+
         if indices is None: # Consider all indices
             indices = range(0, self.adj.size(0))
 
         indices = torch.LongTensor(indices).to(self.device)   
         self._train(indices=indices)
+
+    def _extract_cf_example(self, index, sub_graph, cf_mask):
+        """Given the computed CF edge mask for a node prediction extracts
+        the related CF example, if any."""
+        masked_pred, cf_feat = self.model_to_explain(self.features, sub_graph, edge_weights=cf_mask, cf_expl=True)
+        original_pred = self.model_to_explain(self.features, sub_graph)
+        
+        masked_pred   = masked_pred[index]
+        original_pred = original_pred[index].argmax()
+        pred_same = (masked_pred.argmax() == original_pred)
+
+        if not pred_same:
+            cf_ex = {"mask": cf_mask, "feats": cf_feat[index]}
+            try: 
+                self.test_cf_examples[str(index)] = cf_ex
+            except KeyError:
+                self.test_cf_examples[str(index)] = cf_ex
+        return
 
     def explain(self, index):
         """Given the index of a node/graph this method returns its explanation. 
@@ -383,8 +404,8 @@ class CFPGExplainer(BaseExplainer):
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
     
         # to get opposite of cf-mask, i.e. explanation
-        cf_adj = torch.ones(mask.size()).to(self.device) 
-        mask = (cf_adj - mask).abs()
+        cf_mask = (1 - mask).abs()
+        self._extract_cf_example(index, graph, cf_mask)
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

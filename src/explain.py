@@ -179,7 +179,7 @@ print("\t>> time elapsed:",f"{time_score:.4f}")
 if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     if EXPLAINER == "CFPG": explainer.coeffs["heads"] = "n/a"    
 
-    cf_examples = explainer.cf_examples
+    cf_examples = explainer.test_cf_examples   # explainer.cf_examples
     found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)
     print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example")

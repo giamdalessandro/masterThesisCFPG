@@ -6,7 +6,7 @@
             "opt" : "SGD",
             "lr" : 0.003,
             "reg_ent" : 1.0,
-            "reg_size" : 0.05,
+            "reg_size" : 0.001,
             "reg_cf" : 5.0,
             "temps" : [5.0, 2.0],
             "sample_bias" : 0.0
@@ -15,9 +15,9 @@
             "name" : "BAcommunities",
             "opt" : "Adam",
             "lr" : 0.005,
-            "reg_ent" : 5.0,
-            "reg_size" : 0.005,
-            "reg_cf" : 5.0,
+            "reg_ent" : 1.0,
+            "reg_size" : 0.001,
+            "reg_cf" : 2.0,
             "temps" : [2.0, 2.0],
             "sample_bias" : 0.5
         },
@@ -25,8 +25,8 @@
             "name" : "TreeCycles",
             "opt" : "SGD",
             "lr" : 0.001,
-            "reg_ent" : 10.0,
-            "reg_size" : 0.5,
+            "reg_ent" : 5.0,
+            "reg_size" : 0.05,
             "reg_cf" : 5.0,
             "temps" : [1.0, 1.0],
             "sample_bias" : 0.5
@@ -36,7 +36,7 @@
             "opt" : "SGD",
             "lr" : 0.005,
             "reg_ent" : 1.0,
-            "reg_size" : 0.5,
+            "reg_size" : 0.01,
             "reg_cf" : 5.0,
             "temps" : [5.0, 2.0],
             "sample_bias" : 0.0
