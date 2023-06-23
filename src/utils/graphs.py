@@ -17,13 +17,16 @@ def normalize_adj(adj):
 	return norm_adj
 
 def sparse_to_dense_adj(graph, mask, n_rows: int):
-	""" ZAVVE: Creates the dense version of adjacency matrix `graph`, considering
+	"""ZAVVE: Creates the dense version of adjacency matrix `graph`, considering
 	only those edges also present in `mask`.
 
-	Args
-	- `graph`  : graph sparse adjacency matrix;
-	- `mask`   : masked sparse adjacency matrix;
-	- `n_rows` : rows of the dense adjacency matrix, i.e. number of nodes in the graph;
+	#### Args
+	graph : `torch.Tensor`
+		graph sparse adjacency matrix;
+	mask : `torch.Tensor` 
+		masked sparse adjacency matrix;
+	n_rows : `int` 
+		rows of the dense adjacency matrix, i.e. number of nodes in the graph;
 	"""
 	rows = graph[0]
 	cols = graph[1]

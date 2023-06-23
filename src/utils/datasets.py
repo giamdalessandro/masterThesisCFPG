@@ -52,10 +52,6 @@ def parse_config(to_load: str, dataset: str):
         return cfg
     
 
-def get_neighborhood_labels(edge_index, edge_labels, test_indices):
-    """ TODO: func to get labels for each node explanation separatedly.""" 
-    return NotImplementedError("Nope, sorry.")
-
 def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
     """Loads data from a binary (.pkl) file representing one of the
     synthetic Barabasi-Albert graph datasets from the GNNExplainer paper.
@@ -160,8 +156,7 @@ class BAGraphDataset(Dataset):
         the synthetic Barabasi-Albert graph datasets from the paper mentioned above. 
         
         #### Args:
-
-        dataset : (str)
+        dataset : `str`
             which synthetic dataset to load, one of "syn1", "syn2", "syn3", "syn4".
         
         data_dir : `str`

@@ -41,20 +41,20 @@ class CFPGv2(BaseExplainer):
         ):
         """Initialize CFPGv2 explainer model
         
-        ### Args
-        `model_to_explain` : torch.nn.Module
+        #### Args
+        model_to_explain : `torch.nn.Module`
             GNN model who's predictions we wish to explain.
 
-        `data_graph` : torch_geometric.data.Data
+        data_graph : `torch_geometric.data.Data`
             the collections of edge_indices representing the graphs.
 
-        `task` : string
+        task : `str`
             classification task, "node" or "graph".
 
-        `epochs` : int
+        epochs : `int`
             amount of epochs to train our explainer.
 
-        `coeffs` : dict
+        coeffs : `dict`
             a dict containing parameters for training the explainer (e.g.
             lr, temprature, etc..).
         """
@@ -191,8 +191,9 @@ class CFPGv2(BaseExplainer):
     def _train(self, indices=None):
         """Main method to train the modeledge_weights=None
         
-        Args: 
-        - indices: Indices that we want to use for training.
+        #### Args 
+        indices : `torch.Tensor`
+            Indices that we want to use for training.
         """
         lr = self.coeffs["lr"]
         temp = self.coeffs["temps"]

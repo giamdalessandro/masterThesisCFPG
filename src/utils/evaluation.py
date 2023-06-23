@@ -31,19 +31,19 @@ def store_checkpoint(model, gnn: str, dataset: str, train_acc, val_acc, test_acc
     """Store the model weights at a predifined location.
 
     #### Args
-    model : torch.nn.Module
+    model : `torch.nn.Module`
         the model who's parameters we whish to save;
-    gnn : str, 
+    gnn : `str` 
         the gnn model;
-    dataset : str, 
+    dataset : `str`
         the dataset;
-    train_acc : float
+    train_acc : `float`
         training accuracy obtained by the model;
-    val_acc : float
+    val_acc : `float`
         validation accuracy obtained by the model;
-    test_acc : float
+    test_acc : `float`
         test accuracy obtained by the model;
-    epoch : int 
+    epoch : `int` 
         the current epoch of the training process;
     """
     if mode != "":
@@ -67,16 +67,21 @@ def load_best_model(model, best_epoch: int, gnn: str, dataset: str, explainer: s
                     eval_enabled: bool=True, mode: str=""):
     """Load the model parameters from a checkpoint into a model
     
-    Args
-    - `model`       : the model who's parameters overide
-    - `best_epoch`  : the epoch which obtained the best result. 
-            Use -1 to chose the "best model"
-    - `gnn`         : str, the gnn 
-    - `dataset`     : str, the dataset
-    - `eval_enabled`: wheater to activate evaluation mode on the model or not
-    - `mode`(str) : on of {"adv", "meta", ""}
+    #### Args
+    model : `torch.nn.Module` 
+        the gnn model for which we wish to load the best result params
+    best_epoch : `int` 
+        the epoch which obtained the best result (Use -1 to chose the "best model")
+    gnn : `str`
+        the gnn name, for path
+    dataset : `str`
+        the dataset, for path
+    eval_enabled : `bool`
+        wheater to activate evaluation mode on the model or not
+    mode : `str` 
+        one of {"adv", "meta", ""}
     
-    Returns 
+    #### Returns 
         model with paramaters taken from the checkpoint
     """
     #print(Fore.RED + "\n[results]> best result at epoch", best_epoch)
@@ -101,7 +106,7 @@ LOG_DIR = os.path.dirname(os.path.realpath(__file__)) + path_to_logs
 def parser_add_args(parser: argparse.ArgumentParser):
     """Add arguments to argparser."""
     parser.add_argument("--explainer", "-E", type=str, default="CFPG",
-                    choices=["PGEex","CFPG","CFPGv2","1hop","perfEx"])
+                        choices=["PGEex","CFPG","CFPGv2","1hop","perfEx"])
     parser.add_argument("--dataset", "-D", type=str, default="syn1", 
                         choices=['syn1','syn2','syn3','syn4'], help="Dataset used for training")
     parser.add_argument("--epochs", "-e", type=int, default=5, help="Number of explainer epochs")
@@ -134,7 +139,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
     return parser
 
 def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", save_dir: str=LOG_DIR):
-    """Store explanation run logs."""
+    """Store explanation run logs, both in a log file and as a .csv"""
     save_dir = save_dir + f"{explainer}/{dataset}" 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)

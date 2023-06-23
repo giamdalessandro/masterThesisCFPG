@@ -76,9 +76,9 @@ class GCNSynthetic(nn.Module):
     
 
 
+## from gcn_perturb.py
 import torch.nn.functional as F
 from utils.graphs import create_symm_matrix_from_vec, create_vec_from_symm_matrix
-
 
 ## from gcn_perturb.py
 class GraphConvolutionPerturb(nn.Module):

@@ -86,7 +86,7 @@ if GNN_MODEL == "CF-GNN":
     edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
     edge_index = normalize_adj(edge_index)
 
-
+# load tensors on cuda device
 if device == "cuda" and CUDA:
     print(">> loading tensors to cuda...")
     model = model.to(device)

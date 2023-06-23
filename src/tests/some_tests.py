@@ -157,25 +157,25 @@ def clean_sep_lables_data(dataset: str="syn1"):
         fw.close()
 
     ### health check on labels (explain.py)
-    #print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
-    #print("\t>> correct expl labels :", explainer.correct_labels.sum())
-    #print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
-    #
-    #fuffa = True
-    #if fuffa:
-    #    import json
-    #
-    #    thres = 10 if DATASET == "syn4" else 6
-    #    to_json = {}
-    #    for k,v in explainer.labeled_nodes.items():
-    #        #print(f"\t>> node {k}, edges -> {v['n_edges']}")
-    #        if v['n_edges'] >= thres: 
-    #            to_json[k] = v
-    #    print(f"\n\t>> found labels for {len(explainer.labeled_nodes.keys())} nodes")
-    #
-    #    with open(f"./datasets/{DATASET}_sep_labels.json","w+") as f:
-    #        json.dump(to_json, f, indent=4)
-    #        f.close()
+    """print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
+    print("\t>> correct expl labels :", explainer.correct_labels.sum())
+    print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
+    
+    fuffa = True
+    if fuffa:
+        import json
+    
+        thres = 10 if DATASET == "syn4" else 6
+        to_json = {}
+        for k,v in explainer.labeled_nodes.items():
+            #print(f"\t>> node {k}, edges -> {v['n_edges']}")
+            if v['n_edges'] >= thres: 
+                to_json[k] = v
+        print(f"\n\t>> found labels for {len(explainer.labeled_nodes.keys())} nodes")
+    
+        with open(f"./datasets/{DATASET}_sep_labels.json","w+") as f:
+            json.dump(to_json, f, indent=4)
+            f.close()"""
 
     return
 

@@ -42,20 +42,20 @@ class CFPGExplainer(BaseExplainer):
             device: str="cpu",
             coeffs: dict=None
         ):
-        """### Args
-        `model_to_explain` : torch.nn.Module
+        """#### Args
+        model_to_explain : `torch.nn.Module`
             GNN model who's predictions we wish to explain.
 
-        `data_graph` : torch_geometric.data.Data
+        data_graph : `torch_geometric.data.Data`
             the collections of edge_indices representing the graphs.
 
-        `task` : string
+        task : `str`
             classification task, "node" or "graph".
 
-        `epochs` : int
+        epochs : `int`
             amount of epochs to train our explainer.
 
-        `coeffs` : dict
+        coeffs : `dict`
             a dict containing parameters for training the explainer (e.g.
             lr, temprature, etc..).
         """
@@ -88,14 +88,16 @@ class CFPGExplainer(BaseExplainer):
         if the task is to explain a graph or a sample, this is done by either 
         concatenating two or three embeddings.
         
-        ### Args
-        `pair`: edge pair;
+        #### Args
+        pair : `edge pair`;
 
-        `embeds`: embedding of all nodes in the graph
+        embeds : `torch.Tensor` 
+            embedding of all nodes in the graph
         
-        `node_id`: id of the node, not used for graph datasets
+        node_id : `int` 
+            id of the node, not used for graph datasets
         
-        ### Returns
+        #### Returns
             Concatenated embedding
         """
         rows = pair[0]
@@ -115,7 +117,7 @@ class CFPGExplainer(BaseExplainer):
         r"""Implementation of the reparamerization trick to obtain a sample 
         graph while maintaining the posibility to backprop.
         
-        ### Args
+        #### Args
         sampling_weights : `torch.Tensor`
             Weights provided by the mlp;
 
@@ -128,7 +130,7 @@ class CFPGExplainer(BaseExplainer):
         training : `bool`
             If set to false, the samplign will be entirely deterministic;
         
-        ### Return 
+        #### Return 
             sampled graph.
         """
         if training:
@@ -144,17 +146,17 @@ class CFPGExplainer(BaseExplainer):
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
         """Returns the loss score based on the given mask.
 
-        ### Args:
-        `masked_pred` : torch.Tensor
+        #### Args:
+        masked_pred : `torch.Tensor`
             Prediction based on the current explanation
 
-        `original_pred` : torch.Tensor
+        original_pred : `torch.Tensor`
             Predicion based on the original graph
 
-        `edge_mask` : torch.Tensor
+        edge_mask : `torch.Tensor`
             Current explanaiton
 
-        `reg_coefs` : torch.Tensor
+        reg_coefs : `torch.Tensor`
             regularization coefficients
 
         ### Return
@@ -166,11 +168,6 @@ class CFPGExplainer(BaseExplainer):
         EPS = 1e-15
 
         # Regularization losses
-        mask_mean = mask.mean()
-        #cf_edges = (mask > mask_mean).sum()
-        #tot_edges = torch.ones(mask.size()).to(self.device).sum()
-        #size_loss = ((tot_edges - cf_edges).abs()) / 2
-
         #size_loss = -((mask > mask_mean)).sum()   # working fine
         size_loss = (mask).sum()     # old mask.sigmoid()
         size_loss = size_loss * reg_size
@@ -194,8 +191,9 @@ class CFPGExplainer(BaseExplainer):
     def _train(self, indices=None):
         """Main method to train the model
         
-        Args: 
-        - indices: Indices that we want to use for training.
+        #### Args
+        indices : `list` 
+            Indices that we want to use for training.
         """
         lr = self.coeffs["lr"]
         temp = self.coeffs["temps"]
@@ -349,7 +347,7 @@ class CFPGExplainer(BaseExplainer):
         explainer like PGExplainer, we first need to train the explainer MLP.
 
         ### Args
-        `indices` : list
+        indices : `list`
             node indices over which we wish to train.
         """
         if indices is None: # Consider all indices
@@ -362,11 +360,11 @@ class CFPGExplainer(BaseExplainer):
         """Given the index of a node/graph this method returns its explanation. 
         This only gives sensible results if the prepare method has already been called.
 
-        ### Args
+        #### Args
         index : int
             index of the node/graph that we wish to explain
 
-        ### Return
+        #### Return
             explanation graph and edge weights
         """
         index = int(index)

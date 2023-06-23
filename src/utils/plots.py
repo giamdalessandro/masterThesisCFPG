@@ -65,7 +65,11 @@ def plot_expl_loss(
         roc_preds: list, 
         show: bool=True
     ):
-    """Plot explainer training performances."""
+    """Plot explainer training performances. The visual includes:
+    - the explainer loss and its components (pred, size and ent losses);
+    - the counterfactual examples found by the explainer;
+    - the ROC curve plot (AUC score). 
+    """
     # normalize losses contribution for a better plot
     losses_l = [torch.Tensor(l) for l in losses.values()]
     losses_t = torch.stack(losses_l, dim=0).cpu()
@@ -145,8 +149,6 @@ def plot_expl_loss(
         ax3.legend(loc='upper left')
         
         ### cf perc twinx plot
-        # TODO: Should print only 2 (mi and max) perc values with labels, 
-        #   for the others the minor tick w/o value is enough
         cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
         cf_mid = cf_num[(len(cf_num)//2)-1]
         cf_num_tx = [min(cf_num),cf_mid,max(cf_num)] if min(cf_num) != max(cf_num) else cf_num[-1]

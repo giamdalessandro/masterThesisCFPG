@@ -11,12 +11,12 @@ def _eval_AUC_node(explanations, explanation_labels):
     """Evaluate the auc score given explaination and ground truth labels.
 
     ### Args
-    `explanations` : list
+    explanations : `list`
         predicted explanation as a list of (edge_index,edge_labels) tuples, 
         one for each node explained with the edge indices of the node 
         neighborhood and the relative labels;
     
-    `explanation_lables` : sparse COO Tensor
+    explanation_lables : sparse COO Tensor
         explanation ground truth labels.
     
     ### Returns
@@ -86,14 +86,19 @@ class AUCEvaluation(BaseEvaluation):
     """A class enabling the evaluation of the AUC metric on both graph and node
     classification tasks.
     
-    Args
-    - `task`(str): either "node" or "graph".
-    - `ground_truth` : ground truth labels.
-    - `indices` : Which indices to evaluate.
-    
-    :funcion get_score: obtain the roc auc score.
+    :funcion `get_score`: obtain the roc auc score.
     """
     def __init__(self, ground_truth, indices, task: str="node"):
+        """#### Args
+        task : `str` 
+            either "node" or "graph"
+
+        ground_truth : `list` 
+            ground truth labels, a list of (graph,edge_labels) tuples
+        
+        indices : `list`
+            Which indices to evaluate
+        """
         self.task = task
         self.indices = indices
         self.ground_truth = ground_truth
@@ -102,10 +107,11 @@ class AUCEvaluation(BaseEvaluation):
         """Determines the auc score based on the given list of explanations and
         the list of ground truths
         
-        Args
-        - `explanations` : list of explanations
+        #### Args
+        explanations : `list` 
+            list of explanations
 
-        Retruns 
+        #### Retruns 
             Area Under Curve (AUC) score for chosen task.
         """
         if self.task == 'graph':

@@ -46,7 +46,7 @@ def meta_update_weights(model, params, gnn: str, verbose: bool=False):
         for par in params: print("\t", par.size()) 
         print("mod_params:", mod_params)
         print("n_params  :", n_param)
-    #assert mod_params == n_param, "Update parameters don't match model parameters!" # not always true
+    #assert mod_params == n_param, "Update parameters don't match model parameters!" # no more needed
 
     if gnn == "CF-GNN":
         idx = -n_param
