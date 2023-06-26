@@ -47,15 +47,15 @@ class OneHopExplainer(BaseExplainer):
         if not pred_same:
             cf_ex = {"mask": cf_mask, "feats": cf_feat[index]}
             try: 
-                self.cf_examples[str(index)] = cf_ex
+                self.test_cf_examples[str(index)] = cf_ex
             except KeyError:
-                self.cf_examples[str(index)] = cf_ex
+                self.test_cf_examples[str(index)] = cf_ex
         return
 
 
     def prepare(self, indices=None):
         """Prepars the explanation method for explaining."""
-        self.cf_examples = {}
+        self.test_cf_examples = {}
         print(f"[{self.expl_name}]> Getting 1hop-neighbors as explanation, no training needed.")
         return
 
@@ -119,7 +119,7 @@ class PerfectExplainer(BaseExplainer):
         mask[expl_edges[0],expl_edges[1]] = 0.999
         mask[expl_edges[1],expl_edges[0]] = 0.999  # graph is undirected
 
-        self.correct_labels[expl_edges[0],expl_edges[1]] = 1.0
+        #self.correct_labels[expl_edges[0],expl_edges[1]] = 1.0
 
         mask = mask[sub_graph[0],sub_graph[1]].to_sparse_coo()
         return mask.values()
@@ -137,18 +137,18 @@ class PerfectExplainer(BaseExplainer):
         if not pred_same:
             cf_ex = {"mask": cf_mask, "feats": cf_feat[index]}
             try: 
-                self.cf_examples[str(index)] = cf_ex
+                self.test_cf_examples[str(index)] = cf_ex
             except KeyError:
-                self.cf_examples[str(index)] = cf_ex
+                self.test_cf_examples[str(index)] = cf_ex
         return
 
 
     def prepare(self, indices=None):
         """Prepars the explanation method for explaining."""
-        self.correct_labels = torch.zeros((self.features.size(0),self.features.size(0))).to(self.device)
+        #self.correct_labels = torch.zeros((self.features.size(0),self.features.size(0))).to(self.device)
         self.labeled_nodes = {}
 
-        self.cf_examples = {}
+        self.test_cf_examples = {}
         print(f"[{self.expl_name}]> Getting ground truth explanation to check CF performances.")
         return
 
