@@ -2,7 +2,7 @@ import subprocess
 import os
 
 
-DATASETS = ["syn1","syn2","syn3","syn4"]
+DATASETS = ["syn1","syn2","syn3","syn4"]#
 CONVS = ["GCN","GAT"] # "pGCN"
 EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
 EPOCHS = 20
@@ -16,19 +16,19 @@ def get8RandomBytesFromOS():
 
 #ENT_COEFFS = [0.1, 0.5, 1.0, 2.0]
 #SIZE_COEFFS = [0.1, 0.01, 0.001]
-#CF_COEFFS = [0.5, 1.0, 2.0, 5.0]
+#CF_COEFFS = [0.5, 1.0, 2.0, 5.0, 10]
 #NUM_HEADS = [3, 5, 8]
 SEEDS = get8RandomBytesFromOS()[:4]
 
 
 script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
 rid = 0
+#for c in CONVS:
 for h in [32,50]:
     for s in SEEDS:
         for d in DATASETS:
-            #for curr in ENT_COEFFS:
-            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv GCN --hid-gcn {h} --seed {s} "
-            suffix_args = f"--prefix replCFPGv2-posSize-rBest-{EPOCHS} --log"
+            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --hig-gcn {h} --seed {s} "
+            suffix_args = f"--prefix repl{EXPLAINER}-ariStatic2-Test-{EPOCHS} --log"
             cmd = script_cmd + script_args + suffix_args
 
             print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")

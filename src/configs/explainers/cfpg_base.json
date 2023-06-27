@@ -25,7 +25,7 @@
             "name" : "TreeCycles",
             "opt" : "SGD",
             "lr" : 0.001,
-            "reg_ent" : 5.0,
+            "reg_ent" : 0.1,
             "reg_size" : 0.05,
             "reg_cf" : 5.0,
             "temps" : [1.0, 1.0],

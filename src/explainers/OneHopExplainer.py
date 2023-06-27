@@ -93,7 +93,7 @@ class OneHopExplainer(BaseExplainer):
 
 class PerfectExplainer(BaseExplainer):
     """Class implementing a counterfactual baseline, considering the cases when 
-    the counterfactual perturbation coincide exactly with the exaplanation."""
+    the perturbation coincide exactly with the exaplanation."""
     def __init__(self, 
             model_to_explain, 
             data_graph: torch_geometric.data.Data,
