@@ -11,7 +11,7 @@
             "reg_size" : 0.001,
             "reg_cf" : 5.0,
             "temps" : [5.0, 2.0],
-            "sample_bias" : 0.0
+            "sample_bias" : 0.5
         },
         "syn2" : {
             "name" : "BAcommunities", 
@@ -35,7 +35,7 @@
             "reg_size" : 0.05,
             "reg_cf" : 5.0,
             "temps" : [1.0, 1.0],
-            "sample_bias" : 0.5
+            "sample_bias" : 0.9
         },
         "syn4" : {
             "name" : "TreeGrids", 
