@@ -170,7 +170,7 @@ class CFPGExplainer(BaseExplainer):
 
         # Regularization losses
         #size_loss = -((mask > mask_mean)).sum()   # working fine
-        size_loss = (mask).sum()     # old mask.sigmoid()
+        size_loss = (mask.sigmoid()).sum()     # old mask.sigmoid()
         size_loss = size_loss * reg_size
 
         #scale = 0.99

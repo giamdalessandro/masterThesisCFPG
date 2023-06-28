@@ -125,13 +125,13 @@ class CFPGv2(BaseExplainer):
         # Size loss
         #mask_mean = mask.mean()
         #size_loss = ((mask > mask_mean)).sum()   # working fine
-        size_loss = mask.sum()  # -1
+        size_loss = (mask.sigmoid()).sum()  # -1
         size_loss = size_loss * reg_size
 
         # Entropy loss (PGE)
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
         mask_ent_loss = reg_ent * torch.mean(mask_ent_reg)
-
+        
         # Explanation loss
         pred_same = (masked_pred.argmax().item() == original_pred).float()
         #cce_loss = torch.nn.functional.cross_entropy(masked_pred, original_pred)

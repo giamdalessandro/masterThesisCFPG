@@ -61,8 +61,11 @@ def _sample_graph(sampling_weights, temperature=1.0, bias=0.0, training=True, de
         gate_inputs = (gate_inputs + sampling_weights) / temperature
         graph = torch.sigmoid(gate_inputs)
     else:
-        graph = torch.sigmoid(sampling_weights)
+        graph = torch.sigmoid(sampling_weights) * 1000
         #graph = torch.special.logit(graph, eps=1e-8) 
+        #graph = torch.special.entr(sampling_weights)
+        #graph[torch.isinf(graph)] = 0  # zeros out infinite elements
+
     return graph
 
 
@@ -90,7 +93,8 @@ class GCNExplModule(torch.nn.Module):
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim*2, self.dec_h),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.dec_h, 1)
+            torch.nn.Linear(self.dec_h, 1),
+            #torch.nn.Softmax(dim=1)  # ZAVVE: testing
         ).to(self.device)
 
     def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
