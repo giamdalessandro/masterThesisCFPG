@@ -9,6 +9,7 @@ import torch
 from torch_geometric.utils import k_hop_subgraph
 
 from explainers.CFPGExplainer import CFPGExplainer
+from explainers.PGExplainer import PGExplainer
 from explainers.PCFExplainer import PCFExplainer
 
 from utils.datasets import load_dataset, parse_config
@@ -23,7 +24,8 @@ from utils.meta_learn import init_mask, clear_mask, set_mask, meta_update_weight
 CUDA = True
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gnn", "-G", type=str, default='GNN')
+parser.add_argument("--gnn", "-G", type=str, default='PGE')
+parser.add_argument("--expl", "-E", type=str, default='CFPG')
 parser.add_argument("--dataset", "-D", type=str, default='syn1')
 parser.add_argument("--epochs", "-e", type=int, default=5, help='Number of explainer epochs.')
 parser.add_argument("--seed", "-s", type=int, default=42, help='Random seed.')
@@ -36,6 +38,7 @@ parser.add_argument('--store', default=False, action=argparse.BooleanOptionalAct
 args = parser.parse_args()
 #print(">>", args)
 GNN_MODEL = args.gnn          # "GNN", "CF-GNN" or "PGE"
+EXPL_MODEL = args.expl        # "PGEex", "CFPG"
 DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
 EPOCHS    = args.epochs       # explainer epochs
 SEED  = args.seed
@@ -46,7 +49,7 @@ DEVICE = args.device
 
 
 ## STEP 1: load a BAshapes dataset
-cfg = parse_config(dataset=DATASET, gnn=GNN_MODEL)
+cfg = parse_config(dataset=DATASET, to_load=GNN_MODEL)
 dataset, test_indices = load_dataset(dataset=DATASET)
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -55,11 +58,9 @@ idx_train = dataset.train_mask
 idx_eval  = dataset.val_mask
 idx_test  = dataset.test_mask
 
-
 graph = dataset[0]
-print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
-print("\t>>", graph)
-
+#print(Fore.GREEN + f"[dataset]> {dataset} dataset graph...")
+#print("\t>>", graph)
 labels = graph.y
 labels = torch.argmax(labels, dim=1)
 x = graph.x
@@ -67,22 +68,27 @@ edge_index = graph.edge_index #.indices()
 
 
 #### STEP 2: instantiate GNN model
-if GNN_MODEL == "CF-GNN":
-    ## need dense adjacency matrix for GCNSynthetic model
-    v = torch.ones(edge_index.size(1))
-    s = (graph.num_nodes,graph.num_nodes)
-    dense_edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
-    norm_edge_index = normalize_adj(dense_edge_index)
+#if GNN_MODEL == "CF-GNN":
+#    ## need dense adjacency matrix for GCNSynthetic model
+#    v = torch.ones(edge_index.size(1))
+#    s = (graph.num_nodes,graph.num_nodes)
+#    dense_edge_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
+#    norm_edge_index = normalize_adj(dense_edge_index)
 
 model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=not(TRAIN), config=cfg)
 
-
 # extract explainer loss function for meta-train loop
 print(Fore.MAGENTA + "\n[explain]> loading explainer...")
-if GNN_MODEL == "GNN":
-    explainer = CFPGExplainer(model, graph, coeffs=cfg["expl_params"])
-elif GNN_MODEL == "CF-GNN":
-    explainer = PCFExplainer(model, graph, norm_edge_index, coeffs=cfg["expl_params"])
+expl_cfg = parse_config(dataset=DATASET, to_load=EXPL_MODEL)
+expl_params = expl_cfg["expl_params"]
+
+if EXPL_MODEL == "CFPG":
+    explainer = CFPGExplainer(model, graph, coeffs=expl_cfg["expl_params"])
+elif EXPL_MODEL == "PGEex":
+    explainer = PGExplainer(model, graph, coeffs=expl_cfg["expl_params"])
+#elif EXPL_MODEL == "CF-GNN":
+#    expl_cfg = parse_config(dataset=DATASET, to_load="PCF")
+#    explainer = PCFExplainer(model, graph, norm_edge_index, coeffs=expl_cfg["expl_params"])
 expl_loss_fn = explainer.loss
 
 
@@ -91,7 +97,6 @@ TODO Meta-training loop to be implemented
 """
 #### STEP 3: Meta-training
 train_params = cfg["train_params"]
-expl_params = cfg["expl_params"]
 if TRAIN:
     print(Fore.MAGENTA + "\n[meta-training]> starting train...")
     for p in model.parameters():

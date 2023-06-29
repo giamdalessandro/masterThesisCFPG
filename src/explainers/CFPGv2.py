@@ -125,6 +125,7 @@ class CFPGv2(BaseExplainer):
         # Size loss
         #mask_mean = mask.mean()
         #size_loss = ((mask > mask_mean)).sum()   # working fine
+        #mask = mask.sigmoid()
         size_loss = (mask.sigmoid()).sum()  # -1
         size_loss = size_loss * reg_size
 
