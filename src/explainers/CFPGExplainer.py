@@ -362,8 +362,9 @@ class CFPGExplainer(BaseExplainer):
     def _extract_cf_example(self, index, sub_graph, cf_mask):
         """Given the computed CF edge mask for a node prediction extracts
         the related CF example, if any."""
-        masked_pred, cf_feat = self.model_to_explain(self.features, sub_graph, edge_weights=cf_mask, cf_expl=True)
-        original_pred = self.model_to_explain(self.features, sub_graph)
+        with torch.no_grad():
+            masked_pred, cf_feat = self.model_to_explain(self.features, sub_graph, edge_weights=cf_mask, cf_expl=True)
+            original_pred = self.model_to_explain(self.features, sub_graph)
         
         masked_pred   = masked_pred[index]
         original_pred = original_pred[index].argmax()
@@ -405,6 +406,7 @@ class CFPGExplainer(BaseExplainer):
     
         # to get opposite of cf-mask, i.e. explanation
         cf_mask = (1 - mask).abs()
+        #cf_mask = (mask.mean() - mask*2)
         self._extract_cf_example(index, graph, cf_mask)
 
         expl_graph_weights = torch.zeros(graph.size(1)) # Combine with original graph

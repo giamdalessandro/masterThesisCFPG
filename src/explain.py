@@ -179,12 +179,15 @@ print("\t>> time elapsed:",f"{time_score:.4f}")
 if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     if EXPLAINER == "CFPG": explainer.coeffs["heads"] = "n/a"    
 
-    cf_examples = explainer.test_cf_examples   # explainer.cf_examples
+    cf_examples = explainer.test_cf_examples   # explainer.test_cf_examples
     found_cf_ex = len(cf_examples.keys())
     max_cf_ex = len(train_idxs)
     print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example")
     perc_cf = (found_cf_ex/max_cf_ex)
-    print(f"\t>> with CF: {found_cf_ex}/{max_cf_ex}  ({perc_cf*100:.2f}%)")
+    print(f"\t>> [test ] with CF: {found_cf_ex}/{max_cf_ex}  ({perc_cf*100:.2f}%)")
+    fnd = len(explainer.cf_examples.keys())
+    max_cf = len(train_idxs)
+    print(f"\t>> [train] with CF: {fnd}/{max_cf}  ({(fnd/max_cf)*100:.2f}%)")
 else:
     # add some log info for log function    
     explainer.coeffs["lr"] = explainer.lr 
@@ -214,7 +217,7 @@ if STORE_LOG:
         "seed"    : SEED,
         "epochs"  : EPOCHS,
         "conv"    : args.conv,
-        "e_cfg"     : explainer.coeffs,
+        "e_cfg"   : explainer.coeffs,
         "nodes"   : "train" if TRAIN_NODES else "test",
         "AUC"     : auc_score,
         "time"    : time_score,

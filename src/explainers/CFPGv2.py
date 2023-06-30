@@ -186,7 +186,7 @@ class CFPGv2(BaseExplainer):
         pred_loss = pred_same * nll_loss * reg_cf
 
         # ZAVVE: TODO tryin' to optimize objective function for cf case
-        loss_total = size_loss + pred_loss + mask_ent_loss + (0.01*kl_loss)  
+        loss_total = size_loss + pred_loss + mask_ent_loss + (0.0*kl_loss)  
         return loss_total, size_loss, mask_ent_loss, pred_loss
 
     def _train(self, indices=None):
@@ -281,10 +281,11 @@ class CFPGv2(BaseExplainer):
                         expl_feats = embeds[global_n_ids].to(self.device)
                         mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
                         #print("\n\t>> node id:", global_idx)                        
-                        #print("\t>> mask mean:", mask.max())                        
+                        #print("\t>> mask mean:", mask.mean())
+                        #print("\t>> over mean:", (mask > mask.mean()).sum())
                         cf_adj = torch.ones(mask.size()).to(self.device) 
                         cf_mask = (cf_adj - mask) #.abs()
-                        #cf_mask = torch.mul(cf_adj,mask) #.abs()
+                        #cf_mask = (mask.mean() - mask*2).abs()
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
                         original_pred = self.model_to_explain(sub_feats, sub_index)
@@ -367,8 +368,9 @@ class CFPGv2(BaseExplainer):
     def _extract_cf_example(self, index, sub_graph, cf_mask):
         """Given the computed CF edge mask for a node prediction extracts
         the related CF example, if any."""
-        masked_pred, cf_feat = self.model_to_explain(self.features, sub_graph, edge_weights=cf_mask, cf_expl=True)
-        original_pred = self.model_to_explain(self.features, sub_graph)
+        with torch.no_grad():
+            masked_pred, cf_feat = self.model_to_explain(self.features, sub_graph, edge_weights=cf_mask, cf_expl=True)
+            original_pred = self.model_to_explain(self.features, sub_graph)
         
         masked_pred   = masked_pred[index]
         original_pred = original_pred[index].argmax()
@@ -407,9 +409,17 @@ class CFPGv2(BaseExplainer):
         expl_feats = embeds[sub_nodes, :].to(self.device)
         #mask = self.explainer_module(sub_feats, sub_graph, n_map)
         mask = self.explainer_module(embeds, sub_graph, index, train=False)
-        
+        #print("\n\t>> mask avg:", mask.mean())
+
         # to get opposite of cf-mask, i.e. explanation
-        cf_mask = (1 - mask).abs()
+        _, sorted_index = torch.sort(mask, descending=True)
+        top_k = sorted_index[:12]
+        cf_mask = torch.zeros(mask.size()) - 0.5
+        cf_mask[top_k] = 1.0
+        #print("\n\t>> mask mean:", mask.mean())
+        #print("\t>> over mean:", (mask > mask.mean()).sum())
+        #cf_mask = (mask.mean() - mask)*10
+        #cf_mask = (1 - mask)
         self._extract_cf_example(index, sub_graph, cf_mask)
 
         expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph
