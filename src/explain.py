@@ -15,7 +15,7 @@ from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.plots import plot_graph, plot_expl_loss
+from utils.plots import plot_graph, plot_expl_loss, plot_mask_density
 from utils.evaluation import store_expl_log, parser_add_args
 
 from evaluations.AUCEvaluation import AUCEvaluation
@@ -199,16 +199,19 @@ else:
 if args.roc:
     e_name = explainer.expl_name
     e_h = explainer.history
-    plot_expl_loss(
-        expl_name=e_name,
-        dataset=DATASET,
-        losses=e_h["train_loss"],
-        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
-        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
-        roc_gt=roc_gts,
-        roc_preds=roc_preds
-    )
-#exit("[DEBUGGONE]> sto a fixà i plot")
+    #plot_expl_loss(
+    #    expl_name=e_name,
+    #    dataset=DATASET,
+    #    losses=e_h["train_loss"],
+    #    cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+    #    cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
+    #    roc_gt=roc_gts,
+    #    roc_preds=roc_preds
+    #)
+
+    plot_mask_density(explanations)
+
+exit("\n[DEBUGGONE]> sto a fixà i plot")
 
 
 # store explanation results into a log file

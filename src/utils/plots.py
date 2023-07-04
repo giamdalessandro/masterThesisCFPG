@@ -188,3 +188,71 @@ def plot_expl_loss(
     fig.suptitle(f"{expl_name} training on {dataset.upper()} dataset")
     if show:   plt.show()
     return
+
+
+def plot_mask_density(explanations: list, show: bool=True):
+    """Plot density of edge weights produced by the explainer.
+    - explanations is a list of tuples (edge-idx,weights,node-idx)"""
+    val_dict = {"check":[]}
+    for i in range(10):
+        val_dict[str(i)] = []
+
+    tot_edges = 0
+    for expl in explanations:
+        edge_index, e, n_idx = expl
+        n_edges = e.size(0)
+        tot_edges += n_edges
+
+        val_dict["0"].extend(e[(e >= 0.0) & (e < 0.1)])
+        val_dict["1"].extend(e[(e >= 0.1) & (e < 0.2)])
+        val_dict["2"].extend(e[(e >= 0.2) & (e < 0.3)])
+        val_dict["3"].extend(e[(e >= 0.3) & (e < 0.4)])
+        val_dict["4"].extend(e[(e >= 0.4) & (e < 0.5)])
+        val_dict["5"].extend(e[(e >= 0.5) & (e < 0.6)])
+        val_dict["6"].extend(e[(e >= 0.6) & (e < 0.7)])
+        val_dict["7"].extend(e[(e >= 0.7) & (e < 0.8)])
+        val_dict["8"].extend(e[(e >= 0.8) & (e < 0.9)])
+        val_dict["9"].extend(e[(e >= 0.9) & (e < 1.0)])
+        val_dict["check"].extend(e[(e >= 1.0)])
+
+
+    print("\n[plot]> counting elems in span...")
+    val_count = []
+    val_perc = []
+    for k,v in val_dict.items():
+        val_count.append(len(v))
+        val_perc.append(len(v)/tot_edges)
+        if k == "check":
+            print(f"\t>> {k} -> {len(v)/tot_edges:.2f} %, {len(v)} elems")
+        else:
+            print(f"\t>> {k}-{int(k)+1}\t-> {len(v)/tot_edges:.2f} %, {len(v)} elems")
+
+    # TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
+    # - posso aggiungere un histogramma del mappazzone fnale che ne viene fuori
+    fig = plt.figure(figsize=(9,9), layout="tight")
+    ax1 = fig.add_subplot(2,1,1)
+    ax2 = fig.add_subplot(2,1,2)
+
+    x = list(range(10))
+    x_ticks = x
+    x_labels = ["<0.1"] + [f"0.{i}-0.{i+1}" for i in x[1:-1]] + [">0.9"]
+    y = val_perc[1:]
+    y_ticks = [float(f"0.{yt}") for yt in range(0,10,2)] + [1.0]
+    y_labels = [f"{yl}%" for yl in range(0,100,20)] + ["100%"]
+
+    ax1.scatter(x, y, s=val_count[1:])
+    ax1.set_ylabel("% of values in range")
+    ax1.set_yticks(ticks=y_ticks, labels=y_labels)
+    ax1.set_xticks(ticks=x_ticks, labels=x_labels)
+    ax1.grid(alpha=0.4)
+
+    ax2.bar(x, y)
+    ax2.set_xlabel("value ranges")
+    ax2.set_ylabel("% of values in range")
+    ax2.set_xticks(ticks=x_ticks, labels=x_labels)
+    ax2.set_yticks(ticks=y_ticks, labels=y_labels)
+    ax2.grid(alpha=0.4)
+
+    fig.suptitle(f"Explanation mask values distribution")
+    if show:   plt.show()
+    return
