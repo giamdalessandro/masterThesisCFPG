@@ -197,55 +197,75 @@ def plot_mask_density(explanations: list, show: bool=True):
     for i in range(10):
         val_dict[str(i)] = []
 
+    # get explanation mask value ranges 
+    print("\n[plot]> counting elems in span...")
     tot_edges = 0
-    for expl in explanations:
+    for expl in explanations[:6]:
         edge_index, e, n_idx = expl
         n_edges = e.size(0)
         tot_edges += n_edges
 
-        val_dict["0"].extend(e[(e >= 0.0) & (e < 0.1)])
-        val_dict["1"].extend(e[(e >= 0.1) & (e < 0.2)])
-        val_dict["2"].extend(e[(e >= 0.2) & (e < 0.3)])
-        val_dict["3"].extend(e[(e >= 0.3) & (e < 0.4)])
-        val_dict["4"].extend(e[(e >= 0.4) & (e < 0.5)])
-        val_dict["5"].extend(e[(e >= 0.5) & (e < 0.6)])
-        val_dict["6"].extend(e[(e >= 0.6) & (e < 0.7)])
-        val_dict["7"].extend(e[(e >= 0.7) & (e < 0.8)])
-        val_dict["8"].extend(e[(e >= 0.8) & (e < 0.9)])
-        val_dict["9"].extend(e[(e >= 0.9) & (e < 1.0)])
+        val_dict["0"].append(e[(e >= 0.0) & (e < 0.1)])
+        val_dict["1"].append(e[(e >= 0.1) & (e < 0.2)])
+        val_dict["2"].append(e[(e >= 0.2) & (e < 0.3)])
+        val_dict["3"].append(e[(e >= 0.3) & (e < 0.4)])
+        val_dict["4"].append(e[(e >= 0.4) & (e < 0.5)])
+        val_dict["5"].append(e[(e >= 0.5) & (e < 0.6)])
+        val_dict["6"].append(e[(e >= 0.6) & (e < 0.7)])
+        val_dict["7"].append(e[(e >= 0.7) & (e < 0.8)])
+        val_dict["8"].append(e[(e >= 0.8) & (e < 0.9)])
+        val_dict["9"].append(e[(e >= 0.9) & (e < 1.0)])
         val_dict["check"].extend(e[(e >= 1.0)])
 
-
-    print("\n[plot]> counting elems in span...")
-    val_count = []
-    val_perc = []
-    for k,v in val_dict.items():
-        val_count.append(len(v))
-        val_perc.append(len(v)/tot_edges)
-        if k == "check":
-            print(f"\t>> {k} -> {len(v)/tot_edges:.2f} %, {len(v)} elems")
-        else:
-            print(f"\t>> {k}-{int(k)+1}\t-> {len(v)/tot_edges:.2f} %, {len(v)} elems")
 
     # TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
     # - posso aggiungere un histogramma del mappazzone fnale che ne viene fuori
     fig = plt.figure(figsize=(9,9), layout="tight")
-    ax1 = fig.add_subplot(2,1,1)
-    ax2 = fig.add_subplot(2,1,2)
+    ax1 = fig.add_subplot(3,1,(1,2))
+    ax2 = fig.add_subplot(3,1,3)
 
+    ## expl-wise count and percentages
     x = list(range(10))
+    for e in range(len(explanations[:6])):
+        n_id = explanations[e][2]
+        node_v_cnt = []
+        tot_v_cnt = 0
+        for i in range(10):
+            tot_v_cnt += len(val_dict[str(i)][e])
+            node_v_cnt.append(len(val_dict[str(i)][e]))
+
+        perc_v_cnt = [(c/tot_v_cnt) for c in node_v_cnt]
+        ax1.scatter(x, perc_v_cnt, s=node_v_cnt, alpha=0.5, label=str(n_id))
+
+    ## global count and percentages 
+    val_count = []   # global count for each interval
+    val_perc  = []   # global perc for each interval
+    for k,v in val_dict.items():
+        k_cnt = 0 
+        for e in range(len(v)):
+            k_cnt += len(v[e])
+
+        val_count.append(k_cnt)
+        val_perc.append(k_cnt/tot_edges)
+        if k == "check": print(f"\t>> {k} -> {k_cnt/tot_edges:.2f} %, {k_cnt} elems")
+        else: print(f"\t>> {k}-{int(k)+1}\t-> {k_cnt/tot_edges:.2f} %, {k_cnt} elems")
+
+
     x_ticks = x
     x_labels = ["<0.1"] + [f"0.{i}-0.{i+1}" for i in x[1:-1]] + [">0.9"]
     y = val_perc[1:]
     y_ticks = [float(f"0.{yt}") for yt in range(0,10,2)] + [1.0]
     y_labels = [f"{yl}%" for yl in range(0,100,20)] + ["100%"]
 
-    ax1.scatter(x, y, s=val_count[1:])
+    # node-wise percentage scatter plot
+    #ax1.scatter(x, y, s=val_count[1:])
     ax1.set_ylabel("% of values in range")
     ax1.set_yticks(ticks=y_ticks, labels=y_labels)
     ax1.set_xticks(ticks=x_ticks, labels=x_labels)
     ax1.grid(alpha=0.4)
+    ax1.legend(markerscale=0.5)
 
+    # global percentage bar plot
     ax2.bar(x, y)
     ax2.set_xlabel("value ranges")
     ax2.set_ylabel("% of values in range")
