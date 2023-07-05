@@ -200,8 +200,10 @@ def plot_mask_density(explanations: list, show: bool=True):
     # get explanation mask value ranges 
     print("\n[plot]> counting elems in span...")
     tot_edges = 0
-    for expl in explanations[:6]:
+    explanations = explanations[:6]  # to fix plot, show only six nodes expl.
+    for expl in explanations:
         edge_index, e, n_idx = expl
+        e = e.detach()
         n_edges = e.size(0)
         tot_edges += n_edges
 
@@ -220,19 +222,22 @@ def plot_mask_density(explanations: list, show: bool=True):
 
     # TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
     # - posso aggiungere un histogramma del mappazzone fnale che ne viene fuori
-    fig = plt.figure(figsize=(9,9), layout="tight")
-    ax1 = fig.add_subplot(3,1,(1,2))
-    ax2 = fig.add_subplot(3,1,3)
+    fig = plt.figure(figsize=(12,6), layout="tight")
+    ax1 = fig.add_subplot(2,4,(3,8))
+    ax2 = fig.add_subplot(2,4,(1,2))
 
     ## expl-wise count and percentages
-    x = list(range(10))
-    for e in range(len(explanations[:6])):
+    #x = list(range(10))
+    x = [round(x/10,1) for x in range(0,10,1)]
+    all_values = []
+    for e in range(len(explanations)):
         n_id = explanations[e][2]
         node_v_cnt = []
         tot_v_cnt = 0
         for i in range(10):
             tot_v_cnt += len(val_dict[str(i)][e])
             node_v_cnt.append(len(val_dict[str(i)][e]))
+            all_values.extend(val_dict[str(i)][e])
 
         perc_v_cnt = [(c/tot_v_cnt) for c in node_v_cnt]
         ax1.scatter(x, perc_v_cnt, s=node_v_cnt, alpha=0.5, label=str(n_id))
@@ -252,25 +257,35 @@ def plot_mask_density(explanations: list, show: bool=True):
 
 
     x_ticks = x
-    x_labels = ["<0.1"] + [f"0.{i}-0.{i+1}" for i in x[1:-1]] + [">0.9"]
-    y = val_perc[1:]
+    x_labels = [f"[{i},{round(i+0.1,1)})" for i in x_ticks[:-1]] + ["[0.9,1]"]
+    #y = val_perc[1:]
     y_ticks = [float(f"0.{yt}") for yt in range(0,10,2)] + [1.0]
+    y_ticks_minor = [float(f"0.{yt}") for yt in range(0,10,1)] + [1.0]
     y_labels = [f"{yl}%" for yl in range(0,100,20)] + ["100%"]
 
     # node-wise percentage scatter plot
     #ax1.scatter(x, y, s=val_count[1:])
-    ax1.set_ylabel("% of values in range")
+    ax1.set_ylabel("% of values (per-node) in range")
     ax1.set_yticks(ticks=y_ticks, labels=y_labels)
+    ax1.set_yticks(ticks=y_ticks_minor, minor=True)
     ax1.set_xticks(ticks=x_ticks, labels=x_labels)
-    ax1.grid(alpha=0.4)
+    ax1.set_xlim(-0.05,0.95)
+    ax1.grid(alpha=0.4, which="both")
     ax1.legend(markerscale=0.5)
 
     # global percentage bar plot
-    ax2.bar(x, y)
+    #ax2.bar(x, y)
+    _, _, bars = ax2.hist(all_values, 
+                        bins=10, 
+                        range=(0,1), 
+                        align="mid", 
+                        edgecolor="white")
+    ax2.bar_label(bars)
     ax2.set_xlabel("value ranges")
-    ax2.set_ylabel("% of values in range")
-    ax2.set_xticks(ticks=x_ticks, labels=x_labels)
-    ax2.set_yticks(ticks=y_ticks, labels=y_labels)
+    ax2.set_ylabel("% of total values in range")
+    ax2.set_xticks(ticks=x_ticks)
+    #ax2.set_yticks(ticks=y_ticks, labels=y_labels)
+    ax2.set_xlim(-0.05,1.05)
     ax2.grid(alpha=0.4)
 
     fig.suptitle(f"Explanation mask values distribution")
