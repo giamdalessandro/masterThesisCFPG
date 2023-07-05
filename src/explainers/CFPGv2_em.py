@@ -111,6 +111,7 @@ class GCNExplModule(torch.nn.Module):
         
         # decoder step
         out_dec = self.decoder(z)
+        #self.out_decoder.append(out_dec)
         sampled_mask = _sample_graph(out_dec, bias=bias, training=train)
 
         return sampled_mask
@@ -145,6 +146,7 @@ class GATExplModule(torch.nn.Module):
         self.latent_dim = self.enc_h*3
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
+            #torch.nn.LeakyReLU(negative_slope=0.01),
             torch.nn.ReLU(),
             torch.nn.Linear(self.dec_h, 1)
         ).to(self.device)

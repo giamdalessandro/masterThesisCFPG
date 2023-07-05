@@ -15,7 +15,7 @@ from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.plots import plot_graph, plot_expl_loss, plot_mask_density
+from utils.plots import plot_graph, plot_expl_loss, plot_mask_density, plot_scatter_node_mask
 from utils.evaluation import store_expl_log, parser_add_args
 
 from evaluations.AUCEvaluation import AUCEvaluation
@@ -208,8 +208,8 @@ if args.roc:
     #    roc_gt=roc_gts,
     #    roc_preds=roc_preds
     #)
-
     plot_mask_density(explanations)
+    #plot_scatter_node_mask(explanations)
 
 #exit("\n[DEBUGGONE]> sto a fixà i plot")
 

@@ -190,7 +190,7 @@ def plot_expl_loss(
     return
 
 
-def plot_mask_density(explanations: list, show: bool=True):
+def plot_scatter_node_mask(explanations, show: bool=True):
     """Plot density of edge weights produced by the explainer.
     - explanations is a list of tuples (edge-idx,weights,node-idx)"""
     val_dict = {"check":[]}
@@ -202,7 +202,7 @@ def plot_mask_density(explanations: list, show: bool=True):
     tot_edges = 0
     #explanations = explanations[:6]  # to fix plot, show only six nodes expl.
     for expl in explanations:
-        edge_index, e, n_idx = expl
+        _, e, _ = expl
         e = e.detach()
         n_edges = e.size(0)
         tot_edges += n_edges
@@ -219,7 +219,7 @@ def plot_mask_density(explanations: list, show: bool=True):
         val_dict["9"].append(e[(e >= 0.9) & (e < 1.0)])
         val_dict["check"].extend(e[(e >= 1.0)])
 
-    ## global count and percentages 
+    ## log to terminal global count and percentages 
     #val_count = []   # global count for each interval
     #val_perc  = []   # global perc for each interval
     #for k,v in val_dict.items():
@@ -231,17 +231,11 @@ def plot_mask_density(explanations: list, show: bool=True):
     #    if k == "check": print(f"\t>> {k} -> {k_cnt/tot_edges:.2f} %, {k_cnt} elems")
     #    else: print(f"\t>> {k}-{int(k)+1}\t-> {k_cnt/tot_edges:.2f} %, {k_cnt} elems")
 
-    # TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
-    # - posso aggiungere un histogramma del mappazzone fnale che ne viene fuori
     plt.style.use("bmh") # seaborn-v0_8
-
-    fig = plt.figure(figsize=(12,6), layout="tight")
-    ax1 = fig.add_subplot(2,4,(1,2))   # hist 1 
-    #ax2 = fig.add_subplot(2,4,(5,6))   # hist 2 
-    ax3 = fig.add_subplot(2,4,(3,8))   # scatter 
+    fig = plt.figure(figsize=(9,9), layout="tight")
+    ax1 = fig.add_subplot(1,1,1)   # hist 1 
 
     ## expl-wise count and percentages
-    #x = list(range(10))
     x = [round(x/10,1) for x in range(0,10,1)]
     all_values = []
     for e in range(len(explanations)):
@@ -254,7 +248,7 @@ def plot_mask_density(explanations: list, show: bool=True):
             all_values.extend(val_dict[str(i)][e])
 
         perc_v_cnt = [(c/tot_v_cnt) for c in node_v_cnt]
-        ax3.scatter(x, perc_v_cnt, alpha=0.5, s=node_v_cnt, label=str(n_id))
+        ax1.scatter(x, perc_v_cnt, alpha=0.5, s=node_v_cnt, label=str(n_id))
 
     x_ticks = x
     x_labels = [f"{i}-{round(i+0.1,1)}" for i in x_ticks[:-1]] + ["0.9-1"]
@@ -263,16 +257,49 @@ def plot_mask_density(explanations: list, show: bool=True):
     y_labels = [f"{yl}%" for yl in range(0,100,20)] + ["100%"]
 
     # [ax3] node-wise percentage scatter plot
-    ax3.set_title("Per-node mask value distribution")
-    ax3.set_ylabel("% of values (per-node) in range")
-    ax3.set_yticks(ticks=y_ticks, labels=y_labels)
-    ax3.set_yticks(ticks=y_ticks_minor, minor=True)
-    ax3.set_xticks(ticks=x_ticks, labels=x_labels, rotation=-45)
-    ax3.set_xlim(-0.05,0.95)
-    ax3.grid(alpha=0.4, which="both")
+    ax1.set_title("Per-node mask value distribution")
+    ax1.set_ylabel("% of values (per-node) in range")
+    ax1.set_yticks(ticks=y_ticks, labels=y_labels)
+    ax1.set_yticks(ticks=y_ticks_minor, minor=True)
+    ax1.set_xticks(ticks=x_ticks, labels=x_labels, rotation=-45)
+    ax1.set_xlim(-0.05,0.95)
+    ax1.grid(alpha=0.4, which="both")
     #ax3.legend(markerscale=0.5)
 
-    # [ax1] global bin.concrete hist plot
+
+    fig.suptitle(f"Explanation mask (per-node) values distribution")
+    if show:   plt.show()
+    return
+
+
+def plot_mask_density(explanations: list, show: bool=True):
+    """Plot density of edge weights produced by the explainer.
+    - explanations is a list of tuples (edge-idx,weights,node-idx)"""
+
+    # get explanation mask value ranges 
+    print("\n[plot]> counting elems in span...")
+    tot_edges = 0
+    all_values = []
+    #explanations = explanations[:6]  # to fix plot, show only six nodes expl.
+    for expl in explanations:
+        _, e, _ = expl
+        e = e.detach()
+        tot_edges += e.size(0)
+        all_values.extend(e)
+
+    ### TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
+    # - posso aggiungere un histogramma del mappazzone fnale che ne viene fuori
+    plt.style.use("bmh") # seaborn-v0_8
+
+    fig = plt.figure(figsize=(9,9), layout="tight")
+    ax1 = fig.add_subplot(2,1,1)   # hist 1 
+    #ax2 = fig.add_subplot(2,1,2)  # hist 2 
+
+    ### expl-wise count and percentages
+    x = [round(x/10,1) for x in range(0,10,1)]
+    x_ticks = x
+
+    ### [ax1] global bin.concrete hist plot
     ax1.set_title("Expl. mask value distribution")
     _, _, bars = ax1.hist(all_values, 
                         bins=10, 
@@ -289,10 +316,9 @@ def plot_mask_density(explanations: list, show: bool=True):
     ax1.grid(alpha=0.4)
 
 
-    # [ax2] global pre-sample hist plot
-
-
+    ### [ax2] global pre-sample hist plot
 
     fig.suptitle(f"Explanation mask values distribution")
     if show:   plt.show()
     return
+
