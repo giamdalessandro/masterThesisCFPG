@@ -211,7 +211,7 @@ if args.roc:
 
     plot_mask_density(explanations)
 
-exit("\n[DEBUGGONE]> sto a fixà i plot")
+#exit("\n[DEBUGGONE]> sto a fixà i plot")
 
 
 # store explanation results into a log file
