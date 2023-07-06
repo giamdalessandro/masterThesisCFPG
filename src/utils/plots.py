@@ -190,7 +190,7 @@ def plot_expl_loss(
     return
 
 
-def plot_scatter_node_mask(explanations, show: bool=True):
+def plot_scatter_node_mask(explanations: list, show: bool=True):
     """Plot density of edge weights produced by the explainer.
     - explanations is a list of tuples (edge-idx,weights,node-idx)"""
     val_dict = {"check":[]}
@@ -271,8 +271,7 @@ def plot_scatter_node_mask(explanations, show: bool=True):
     if show:   plt.show()
     return
 
-
-def plot_mask_density(explanations: list, show: bool=True):
+def plot_mask_density(explanations: list, em_logs: dict, show: bool=True):
     """Plot density of edge weights produced by the explainer.
     - explanations is a list of tuples (edge-idx,weights,node-idx)"""
 
@@ -292,24 +291,25 @@ def plot_mask_density(explanations: list, show: bool=True):
     plt.style.use("bmh") # seaborn-v0_8
 
     fig = plt.figure(figsize=(9,9), layout="tight")
-    ax1 = fig.add_subplot(2,1,1)   # hist 1 
-    #ax2 = fig.add_subplot(2,1,2)  # hist 2 
+    ax1 = fig.add_subplot(3,1,1)  # hist 1 
+    ax2 = fig.add_subplot(3,1,2)  # hist 2 
+    #ax3 = fig.add_subplot(3,1,3)  # hist 3 
 
     ### expl-wise count and percentages
     x = [round(x/10,1) for x in range(0,10,1)]
     x_ticks = x
 
     ### [ax1] global bin.concrete hist plot
-    ax1.set_title("Expl. mask value distribution")
+    ax1.set_title("post-sampling (expl.out)")
     _, _, bars = ax1.hist(all_values, 
-                        bins=10, 
+                        bins=20, 
                         range=(0,1), 
                         align="mid", 
                         edgecolor="white",
                         density=False)
     ax1.bar_label(bars)
-    ax1.set_xlabel("value ranges")
-    ax1.set_ylabel("no. total values in range")
+    #ax1.set_xlabel("value ranges")
+    ax1.set_ylabel("no. values in range")
     ax1.set_xticks(ticks=x_ticks + [1.0])
     #ax1.set_yticks(ticks=y_ticks, labels=y_labels)
     ax1.set_xlim(-0.05,1.05)
@@ -317,6 +317,41 @@ def plot_mask_density(explanations: list, show: bool=True):
 
 
     ### [ax2] global pre-sample hist plot
+    print("\t>> pre-sample:", len(em_logs["pre-sample"]))
+    all_pre = []
+    all_gcn = []
+    for l in range(len(em_logs["pre-sample"])):
+        all_pre.extend(em_logs["pre-sample"][l].squeeze())
+        all_gcn.extend(em_logs["post-gcn"][l].squeeze())
+
+    max2 = max(all_pre).item()
+    min2 = min(all_pre).item()    
+    bin_size = round((max2-min2)/20, 2)
+    print("\t>> bin_size:", bin_size)
+
+    ax2.set_title("pre-sampling (mlp out)")
+    _, _, bars = ax2.hist(all_pre, 
+                        bins=20,
+                        align="mid", 
+                        edgecolor="white")
+                        #density=False)
+    ax2.bar_label(bars)
+    ax2.set_xlabel("value ranges")
+    ax2.set_ylabel("no. values in range")
+    ax2.set_xlim((min2-bin_size),(max2+bin_size))
+    ax2.grid(alpha=0.4)
+
+
+    ### [ax3] global pre-sample hist plot
+    #ax3.set_title("Expl. mask value distribution")
+    #_, _, bars = ax3.hist(em_logs["post-gcn"]) #, 
+                        #bins=10, 
+                        #range=(0,1), 
+                        #align="mid", 
+                        #edgecolor="white",
+                        #density=False)
+    #ax3.bar_label(bars)
+
 
     fig.suptitle(f"Explanation mask values distribution")
     if show:   plt.show()

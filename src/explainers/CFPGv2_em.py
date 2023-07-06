@@ -137,6 +137,12 @@ class GATExplModule(torch.nn.Module):
         self.device   = device
         self.dropout = dropout
 
+        self.logs_d = {
+            "pre-sample" : [],
+            "post-gcn" : [],
+        }
+
+
         if self.add_att != 0.0:
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
         else:
@@ -146,8 +152,7 @@ class GATExplModule(torch.nn.Module):
         self.latent_dim = self.enc_h*3
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
-            #torch.nn.LeakyReLU(negative_slope=0.01),
-            torch.nn.ReLU(),
+            torch.nn.ReLU(), #torch.nn.LeakyReLU(negative_slope=0.01),
             torch.nn.Linear(self.dec_h, 1)
         ).to(self.device)
 
@@ -163,6 +168,10 @@ class GATExplModule(torch.nn.Module):
         z = _get_edge_repr(edge_index, out_enc, node_id)
         # decoder step
         out_dec = self.decoder(z)
+
+        if not train:
+            self.logs_d["pre-sample"].append(out_dec.detach())
+            self.logs_d["post-gcn"].append(torch.reshape(z, (-1,)).detach())
 
         # add attention
         if self.add_att != 0.0:

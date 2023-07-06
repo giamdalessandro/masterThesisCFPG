@@ -199,6 +199,7 @@ else:
 if args.roc:
     e_name = explainer.expl_name
     e_h = explainer.history
+    em_logs = explainer.explainer_module.logs_d
     #plot_expl_loss(
     #    expl_name=e_name,
     #    dataset=DATASET,
@@ -208,7 +209,7 @@ if args.roc:
     #    roc_gt=roc_gts,
     #    roc_preds=roc_preds
     #)
-    plot_mask_density(explanations)
+    plot_mask_density(explanations, em_logs)
     #plot_scatter_node_mask(explanations)
 
 #exit("\n[DEBUGGONE]> sto a fixà i plot")
