@@ -123,10 +123,10 @@ class CFPGv2(BaseExplainer):
         EPS = 1e-15
 
         # Size loss
-        #mask_mean = mask.mean()
-        #size_loss = ((mask > mask_mean)).sum()   # working fine
+        mask_mean = mask.mean()
+        size_loss = ((mask > mask_mean)).sum()   # working fine
         #mask = mask.sigmoid()
-        size_loss = (mask.sigmoid()).sum()  # -1
+        #size_loss = (mask.sigmoid()).sum()  # -1
         size_loss = size_loss * reg_size
 
         # Entropy loss (PGE)
@@ -283,8 +283,16 @@ class CFPGv2(BaseExplainer):
                         #print("\n\t>> node id:", global_idx)                        
                         #print("\t>> mask mean:", mask.mean())
                         #print("\t>> over mean:", (mask > mask.mean()).sum())
-                        cf_adj = torch.ones(mask.size()).to(self.device) 
-                        cf_mask = (cf_adj - mask) #.abs()
+
+                        #cf_adj = torch.ones(mask.size()).to(self.device) 
+                        #cf_mask = (cf_adj - mask) #.abs()
+
+                        #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
+                        #top_k = sorted_index[:6] #12
+                        #cf_mask = torch.zeros(mask.size())# - 0.5
+                        #cf_mask[top_k] = 1.0
+
+                        cf_mask = (mask <= mask.mean()).float()
                         #cf_mask = (mask.mean() - mask*2).abs()
 
                         masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
@@ -412,13 +420,16 @@ class CFPGv2(BaseExplainer):
         #print("\n\t>> mask avg:", mask.mean())
 
         # to get opposite of cf-mask, i.e. explanation
-        _, sorted_index = torch.sort(mask.squeeze(), descending=True)
-        top_k = sorted_index[:6] #12
-        cf_mask = torch.zeros(mask.size())# - 0.5
-        cf_mask[top_k] = 1.0
-        #print("\n\t>> cf_mask:", cf_mask.mean())
-        #print("\t>> over mean:", (cf_mask > 0.5).sum())
-        #cf_mask = (mask.mean() - mask)*10
+        #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
+        #top_k = sorted_index[:6] #12
+        #cf_mask = torch.zeros(mask.size())# - 0.5
+        #cf_mask[top_k] = 1.0
+        
+        #cf_mask = (mask.mean() - mask*2)
+        cf_mask = (mask <= mask.mean()).float()
+        #print("\n\t>> cf_mask:", cf_mask)
+        #exit(0)
+        
         #cf_mask = (1 - mask)
         self._extract_cf_example(index, sub_graph, cf_mask)
 
