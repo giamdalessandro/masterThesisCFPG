@@ -169,35 +169,42 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         log_f.write(f">> sample bias:    {e_c['sample_bias']}\t reg_size: {e_c['reg_size']}\n")
         log_f.write(f"\n---------- results --------------------------------------\n")
         log_f.write(f">> AUC: {logs['AUC']:.4f}\t\t\t time elapsed: {logs['time']:.2f} s\n")
-        log_f.write(f">> cf explanation found: {logs['cf_fnd']}/{logs['cf_tot']} ({logs['cf_perc']:.4f})\n\n")
+        log_f.write(f">> cf explanation found: {logs['fnd_test']}/{logs['cf_tot']} ({logs['cf_test']:.4f})\n\n")
         log_f.close()
 
     # balanced metric for AUC and cf%
-    metric = (logs['AUC']*0.5) + (logs['cf_perc']*0.5)
+    metric = ((1-logs["fidelity"]*0.34) + (logs["sparsity"]*0.33) + (logs["accuracy"]*0.33))
 
     date_csv = datetime.now().strftime("%d-%m_%H:%M")
     to_csv = {
         "run_id"    : [date_csv],
         "seed"      : [logs["seed"]],
         "explainer" : [explainer],
-        "dataset"   : [dataset],
         "epochs"    : [eps],
+        "dataset"   : [dataset],
         "expl_arch" : [f"1{conv}{e_c['hid_gcn']}->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
-        "heads"     : [heads],
-        "note"      : [prefix],
-        "metric"    : [round(metric,4)] if explainer != "PGEex" else ["n/a"],
-        "AUC"       : [round(logs['AUC'],4)],
-        "cf (%)"    : [round(logs['cf_perc'],4)],
-        "cf tot."   : [f"{logs['cf_fnd']}/{logs['cf_tot']}"],
+        "conv"      : [conv],
         "optimizer" : [opt],
         "l_rate"    : [e_c['lr']],
+        "heads"     : [heads],
+        "note"      : [prefix],
         "reg_ent"   : [e_c['reg_ent']],
         "reg_cf"    : [e_c['reg_cf']],
         "reg_size"  : [e_c['reg_size']],
+        "AUC"       : [round(logs['AUC'],4)],
+        "cf_train"  : [round(logs['cf_train'],4)],
+        "fnd_train" : [f"{logs['fnd_train']}/{logs['cf_tot']}"],
+        "cf_test"   : [round(logs['cf_test'],4)],
+        "fnd_test"  : [f"{logs['fnd_test']}/{logs['cf_tot']}"],
+        "fidelity"  : [round(logs["fidelity"],4)],
+        "sparsity"  : [round(logs["sparsity"],4)],
+        "accuracy"  : [round(logs["accuracy"],4)],
+        "explSize"  : [round(logs["explSize"],2)],
+        "metric"    : [round(metric,4)] if explainer != "PGEex" else ["n/a"],
     }
     df = pd.DataFrame.from_dict(to_csv)
     save_dir = LOG_DIR + f"{explainer}"
     csv_path = save_dir + f"/{explainer}_{dataset}.csv"
-    df.to_csv(csv_path, mode="a+", header=not os.path.exists(csv_path))
+    df.to_csv(csv_path, mode="a+", header=not os.path.exists(csv_path), index=False)
 
     return

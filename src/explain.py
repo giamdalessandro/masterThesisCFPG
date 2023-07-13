@@ -20,6 +20,7 @@ from utils.evaluation import store_expl_log, parser_add_args
 
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
+from evaluations.CFEvaluation import get_cf_metrics
 
 
 
@@ -149,14 +150,14 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
     curr_id = 0
     n_tests = len(test_epoch)
     for idx in test_epoch:
-        graph, expl = explainer.explain(idx)
+        subgraph, expl = explainer.explain(idx)
 
         if (curr_id%(n_tests//5)) == 0: 
-            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
+            plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         elif idx == test_idxs[-1]: 
-            plot_graph(graph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
+            plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         
-        explanations.append((graph, expl, idx))
+        explanations.append((subgraph, expl, idx))
         curr_id += 1
 
 inference_eval.done_explaining()
@@ -179,15 +180,29 @@ print("\t>> time elapsed:",f"{time_score:.4f}")
 if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     if EXPLAINER == "CFPG": explainer.coeffs["heads"] = "n/a"    
 
-    cf_examples = explainer.test_cf_examples   # explainer.test_cf_examples
-    found_cf_ex = len(cf_examples.keys())
-    max_cf_ex = len(train_idxs)
+    cf_metrics = get_cf_metrics(
+                    edge_labels=graph.pn_labels,
+                    explanations=explanations,
+                    counterfactuals=explainer.test_cf_examples,
+                    n_nodes=x.size(0))
+    
     print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example")
-    perc_cf = (found_cf_ex/max_cf_ex)
-    print(f"\t>> [test ] with CF: {found_cf_ex}/{max_cf_ex}  ({perc_cf*100:.2f}%)")
-    fnd = len(explainer.cf_examples.keys())
+    test_cf = explainer.test_cf_examples 
+    train_cf = explainer.cf_examples
     max_cf = len(train_idxs)
-    print(f"\t>> [train] with CF: {fnd}/{max_cf}  ({(fnd/max_cf)*100:.2f}%)")
+
+    test_fnd = len(test_cf.keys())
+    train_fnd = len(train_cf.keys())
+    test_cf_perc = (test_fnd/max_cf)
+    train_cf_perc = (train_fnd/max_cf)
+    print(f"\t>> [test ] with CF: {test_fnd}/{max_cf}  ({test_cf_perc*100:.2f}%)")
+    print(f"\t>> [train] with CF: {train_fnd}/{max_cf}  ({train_cf_perc*100:.2f}%)")
+    
+    print(Fore.MAGENTA + "[metrics]>","CF metrics...")
+    print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
+    print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
+    print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
+    print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
 else:
     # add some log info for log function    
     explainer.coeffs["lr"] = explainer.lr 
@@ -209,7 +224,7 @@ if args.roc:
     #    roc_gt=roc_gts,
     #    roc_preds=roc_preds
     #)
-    plot_mask_density(explanations, em_logs)
+    plot_mask_density(explanations, em_logs, DATASET, EPOCHS)
     #plot_scatter_node_mask(explanations)
 
 #exit("\n[DEBUGGONE]> sto a fixà i plot")
@@ -218,16 +233,22 @@ if args.roc:
 # store explanation results into a log file
 if STORE_LOG:
     logs_d = {
-        "seed"    : SEED,
-        "epochs"  : EPOCHS,
-        "conv"    : args.conv,
-        "e_cfg"   : explainer.coeffs,
-        "nodes"   : "train" if TRAIN_NODES else "test",
-        "AUC"     : auc_score,
-        "time"    : time_score,
-        "cf_perc" : perc_cf if EXPLAINER != "PGEex" else -1.0,
-        "cf_tot"  : max_cf_ex if EXPLAINER != "PGEex" else "a",
-        "cf_fnd"  : found_cf_ex if EXPLAINER != "PGEex" else "n",
+        "seed"      : SEED,
+        "epochs"    : EPOCHS,
+        "conv"      : args.conv,
+        "nodes"     : "train" if TRAIN_NODES else "test",
+        "e_cfg"     : explainer.coeffs,
+        "time"      : time_score,
+        "AUC"       : auc_score,
+        "cf_test"   : test_cf_perc if EXPLAINER != "PGEex" else -1.0,
+        "cf_train"  : train_cf_perc if EXPLAINER != "PGEex" else -1.0,
+        "cf_tot"    : max_cf if EXPLAINER != "PGEex" else "a",
+        "fnd_test"  : test_fnd if EXPLAINER != "PGEex" else "n",
+        "fnd_train" : train_fnd if EXPLAINER != "PGEex" else "n",
+        "fidelity"  : cf_metrics[0] if EXPLAINER != "PGEex" else "n/a",
+        "sparsity"  : cf_metrics[1] if EXPLAINER != "PGEex" else "n/a",
+        "accuracy"  : cf_metrics[2] if EXPLAINER != "PGEex" else "n/a",
+        "explSize"  : cf_metrics[3] if EXPLAINER != "PGEex" else "n/a",
     }
     store_expl_log(explainer=EXPLAINER, dataset=DATASET, logs=logs_d, prefix=args.prefix)
 

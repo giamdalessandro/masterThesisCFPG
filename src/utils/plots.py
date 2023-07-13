@@ -150,9 +150,12 @@ def plot_expl_loss(
         
         ### cf perc twinx plot
         cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
+        print("\t>> cf_perc:",len(cf_perc))
+        print("\t>> cf_num :",len(cf_num))
+
         cf_mid = cf_num[(len(cf_num)//2)-1]
         cf_num_tx = [min(cf_num),cf_mid,max(cf_num)] if min(cf_num) != max(cf_num) else cf_num[-1]
-        cf_perc_mid = cf_perc[(len(cf_num)//2)-1] if cf_perc[-1] == "1.0000" else cf_perc[(len(cf_num)//2)-2] 
+        cf_perc_mid = cf_perc[(len(cf_perc)//2)-1] if cf_perc[-1] == "1.0000" else cf_perc[(len(cf_perc)//2)-2] 
         cf_ticks = [min(cf_perc)[:4],cf_perc_mid[:4],max(cf_perc)[:4]] if min(cf_perc) != max(cf_perc) else cf_perc[-1][:4]
         if cf_ticks[-1] != "1.00":
             cf_ticks = cf_ticks + ["max"]
@@ -271,7 +274,7 @@ def plot_scatter_node_mask(explanations: list, show: bool=True):
     if show:   plt.show()
     return
 
-def plot_mask_density(explanations: list, em_logs: dict, show: bool=True):
+def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: int, show: bool=True):
     """Plot density of edge weights produced by the explainer.
     - explanations is a list of tuples (edge-idx,weights,node-idx)"""
 
@@ -279,12 +282,17 @@ def plot_mask_density(explanations: list, em_logs: dict, show: bool=True):
     print("\n[plot]> counting elems in span...")
     tot_edges = 0
     all_values = []
+    nodes = [] 
+    over_mean = []
     #explanations = explanations[:6]  # to fix plot, show only six nodes expl.
     for expl in explanations:
-        _, e, _ = expl
+        edge_idx, e, n_idx = expl
         e = e.detach()
         tot_edges += e.size(0)
         all_values.extend(e)
+
+        nodes.append(str(n_idx))
+        over_mean.extend([n_idx for _ in range((e > e.mean()).long().sum().item())])
 
     ### TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
     # - posso aggiungere un histogramma del mappazzone fnale che ne viene fuori
@@ -293,7 +301,7 @@ def plot_mask_density(explanations: list, em_logs: dict, show: bool=True):
     fig = plt.figure(figsize=(9,9), layout="tight")
     ax1 = fig.add_subplot(3,1,1)  # hist 1 
     ax2 = fig.add_subplot(3,1,2)  # hist 2 
-    #ax3 = fig.add_subplot(3,1,3)  # hist 3 
+    ax3 = fig.add_subplot(3,1,3)  # hist 3 / bar plot 3  
 
     ### expl-wise count and percentages
     x = [round(x/10,1) for x in range(0,10,1)]
@@ -343,6 +351,26 @@ def plot_mask_density(explanations: list, em_logs: dict, show: bool=True):
 
 
     ### [ax3] global pre-sample hist plot
+    x3 = list(range(0,len(nodes)))
+    width = 1
+    print("\t>> [ax3]> nodes:", len(nodes))
+    print("\t>> [ax3]> over mean:", len(over_mean))
+    print("\t>> [ax3]> x3:", len(x3))
+
+    ax3.set_title("Mask no. edges post-sampling (over-mean)")
+    #ax3.bar(x3, over_mean, width=width, label="no expl.edges")
+    _, _, bars = ax3.hist(over_mean, 
+                        bins=len(nodes), 
+                        align="mid", 
+                        edgecolor="white")
+                        #range=(0,1), 
+                        #density=False)
+    #ax3.bar_label(bars)
+    ax3.set_xlim(int(nodes[0])-5,int(nodes[-1])+5)
+    ax3.set_xlabel("node id")
+    ax3.set_ylabel("no. edges")
+    ax3.grid(alpha=0.4)
+
     #ax3.set_title("Expl. mask value distribution")
     #_, _, bars = ax3.hist(em_logs["post-gcn"]) #, 
                         #bins=10, 
@@ -353,7 +381,7 @@ def plot_mask_density(explanations: list, em_logs: dict, show: bool=True):
     #ax3.bar_label(bars)
 
 
-    fig.suptitle(f"Explanation mask values distribution")
+    fig.suptitle(f"Explanation mask values distribution - {dataset.upper()}, {epochs} epochs")
     if show:   plt.show()
     return
 
