@@ -124,7 +124,10 @@ class CFPGv2(BaseExplainer):
 
         # Size loss
         mask_mean = mask.mean().detach()
-        size_loss = (mask > mask_mean).sum()   # working fine
+
+        m, std = torch.std_mean(mask, unbiased=False)
+        thres = m + std
+        size_loss = (mask > thres).sum()   # working fine
         #mask = mask.sigmoid()
         #size_loss = (mask.sigmoid()).sum()  # -1
         size_loss = size_loss * reg_size
@@ -241,8 +244,6 @@ class CFPGv2(BaseExplainer):
         best_loss = Inf
         #self.kl_loss = nn.KLDivLoss(reduction="batchmean")
         # Start training loop
-        #with tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False) as epochs_bar:
-        #    for e in epochs_bar:
         for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False)):
             optimizer.zero_grad()
             loss_total = torch.FloatTensor([0]).detach().to(self.device)
@@ -293,7 +294,9 @@ class CFPGv2(BaseExplainer):
                     #cf_mask = torch.zeros(mask.size())# - 0.5
                     #cf_mask[top_k] = 1.0
 
-                    cf_mask = (mask <= mask.mean()).float()
+                    m, std = torch.std_mean(mask, unbiased=False)
+                    thres = m + std
+                    cf_mask = (mask <= thres).float() #mask.mean()
                     #cf_mask = (mask.mean() - mask*2).abs()
 
                     masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
@@ -427,7 +430,9 @@ class CFPGv2(BaseExplainer):
         #cf_mask[top_k] = 1.0
         
         #cf_mask = (mask.mean() - mask*2)
-        cf_mask = (mask <= mask.mean()).float()
+        m, std = torch.std_mean(mask, unbiased=False)
+        thres = m + std
+        cf_mask = (mask <= thres).float()  #mask.mean()
         #print("\n\t>> cf_mask:", cf_mask)
         #exit(0)
         

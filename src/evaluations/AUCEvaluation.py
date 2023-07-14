@@ -35,7 +35,7 @@ def _eval_AUC_node(explanations, explanation_labels):
     # node even though they belong to some other node explanation. 
     expl_pn_labels = explanation_labels[2]["per_node_labels"]
     
-    for expl in (t := tqdm(explanations, desc="[metrics]> AUC score", disable=False, colour="magenta")):
+    for expl in (t := tqdm(explanations, desc="[metrics]> AUC score", disable=True, colour="magenta")):
         #for expl in eval_step: # Loop over each node explanations 
         sub_graph   = expl[0]    # explanation edge-index (i.e. expl. subgraph)
         pred_scores = expl[1]    # explanation edge weights

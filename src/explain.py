@@ -189,7 +189,6 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
                     counterfactuals=explainer.test_cf_examples,
                     n_nodes=x.size(0))
     
-    #print(Fore.MAGENTA + "[metrics]>","test nodes with at least one CF example")
     test_cf = explainer.test_cf_examples 
     train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx"] else test_cf
     max_cf = len(train_idxs)
