@@ -175,7 +175,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         log_f.close()
 
     # balanced metric for AUC and cf%
-    metric = ((1-logs["fidelity"]*0.34) + (logs["sparsity"]*0.33) + (logs["accuracy"]*0.33))
+    metric = (((1-logs["fidelity"])*0.34) + (logs["sparsity"]*0.33) + (logs["accuracy"]*0.33))
 
     date_csv = datetime.now().strftime("%d-%m_%H:%M")
     to_csv = {

@@ -35,44 +35,44 @@ def _eval_AUC_node(explanations, explanation_labels):
     # node even though they belong to some other node explanation. 
     expl_pn_labels = explanation_labels[2]["per_node_labels"]
     
-    with tqdm(explanations, desc="[metrics]> AUC score", disable=False) as eval_step:
-        for expl in eval_step: # Loop over each node explanations 
-            sub_graph   = expl[0]    # explanation edge-index (i.e. expl. subgraph)
-            pred_scores = expl[1]    # explanation edge weights
-            node_idx    = expl[2]
+    for expl in (t := tqdm(explanations, desc="[metrics]> AUC score", disable=False, colour="magenta")):
+        #for expl in eval_step: # Loop over each node explanations 
+        sub_graph   = expl[0]    # explanation edge-index (i.e. expl. subgraph)
+        pred_scores = expl[1]    # explanation edge weights
+        node_idx    = expl[2]
 
-            ground_truth_node = []
-            prediction_node = []
+        ground_truth_node = []
+        prediction_node = []
+        
+        # node explanation labels as a matrix
+        mask = torch.zeros(expl_labels_dense.size())
+        expl_edges = torch.LongTensor(expl_pn_labels[str(node_idx)]).T  # use sparse repr for better indexing
+        mask[expl_edges[0],expl_edges[1]] = 1
+        mask[expl_edges[1],expl_edges[0]] = 1  # graph is undirected
+
+        n_edges = sub_graph.size(1)
+        for i in range(0, n_edges): # Loop over each edge in the explanation sub-graph
+            edge_pred = pred_scores[i].item()
+            prediction_node.append(edge_pred)
+
+            # Graphs are defined bidirectional, so we need to retrieve both edges
+            # If any of the edges is in the ground truth set, the edge should be in the explanation
+            #edge     = expl_labels_dense[pair[0]][pair[1]].item()  # to use old labels
+            #edge_rev = expl_labels_dense[pair[1]][pair[0]].item()  # to use old labels
+            pair = sub_graph.T[i].long() #.numpy()          
+            edge = mask[pair[0]][pair[1]]
+            edge_rev = mask[pair[1]][pair[0]]
             
-            # node explanation labels as a matrix
-            mask = torch.zeros(expl_labels_dense.size())
-            expl_edges = torch.LongTensor(expl_pn_labels[str(node_idx)]).T  # use sparse repr for better indexing
-            mask[expl_edges[0],expl_edges[1]] = 1
-            mask[expl_edges[1],expl_edges[0]] = 1  # graph is undirected
+            gt = edge + edge_rev
+            #print("ground truth:", gt)
+            if gt == 0:
+                ground_truth_node.append(0)
+            else:
+                ground_truth_node.append(1)
 
-            n_edges = sub_graph.size(1)
-            for i in range(0, n_edges): # Loop over each edge in the explanation sub-graph
-                edge_pred = pred_scores[i].item()
-                prediction_node.append(edge_pred)
-
-                # Graphs are defined bidirectional, so we need to retrieve both edges
-                # If any of the edges is in the ground truth set, the edge should be in the explanation
-                #edge     = expl_labels_dense[pair[0]][pair[1]].item()  # to use old labels
-                #edge_rev = expl_labels_dense[pair[1]][pair[0]].item()  # to use old labels
-                pair = sub_graph.T[i].long() #.numpy()          
-                edge = mask[pair[0]][pair[1]]
-                edge_rev = mask[pair[1]][pair[0]]
-                
-                gt = edge + edge_rev
-                #print("ground truth:", gt)
-                if gt == 0:
-                    ground_truth_node.append(0)
-                else:
-                    ground_truth_node.append(1)
-
-            #exit("\n[DEBUG]: sto a debbuggà, stacce.")            
-            ground_truth.extend(ground_truth_node)
-            predictions.extend(prediction_node)
+        #exit("\n[DEBUG]: sto a debbuggà, stacce.")            
+        ground_truth.extend(ground_truth_node)
+        predictions.extend(prediction_node)
 
     #fpr, tpr, thres = roc_curve(ground_truth, predictions)
     #print("[eval]> ROC thresholds:", len(thres)) 

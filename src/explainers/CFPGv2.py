@@ -241,111 +241,112 @@ class CFPGv2(BaseExplainer):
         best_loss = Inf
         #self.kl_loss = nn.KLDivLoss(reduction="batchmean")
         # Start training loop
-        with tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False) as epochs_bar:
-            for e in epochs_bar:
-                optimizer.zero_grad()
-                loss_total = torch.FloatTensor([0]).detach().to(self.device)
-                size_total = torch.FloatTensor([0]).detach().to(self.device)
-                ent_total  = torch.FloatTensor([0]).detach().to(self.device)
-                pred_total = torch.FloatTensor([0]).detach().to(self.device)
-                t = temp_schedule(e)
-                
-                b_id = 0
-                for node_batch in loader:
-                    if b_id == (n_batches-1):   # last batch may be smaller
-                        curr_batch_size = n_indices % NODE_BATCH_SIZE
+        #with tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False) as epochs_bar:
+        #    for e in epochs_bar:
+        for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False)):
+            optimizer.zero_grad()
+            loss_total = torch.FloatTensor([0]).detach().to(self.device)
+            size_total = torch.FloatTensor([0]).detach().to(self.device)
+            ent_total  = torch.FloatTensor([0]).detach().to(self.device)
+            pred_total = torch.FloatTensor([0]).detach().to(self.device)
+            t = temp_schedule(e)
+            
+            b_id = 0
+            for node_batch in loader:
+                if b_id == (n_batches-1):   # last batch may be smaller
+                    curr_batch_size = n_indices % NODE_BATCH_SIZE
+                else:
+                    curr_batch_size = NODE_BATCH_SIZE
+
+                #if self.type == 'node':
+                batch_feats  = node_batch.x
+                batch_graph  = node_batch.edge_index
+                global_n_ids = node_batch.n_id
+                b_id += 1
+
+                for b_n_idx in range(curr_batch_size):
+                    # only need node_id neighnbors to compute the explainer input
+                    global_idx = global_n_ids[b_n_idx].to(self.device)
+
+                    # we only consider 3hop-neighborhood for explaining
+                    sub_nodes, sub_index, n_map, _ = k_hop_subgraph(b_n_idx, 3, batch_graph, relabel_nodes=True)
+                    sub_index = sub_index.to(self.device)
+                    sub_feats = batch_feats[sub_nodes, :].to(self.device)
+
+                    # relabel sub-graph with global node indices   # still needed?
+                    global_n_ids = global_n_ids.to(self.device)
+                    sub_graph = torch.take(global_n_ids,sub_index)    
+                    
+
+                    # compute explanation mask
+                    expl_feats = embeds[global_n_ids].to(self.device)
+                    mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
+                    #print("\n\t>> node id:", global_idx)                        
+                    #print("\t>> mask mean:", mask.mean())
+                    #print("\t>> over mean:", (mask > mask.mean()).sum())
+
+                    #cf_adj = torch.ones(mask.size()).to(self.device) 
+                    #cf_mask = (cf_adj - mask) #.abs()
+
+                    #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
+                    #top_k = sorted_index[:6] #12
+                    #cf_mask = torch.zeros(mask.size())# - 0.5
+                    #cf_mask[top_k] = 1.0
+
+                    cf_mask = (mask <= mask.mean()).float()
+                    #cf_mask = (mask.mean() - mask*2).abs()
+
+                    masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
+                    original_pred = self.model_to_explain(sub_feats, sub_index)
+
+
+                    sub_node_idx = n_map.item()
+                    if self.type == 'node': # node class prediction
+                        # when considering the features subset, node prediction is at index 0
+                        masked_pred = masked_pred[sub_node_idx]
+                        op = original_pred[sub_node_idx]
+                        original_pred = op.argmax()
+                        pred_same = (masked_pred.argmax() == original_pred)
+
+                    if self.conv == "VAE":
+                        id_loss, size_loss, ent_loss, pred_loss = self.lossVAE(masked_pred=masked_pred, 
+                                                                original_pred=original_pred, 
+                                                                mask=mask,
+                                                                kl_loss=self.explainer_module.kl)
                     else:
-                        curr_batch_size = NODE_BATCH_SIZE
+                        id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
+                                                                original_pred=original_pred, 
+                                                                mask=mask)
 
-                    #if self.type == 'node':
-                    batch_feats  = node_batch.x
-                    batch_graph  = node_batch.edge_index
-                    global_n_ids = node_batch.n_id
-                    b_id += 1
-
-                    for b_n_idx in range(curr_batch_size):
-                        # only need node_id neighnbors to compute the explainer input
-                        global_idx = global_n_ids[b_n_idx].to(self.device)
-
-                        # we only consider 3hop-neighborhood for explaining
-                        sub_nodes, sub_index, n_map, _ = k_hop_subgraph(b_n_idx, 3, batch_graph, relabel_nodes=True)
-                        sub_index = sub_index.to(self.device)
-                        sub_feats = batch_feats[sub_nodes, :].to(self.device)
-
-                        # relabel sub-graph with global node indices   # still needed?
-                        global_n_ids = global_n_ids.to(self.device)
-                        sub_graph = torch.take(global_n_ids,sub_index)    
-                        
-
-                        # compute explanation mask
-                        expl_feats = embeds[global_n_ids].to(self.device)
-                        mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
-                        #print("\n\t>> node id:", global_idx)                        
-                        #print("\t>> mask mean:", mask.mean())
-                        #print("\t>> over mean:", (mask > mask.mean()).sum())
-
-                        #cf_adj = torch.ones(mask.size()).to(self.device) 
-                        #cf_mask = (cf_adj - mask) #.abs()
-
-                        #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
-                        #top_k = sorted_index[:6] #12
-                        #cf_mask = torch.zeros(mask.size())# - 0.5
-                        #cf_mask[top_k] = 1.0
-
-                        cf_mask = (mask <= mask.mean()).float()
-                        #cf_mask = (mask.mean() - mask*2).abs()
-
-                        masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
-                        original_pred = self.model_to_explain(sub_feats, sub_index)
+                    loss_total += id_loss
+                    size_total += size_loss
+                    ent_total  += ent_loss
+                    pred_total += pred_loss
 
 
-                        sub_node_idx = n_map.item()
-                        if self.type == 'node': # node class prediction
-                            # when considering the features subset, node prediction is at index 0
-                            masked_pred = masked_pred[sub_node_idx]
-                            op = original_pred[sub_node_idx]
-                            original_pred = op.argmax()
-                            pred_same = (masked_pred.argmax() == original_pred)
-
-                        if self.conv == "VAE":
-                            id_loss, size_loss, ent_loss, pred_loss = self.lossVAE(masked_pred=masked_pred, 
-                                                                    original_pred=original_pred, 
-                                                                    mask=mask,
-                                                                    kl_loss=self.explainer_module.kl)
-                        else:
-                            id_loss, size_loss, ent_loss, pred_loss = self.loss(masked_pred=masked_pred, 
-                                                                    original_pred=original_pred, 
-                                                                    mask=mask)
-
-                        loss_total += id_loss
-                        size_total += size_loss
-                        ent_total  += ent_loss
-                        pred_total += pred_loss
-
-
-                        # if masked prediction is different from original, save the CF example
-                        if pred_same == 0:
-                            #print("cf example found for node", global_idx)
-                            best_loss = id_loss
-                            cf_ex = {"best_loss": best_loss, "mask": cf_mask, "feats": cf_feat[sub_node_idx]}
-                            try: 
-                                if best_loss < self.cf_examples[str(global_idx)]["best_loss"]:
-                                    self.cf_examples[str(global_idx)] = cf_ex
-                            except KeyError:
+                    # if masked prediction is different from original, save the CF example
+                    if pred_same == 0:
+                        #print("cf example found for node", global_idx)
+                        best_loss = id_loss
+                        cf_ex = {"best_loss": best_loss, "mask": cf_mask, "feats": cf_feat[sub_node_idx]}
+                        try: 
+                            if best_loss < self.cf_examples[str(global_idx)]["best_loss"]:
                                 self.cf_examples[str(global_idx)] = cf_ex
+                        except KeyError:
+                            self.cf_examples[str(global_idx)] = cf_ex
 
-                epochs_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
+                p_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
                                     l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
                     
-                # metrics to plot
-                epoch_loss_tot.append(loss_total.item())
-                epoch_loss_size.append(size_total.item())
-                epoch_loss_ent.append(ent_total.item())
-                epoch_loss_pred.append(pred_total.item())
-                epoch_cf_ex.append(len(self.cf_examples.keys()))
+            # metrics to plot
+            epoch_loss_tot.append(loss_total.item())
+            epoch_loss_size.append(size_total.item())
+            epoch_loss_ent.append(ent_total.item())
+            epoch_loss_pred.append(pred_total.item())
+            epoch_cf_ex.append(len(self.cf_examples.keys()))
 
-                loss_total.backward()
-                optimizer.step()
+            loss_total.backward()
+            optimizer.step()
 
         self.history["train_loss"] = {
             "loss_tot"  : epoch_loss_tot,

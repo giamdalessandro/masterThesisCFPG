@@ -97,7 +97,7 @@ if device == "cuda" and CUDA:
 
 
 #### STEP 3: select explainer
-print(Fore.MAGENTA + "\n[explain]> loading explainer...")
+print(Fore.MAGENTA + "\n[explain]> Training the explainer...")
 cfg["expl_params"]["opt"] = cfg["expl_params"]["opt"] if args.opt == "base" else args.opt
 cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
 cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
@@ -189,7 +189,7 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
                     counterfactuals=explainer.test_cf_examples,
                     n_nodes=x.size(0))
     
-    print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example")
+    #print(Fore.MAGENTA + "[metrics]>","test nodes with at least one CF example")
     test_cf = explainer.test_cf_examples 
     train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx"] else test_cf
     max_cf = len(train_idxs)
@@ -198,11 +198,10 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     train_fnd = len(train_cf.keys())
     test_cf_perc = (test_fnd/max_cf)
     train_cf_perc = (train_fnd/max_cf)
-    print(f"\t>> [test ] with CF: {test_fnd}/{max_cf}  ({test_cf_perc*100:.2f}%)")
-    print(f"\t>> [train] with CF: {train_fnd}/{max_cf}  ({train_cf_perc*100:.2f}%)")
     
     print(Fore.MAGENTA + "[metrics]>","CF metrics...")
     print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
+    print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
     print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
     print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
     print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")

@@ -1,6 +1,9 @@
 import torch
 from tqdm import tqdm
 
+from colorama import init, Fore 
+init(autoreset=True) # initializes Colorama
+
 
 def sparsity_score(explanations):
     """Compute sparsity score i.e. the proportion of edges that are removed
@@ -44,7 +47,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
     #### Retruns 
         A tuple with the scores for (Fidelity, Sparsity, Expl.Size, Accuracy).
     """
-    print("\n[metrics]> computing CF metrics...")
+    print(Fore.MAGENTA + "\n[metrics]> computing CF metrics...")
     if task == "graph":
         return NotImplementedError("Graph classification not yet implemented.")
     elif task == "node":
@@ -53,7 +56,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
         node_spa = []
         node_acc = []
         expl_size = []
-        for expl in (t := tqdm(explanations, desc="[metrics]> (Fid,Spa,Acc,Size)")):
+        for expl in (t := tqdm(explanations, desc="[metrics]> (Fid,Spa,Acc,Size)", colour="magenta")):
                 edge_idx, e_mask, n_idx = expl
                 e_mask = (e_mask > e_mask.mean()).detach().long() #e_mask.mean()
 
@@ -66,6 +69,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
                 dense[edge_idx[0],edge_idx[1]] = e_mask
                 motif_gt = torch.LongTensor(edge_labels[str(n_idx)]).T
 
+                if n_removed == 0.0: n_removed = 0.1
                 in_expl = dense[motif_gt[0],motif_gt[1]].sum().item()
                 node_acc.append(round(in_expl/n_removed,4))
 

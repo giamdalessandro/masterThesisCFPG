@@ -2,7 +2,7 @@ import subprocess
 import os
 
 
-DATASETS = ["syn1","syn2","syn3","syn4"] #
+DATASETS = ["syn2"]  #["syn1","syn2","syn3","syn4"] #
 CONVS = ["GCN","GAT"] # "pGCN"
 EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
 EPOCHS = 20
