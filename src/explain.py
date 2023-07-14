@@ -191,7 +191,7 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     
     print(Fore.MAGENTA + "[explain]>","test nodes with at least one CF example")
     test_cf = explainer.test_cf_examples 
-    train_cf = explainer.cf_examples
+    train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx"] else test_cf
     max_cf = len(train_idxs)
 
     test_fnd = len(test_cf.keys())
@@ -261,7 +261,7 @@ if STORE_ADV:
     adv_node_feats = []
     for n_idx in range(x.size(0)):
         try:
-            adv_f = cf_examples[str(n_idx)]["feat"]
+            adv_f = test_cf[str(n_idx)]["feat"]
             adv_f = torch.nn.functional.max_pool1d(adv_f.unsqueeze(dim=0), 2)#.squeeze()
             adv_node_feats.append(adv_f)
         except KeyError:

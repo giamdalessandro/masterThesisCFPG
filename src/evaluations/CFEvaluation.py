@@ -55,7 +55,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
         expl_size = []
         for expl in (t := tqdm(explanations, desc="[metrics]> (Fid,Spa,Acc,Size)")):
                 edge_idx, e_mask, n_idx = expl
-                e_mask = (e_mask > e_mask.mean()).detach().long() 
+                e_mask = (e_mask > e_mask.mean()).detach().long() #e_mask.mean()
 
                 n_edges = edge_idx.size(1)
                 n_removed = e_mask.sum().item()
