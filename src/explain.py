@@ -98,7 +98,7 @@ if device == "cuda" and CUDA:
 
 #### STEP 3: select explainer
 print(Fore.MAGENTA + "\n[explain]> loading explainer...")
-#explainer = PGExplainer(model, edge_index, x, epochs=EPOCHS)
+cfg["expl_params"]["opt"] = cfg["expl_params"]["opt"] if args.opt == "base" else args.opt
 cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
 cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
 
@@ -116,6 +116,8 @@ else:
         cfg["expl_params"]["add_att"] = args.add_att
         cfg["expl_params"]["hid_gcn"] = args.hid_gcn
         explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
+        
+    # baseline explainers    
     elif EXPLAINER == "1hop":
         explainer = OneHopExplainer(model, graph, device=device)
     elif EXPLAINER == "perfEx":
@@ -131,12 +133,13 @@ auc_eval = AUCEvaluation(ground_truth=gt, indices=test_idxs)
 inference_eval = EfficiencyEvaluation()
 inference_eval.reset()
 
-# prepare the explainer (e.g. train the mlp-model if it's parametrized like PGEexpl)
+# prepare the explainer (i.e. train the Explanation Module)
 #print(">>>> test nodes:", indices.size())
 if TRAIN_NODES:
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
 else:                              
     train_idxs = test_idxs   # use only nodes that have an explanation ground truth
+    #train_idxs = test_idxs   # TODO: basta fa uno split qui
 explainer.prepare(indices=train_idxs)  # actually train the explainer model
 
 

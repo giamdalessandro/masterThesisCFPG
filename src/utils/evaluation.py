@@ -113,6 +113,8 @@ def parser_add_args(parser: argparse.ArgumentParser):
     parser.add_argument("--seed", "-s", type=int, default=42, help="Random seed (default: 42)")
     parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction,
                         help="Whether to explain original train nodes")
+    parser.add_argument("--opt", "-o", type=str, default="base", 
+                        choices=["Adam","SGD"], help="learning optimizer")
 
     # to test gnn conv, may move it to cfg.json
     parser.add_argument("--conv", "-c", type=str, default="base", 
