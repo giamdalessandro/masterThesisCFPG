@@ -292,7 +292,9 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
         all_values.extend(e)
 
         nodes.append(str(n_idx))
-        over_mean.extend([n_idx for _ in range((e > e.mean()).long().sum().item())])
+        m, std = torch.std_mean(e, unbiased=False)
+        thres = m + std
+        over_mean.extend([n_idx for _ in range((e > thres).long().sum().item())])
 
     ### TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
     # - posso aggiungere un histogramma del mappazzone fnale che ne viene fuori
