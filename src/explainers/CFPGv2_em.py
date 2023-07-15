@@ -97,7 +97,7 @@ class GCNExplModule(torch.nn.Module):
             #torch.nn.Softmax(dim=1)  # ZAVVE: testing
         ).to(self.device)
 
-    def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
+    def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float=0.0, train: bool=True):
         """Forward step with a GCN encoder."""
         # encoder step
         x1 = F.relu(self.enc_gc1(x, edge_index))
@@ -112,7 +112,7 @@ class GCNExplModule(torch.nn.Module):
         # decoder step
         out_dec = self.decoder(z)
         #self.out_decoder.append(out_dec)
-        sampled_mask = _sample_graph(out_dec, bias=bias, training=train)
+        sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
 
         return sampled_mask
 
@@ -156,7 +156,7 @@ class GATExplModule(torch.nn.Module):
             torch.nn.Linear(self.dec_h, 1)
         ).to(self.device)
 
-    def forward(self, x, edge_index, node_id, bias: float=0.0, train: bool=True):
+    def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float=0.0, train: bool=True):
         """Forward step with a GAT encoder."""
         # encoder step
         x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
@@ -178,7 +178,7 @@ class GATExplModule(torch.nn.Module):
             att_w = torch.mean(att_w[1], dim=1)
             out_dec = torch.add(out_dec.squeeze(),att_w,alpha=self.add_att)
         
-        sampled_mask = _sample_graph(out_dec, bias=bias, training=train)
+        sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
         #return sampled_mask, z, att_w 
         return sampled_mask
 

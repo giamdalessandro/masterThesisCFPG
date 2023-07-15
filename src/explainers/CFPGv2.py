@@ -207,10 +207,9 @@ class CFPGv2(BaseExplainer):
         self.explainer_module.train()
 
         # Create optimizer and temperature schedule
-        opt = self.coeffs["opt"]
-        if opt == "Adam": 
+        if self.coeffs["opt"] == "Adam": 
             optimizer = Adam(self.explainer_module.parameters(), lr=lr)
-        elif opt == "SGD":
+        elif self.coeffs["opt"] == "SGD":
             #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr, nesterov=True, momentum=0.9)
             optimizer = SGD(self.explainer_module.parameters(), lr=lr)
 
@@ -281,7 +280,7 @@ class CFPGv2(BaseExplainer):
 
                     # compute explanation mask
                     expl_feats = embeds[global_n_ids].to(self.device)
-                    mask = self.explainer_module(expl_feats, sub_index, n_map, bias=sample_bias)
+                    mask = self.explainer_module(expl_feats, sub_index, n_map, temp=t, bias=sample_bias)
                     #print("\n\t>> node id:", global_idx)                        
                     #print("\t>> mask mean:", mask.mean())
                     #print("\t>> over mean:", (mask > mask.mean()).sum())
