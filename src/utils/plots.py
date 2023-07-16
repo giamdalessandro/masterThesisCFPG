@@ -86,6 +86,7 @@ def plot_expl_loss(
     x_maj = [1] + list(x_maj[1:]) 
     x = range(1,len(norm_losses[0])+1)   # epochs id
     
+    print("\n[plots]> Generating --roc plots...")
     fig = plt.figure(figsize=(12,9), layout="tight")
     ax1 = fig.add_subplot(3,5,(1,3))
     ax2 = fig.add_subplot(3,5,(6,8))
@@ -106,6 +107,7 @@ def plot_expl_loss(
     ax1.grid(which="major", alpha=0.5)
     ax1.grid(which="minor", alpha=0.2)
     ax1.legend()
+    print("\t>>[ax1]> explanation loss plot... OK")
 
 
     ### perc losses plot
@@ -126,7 +128,7 @@ def plot_expl_loss(
     ax2.grid(which="major", alpha=0.5)
     ax2.grid(which="minor", alpha=0.2)
     ax2.legend(ncols=3)
-
+    print("\t>>[ax2]> loss contribution plot... OK")
 
     ### cf examples plot
     if len(cf_num) >= 0 and cf_tot > 0:  # cf examples plot
@@ -150,25 +152,26 @@ def plot_expl_loss(
         
         ### cf perc twinx plot
         cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
-        print("\t>> cf_perc:",len(cf_perc))
-        print("\t>> cf_num :",len(cf_num))
+        print("\t\t>> cf_perc:",len(cf_perc))
+        print("\t\t>> cf_num :",len(cf_num))
 
-        cf_mid = cf_num[(len(cf_num)//2)-1]
-        cf_num_tx = [min(cf_num),cf_mid,max(cf_num)] if min(cf_num) != max(cf_num) else cf_num[-1]
-        cf_perc_mid = cf_perc[(len(cf_perc)//2)-1] if cf_perc[-1] == "1.0000" else cf_perc[(len(cf_perc)//2)-2] 
-        cf_ticks = [min(cf_perc)[:4],cf_perc_mid[:4],max(cf_perc)[:4]] if min(cf_perc) != max(cf_perc) else cf_perc[-1][:4]
-        if cf_ticks[-1] != "1.00":
-            cf_ticks = cf_ticks + ["max"]
-            cf_num_tx = cf_num_tx + [cf_tot]
+        #cf_mid = cf_num[(len(cf_num)//2)-1]
+        #cf_num_tx = [min(cf_num),cf_mid,max(cf_num)] if min(cf_num) != max(cf_num) else cf_num[-1]
+        #cf_perc_mid = cf_perc[(len(cf_perc)//2)-1] if cf_perc[-1] == "1.0000" else cf_perc[(len(cf_perc)//2)-2] 
+        #cf_ticks = [min(cf_perc)[:4],cf_perc_mid[:4],max(cf_perc)[:4]] if min(cf_perc) != max(cf_perc) else cf_perc[-1][:4]
+        #if cf_ticks[-1] != "1.00":
+        #    cf_ticks = cf_ticks + ["max"]
+        #    cf_num_tx = cf_num_tx + [cf_tot]
 
         ax3_tx = ax3.twinx()
         ax3_tx.set_ylabel("portion of cf found")
         ax3_tx.plot(x, cf_num, ".-", alpha=0.2)
         ax3_tx.set_yticks(y_ticks, minor=True)
-        ax3_tx.set_yticks(ticks=cf_num_tx, labels=cf_ticks)
+        #ax3_tx.set_yticks(ticks=cf_num_tx, labels=cf_ticks)
         ax3_tx.grid(which="major", axis="y", alpha=0.4, color="gray")
         #ax3_tx.legend()
         #plt.hlines(perc_tick, 1, len(x), "gray", "--", alpha=0.2)
+        print("\t>>[ax3]> cf examples plot... OK")
 
     ### ROC curve plot
     from sklearn.metrics import RocCurveDisplay
@@ -186,6 +189,7 @@ def plot_expl_loss(
     ax4.set_ylabel("TP rate")
     ax4.set_title("ROC curve")
     ax4.legend()
+    print("\t>>[ax4]> ROC curve plot... OK")
 
 
     fig.suptitle(f"{expl_name} training on {dataset.upper()} dataset")
@@ -325,7 +329,7 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
     ax1.set_xlim(-0.05,1.05)
     ax1.grid(alpha=0.4)
 
-
+    """
     ### [ax2] global pre-sample hist plot
     print("\t>> pre-sample:", len(em_logs["pre-sample"]))
     all_pre = []
@@ -380,7 +384,7 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
                         #align="mid", 
                         #edgecolor="white",
                         #density=False)
-    #ax3.bar_label(bars)
+    #ax3.bar_label(bars)"""
 
 
     fig.suptitle(f"Explanation mask values distribution - {dataset.upper()}, {epochs} epochs")

@@ -27,8 +27,8 @@ for c in CONVS:
 #    for curr in ENT_COEFFS:
     for s in SEEDS:
         for d in DATASETS:
-            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --reg-ent 1.0 --reg-size 1.0 --reg-cf 1.0 --seed {s} "
-            suffix_args = f"--prefix allROne-overStd+Mean-hid-{EPOCHS} --log"
+            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --seed {s} "
+            suffix_args = f"--prefix rDef-overStd+Mean-leakyR005-{EPOCHS} --log"
             cmd = script_cmd + script_args + suffix_args
 
             print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")

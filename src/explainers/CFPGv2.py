@@ -337,7 +337,7 @@ class CFPGv2(BaseExplainer):
                         except KeyError:
                             self.cf_examples[str(global_idx)] = cf_ex
 
-                p_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
+            p_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
                                     l_ent=f"{ent_total.item():.4f}", l_pred=f"{pred_total.item():.4f}")
                     
             # metrics to plot

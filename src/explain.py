@@ -98,13 +98,13 @@ if device == "cuda" and CUDA:
 
 #### STEP 3: select explainer
 print(Fore.MAGENTA + "\n[explain]> Training the explainer...")
-cfg["expl_params"]["opt"] = cfg["expl_params"]["opt"] if args.opt == "base" else args.opt
 cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
 cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
 
 if EXPLAINER == "PGEex":
     explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
 else:
+    cfg["expl_params"]["opt"] = cfg["expl_params"]["opt"] if args.opt == "base" else args.opt
     cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"] if args.reg_cf == 0.0 else args.reg_cf
     
     if EXPLAINER == "CFPG":
@@ -215,7 +215,7 @@ else:
 if args.roc:
     e_name = explainer.expl_name
     e_h = explainer.history
-    em_logs = explainer.explainer_module.logs_d
+    em_logs = {} if EXPLAINER != "CFPGv2" else explainer.explainer_module.logs_d
     #plot_expl_loss(
     #    expl_name=e_name,
     #    dataset=DATASET,

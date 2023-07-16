@@ -92,7 +92,7 @@ class GCNExplModule(torch.nn.Module):
         self.latent_dim = self.enc_h*3
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim*2, self.dec_h),
-            torch.nn.ReLU(),
+            torch.nn.ReLU(), #LeakyReLU(negative_slope=0.01),
             torch.nn.Linear(self.dec_h, 1),
             #torch.nn.Softmax(dim=1)  # ZAVVE: testing
         ).to(self.device)
@@ -150,7 +150,7 @@ class GATExplModule(torch.nn.Module):
         self.latent_dim = self.enc_h*3
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
-            torch.nn.ReLU(), #torch.nn.LeakyReLU(negative_slope=0.01),
+            torch.nn.ReLU(), #LeakyReLU(negative_slope=0.05),
             torch.nn.Linear(self.dec_h, 1)
         ).to(self.device)
 
