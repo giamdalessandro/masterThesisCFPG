@@ -216,15 +216,15 @@ if args.roc:
     e_name = explainer.expl_name
     e_h = explainer.history
     em_logs = {} if EXPLAINER != "CFPGv2" else explainer.explainer_module.logs_d
-    #plot_expl_loss(
-    #    expl_name=e_name,
-    #    dataset=DATASET,
-    #    losses=e_h["train_loss"],
-    #    cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
-    #    cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
-    #    roc_gt=roc_gts,
-    #    roc_preds=roc_preds
-    #)
+    plot_expl_loss(
+        expl_name=e_name,
+        dataset=DATASET,
+        losses=e_h["train_loss"],
+        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
+        roc_gt=roc_gts,
+        roc_preds=roc_preds
+    )
     plot_mask_density(explanations, em_logs, DATASET, EPOCHS)
     #plot_scatter_node_mask(explanations)
 

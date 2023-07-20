@@ -123,7 +123,7 @@ class CFPGv2(BaseExplainer):
         EPS = 1e-15
 
         # Size loss
-        mask_mean = mask.mean().detach()
+        #mask_mean = mask.mean().detach()
 
         m, std = torch.std_mean(mask, unbiased=False)
         thres = m + std

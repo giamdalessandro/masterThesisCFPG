@@ -137,7 +137,7 @@ def plot_expl_loss(
         y_ticks = list(range(0,cf_tot,10)) if cf_tot <= 60 else list(range(0,cf_tot,30))
         y_ticks = y_ticks if y_ticks[-1] == cf_tot else y_ticks + [cf_tot]
         
-        ax3.set_title("cf examples found")
+        ax3.set_title("cf examples found (training)")
         ax3.plot(x, cf_num, "-", drawstyle='steps-mid', color="magenta", label="cf ex. found")
         for i in range(len(x)):
             ax3.text(x[i]-0.1, cf_num[i]+0.5, str(cf_num[i]), fontsize=9)
@@ -305,9 +305,9 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
     plt.style.use("bmh") # seaborn-v0_8
 
     fig = plt.figure(figsize=(9,9), layout="tight")
-    ax1 = fig.add_subplot(3,1,1)  # hist 1 
-    ax2 = fig.add_subplot(3,1,2)  # hist 2 
-    ax3 = fig.add_subplot(3,1,3)  # hist 3 / bar plot 3  
+    ax1 = fig.add_subplot(2,1,1)  # hist 1 
+    #ax2 = fig.add_subplot(3,1,2)  # hist 2 
+    ax3 = fig.add_subplot(2,1,2)  # hist 3 / bar plot 3  
 
     ### expl-wise count and percentages
     x = [round(x/10,1) for x in range(0,10,1)]
@@ -361,13 +361,13 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
     width = 1
     print("\t>> [ax3]> nodes:", len(nodes))
     print("\t>> [ax3]> over mean:", len(over_mean))
-    print("\t>> [ax3]> x3:", len(x3))
+    print("\t>> [ax3]> x3:", len(x3))"""
 
     ax3.set_title("Mask no. edges post-sampling (over-mean)")
     #ax3.bar(x3, over_mean, width=width, label="no expl.edges")
     _, _, bars = ax3.hist(over_mean, 
                         bins=len(nodes), 
-                        align="mid", 
+                        align="left", 
                         edgecolor="white")
                         #range=(0,1), 
                         #density=False)
@@ -384,7 +384,7 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
                         #align="mid", 
                         #edgecolor="white",
                         #density=False)
-    #ax3.bar_label(bars)"""
+    #ax3.bar_label(bars)
 
 
     fig.suptitle(f"Explanation mask values distribution - {dataset.upper()}, {epochs} epochs")
