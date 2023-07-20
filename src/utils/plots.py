@@ -63,7 +63,8 @@ def plot_expl_loss(
         cf_tot: int, 
         roc_gt: list, 
         roc_preds: list, 
-        show: bool=True
+        show: bool=True, 
+        verbose: bool=False
     ):
     """Plot explainer training performances. The visual includes:
     - the explainer loss and its components (pred, size and ent losses);
@@ -107,7 +108,7 @@ def plot_expl_loss(
     ax1.grid(which="major", alpha=0.5)
     ax1.grid(which="minor", alpha=0.2)
     ax1.legend()
-    print("\t>>[ax1]> explanation loss plot... OK")
+    if verbose: print("\t>>[ax1]> explanation loss plot... OK")
 
 
     ### perc losses plot
@@ -128,7 +129,7 @@ def plot_expl_loss(
     ax2.grid(which="major", alpha=0.5)
     ax2.grid(which="minor", alpha=0.2)
     ax2.legend(ncols=3)
-    print("\t>>[ax2]> loss contribution plot... OK")
+    if verbose: print("\t>>[ax2]> loss contribution plot... OK")
 
     ### cf examples plot
     if len(cf_num) >= 0 and cf_tot > 0:  # cf examples plot
@@ -152,8 +153,8 @@ def plot_expl_loss(
         
         ### cf perc twinx plot
         cf_perc = sorted(list(set([f"{(f/cf_tot):.4f}" for f in cf_num])))
-        print("\t\t>> cf_perc:",len(cf_perc))
-        print("\t\t>> cf_num :",len(cf_num))
+        #print("\t\t>> cf_perc:",len(cf_perc))
+        #print("\t\t>> cf_num :",len(cf_num))
 
         #cf_mid = cf_num[(len(cf_num)//2)-1]
         #cf_num_tx = [min(cf_num),cf_mid,max(cf_num)] if min(cf_num) != max(cf_num) else cf_num[-1]
@@ -171,7 +172,7 @@ def plot_expl_loss(
         ax3_tx.grid(which="major", axis="y", alpha=0.4, color="gray")
         #ax3_tx.legend()
         #plt.hlines(perc_tick, 1, len(x), "gray", "--", alpha=0.2)
-        print("\t>>[ax3]> cf examples plot... OK")
+        if verbose: print("\t>>[ax3]> cf examples plot... OK")
 
     ### ROC curve plot
     from sklearn.metrics import RocCurveDisplay
@@ -189,7 +190,7 @@ def plot_expl_loss(
     ax4.set_ylabel("TP rate")
     ax4.set_title("ROC curve")
     ax4.legend()
-    print("\t>>[ax4]> ROC curve plot... OK")
+    if verbose: print("\t>>[ax4]> ROC curve plot... OK")
 
 
     fig.suptitle(f"{expl_name} training on {dataset.upper()} dataset")
@@ -278,12 +279,13 @@ def plot_scatter_node_mask(explanations: list, show: bool=True):
     if show:   plt.show()
     return
 
-def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: int, show: bool=True):
+def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: int, 
+                    show: bool=True, verbose: bool=False):
     """Plot density of edge weights produced by the explainer.
     - explanations is a list of tuples (edge-idx,weights,node-idx)"""
 
     # get explanation mask value ranges 
-    print("\n[plot]> counting elems in span...")
+    print("\n[plots]> Mask density plot...")
     tot_edges = 0
     all_values = []
     nodes = [] 
@@ -297,7 +299,7 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
 
         nodes.append(str(n_idx))
         m, std = torch.std_mean(e, unbiased=False)
-        thres = m + std
+        thres = 0.5 #m + std
         over_mean.extend([n_idx for _ in range((e > thres).long().sum().item())])
 
     ### TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask

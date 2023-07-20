@@ -3,7 +3,7 @@ import os
 
 
 DATASETS = ["syn1","syn2","syn3","syn4"] #
-CONVS = ["GAT"] # ["GCN","pGCN"
+CONVS = ["GAT","GCN"] #,"pGCN"
 EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
 EPOCHS = 20
 
@@ -27,8 +27,8 @@ for c in CONVS:
 #    for curr in ENT_COEFFS:
     for s in SEEDS:
         for d in DATASETS:
-            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --heads 3 --seed {s} "
-            suffix_args = f"--prefix rDef-overStd+Mean-heads3-{EPOCHS} --log"
+            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --seed {s} "
+            suffix_args = f"--prefix rDef-binClass-GumbelSoftmax1-temp1.0-{EPOCHS} --log"
             cmd = script_cmd + script_args + suffix_args
 
             print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
