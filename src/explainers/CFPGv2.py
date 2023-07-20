@@ -210,8 +210,8 @@ class CFPGv2(BaseExplainer):
         if self.coeffs["opt"] == "Adam": 
             optimizer = Adam(self.explainer_module.parameters(), lr=lr)
         elif self.coeffs["opt"] == "SGD":
-            #optimizer = SGD(self.explainer_mlp.parameters(), lr=lr, nesterov=True, momentum=0.9)
-            optimizer = SGD(self.explainer_module.parameters(), lr=lr)
+            optimizer = SGD(self.explainer_module.parameters(), lr=lr, nesterov=True, momentum=0.5)
+            #optimizer = SGD(self.explainer_module.parameters(), lr=lr)
 
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
@@ -285,18 +285,25 @@ class CFPGv2(BaseExplainer):
                     #print("\t>> mask mean:", mask.mean())
                     #print("\t>> over mean:", (mask > mask.mean()).sum())
 
+                    ## basic minus thresholds
                     #cf_adj = torch.ones(mask.size()).to(self.device) 
                     #cf_mask = (cf_adj - mask) #.abs()
 
+                    ## top-k thresholds
                     #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
                     #top_k = sorted_index[:6] #12
                     #cf_mask = torch.zeros(mask.size())# - 0.5
                     #cf_mask[top_k] = 1.0
 
-                    m, std = torch.std_mean(mask, unbiased=False)
-                    thres = m + std
-                    cf_mask = (mask <= thres).float() #mask.mean()
+                    ## mean thresholds
+                    #m, std = torch.std_mean(mask, unbiased=False)
+                    #thres = m + std
+                    #cf_mask = (mask <= thres).float() #mask.mean()
                     #cf_mask = (mask.mean() - mask*2).abs()
+
+                    ## softmax thresholds
+                    cf_mask = mask.argmin(dim=1).float()
+                    mask = mask[:,1]
 
                     masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
                     original_pred = self.model_to_explain(sub_feats, sub_index)
@@ -417,25 +424,35 @@ class CFPGv2(BaseExplainer):
             embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
         # Use explainer mlp to get an explanation
-        expl_feats = embeds[sub_nodes, :].to(self.device)
+        #expl_feats = embeds[sub_nodes, :].to(self.device)
         #mask = self.explainer_module(sub_feats, sub_graph, n_map)
         mask = self.explainer_module(embeds, sub_graph, index, train=False)
-        #print("\n\t>> mask avg:", mask.mean())
+        
+        ## to get opposite of cf-mask, i.e. explanation
+        #cf_mask = (1 - mask)
 
-        # to get opposite of cf-mask, i.e. explanation
+        ## top-k thresholds
         #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
         #top_k = sorted_index[:6] #12
         #cf_mask = torch.zeros(mask.size())# - 0.5
         #cf_mask[top_k] = 1.0
         
+        ## mean thresholds
+        #m, std = torch.std_mean(mask, unbiased=False)
+        #thres = m + std
+        #cf_mask = (mask <= thres).float()  #mask.mean()
         #cf_mask = (mask.mean() - mask*2)
-        m, std = torch.std_mean(mask, unbiased=False)
-        thres = m + std
-        cf_mask = (mask <= thres).float()  #mask.mean()
-        #print("\n\t>> cf_mask:", cf_mask)
-        #exit(0)
         
-        #cf_mask = (1 - mask)
+        ## softmax thresholds
+        cf_mask = mask.argmin(dim=1).float()
+        #print("\n\t>> cf_mask:", cf_mask)
+        #print("\t>> cf_mask:", cf_mask.sum())
+        #print("\t>> argmax:", mask.argmax(dim=1).sum())
+        mask = mask[:,1]
+        #print("\t>> mask:", mask)
+        #print("\t>> over:", (mask > 0.5).sum())
+        #exit(0)
+
         self._extract_cf_example(index, sub_graph, cf_mask)
 
         expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph

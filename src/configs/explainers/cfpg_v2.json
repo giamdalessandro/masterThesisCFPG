@@ -16,13 +16,13 @@
         "syn2" : {
             "name" : "BAcommunities", 
             "opt" : "Adam",
-            "lr" : 0.005,
+            "lr" : 0.002,
             "conv" : "GAT",
             "heads" : 1,
             "reg_ent" : 0.5,
             "reg_size" : 0.001,
             "reg_cf" : 2.0,
-            "temps" : [2.0, 2.0],
+            "temps" : [2.0,2.0],
             "sample_bias" : 0.2
         },
         "syn3" : {
@@ -34,7 +34,7 @@
             "reg_ent" : 1.0,
             "reg_size" : 0.01,
             "reg_cf" : 5.0,
-            "temps" : [1.0, 1.0],
+            "temps" : [0.5,0.5],
             "sample_bias" : 0.0
         },
         "syn4" : {

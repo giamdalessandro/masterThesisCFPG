@@ -299,7 +299,7 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
 
         nodes.append(str(n_idx))
         m, std = torch.std_mean(e, unbiased=False)
-        thres = 0.5 #m + std
+        thres = 0.8 #m + std
         over_mean.extend([n_idx for _ in range((e > thres).long().sum().item())])
 
     ### TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
