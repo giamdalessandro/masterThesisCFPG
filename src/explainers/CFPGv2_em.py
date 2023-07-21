@@ -183,7 +183,7 @@ class GATExplModule(torch.nn.Module):
 
         # add attention
         if self.add_att != 0.0:
-            att_w = torch.mean(att_w[1], dim=1)
+            att_w = torch.mean(att_w[1], dim=1).sigmoid()
             out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
