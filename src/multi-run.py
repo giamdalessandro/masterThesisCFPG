@@ -4,7 +4,7 @@ import os
 
 DATASETS = ["syn1","syn2","syn3","syn4"] #
 CONVS = ["GAT","GCN"] #,"pGCN"
-EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
+EXPLAINER = "CFPG" # "CFPG", "CFPGv2", "PGEex"
 EPOCHS = 20
 
 # returns a list of 8 random small integers between 0 and 255
@@ -23,16 +23,16 @@ SEEDS = get8RandomBytesFromOS()[:4]
 
 script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
 rid = 0
-for c in ["GAT"]:
+#for c in CONVS:
 #    for curr in ENT_COEFFS:
-    for s in SEEDS:
-        for d in DATASETS:
-            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --heads 3 --reg-ent 1.0 --reg-cf 1.0 --reg-size 1.0 --seed {s} "
-            suffix_args = f"--prefix rAll1-3heads-GumbelSoftmaxTorch-1minusMask-{EPOCHS} --log"
-            cmd = script_cmd + script_args + suffix_args
+for s in SEEDS:
+    for d in DATASETS:
+        script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --seed {s} "
+        suffix_args = f"--prefix rDef-CFmetrics-{EPOCHS} --log"
+        cmd = script_cmd + script_args + suffix_args
 
-            print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
-            returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
-            rid += 1
+        print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
+        returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
+        rid += 1
 
 print("\n[runs]> Multi-run DONE...", returned_value)

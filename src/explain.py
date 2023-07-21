@@ -23,7 +23,7 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 from evaluations.CFEvaluation import get_cf_metrics
 
 
-THRES = 0.5
+THRES = 0.049
 
 
 CUDA = True

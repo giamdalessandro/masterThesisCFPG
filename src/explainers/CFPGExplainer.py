@@ -142,6 +142,9 @@ class CFPGExplainer(BaseExplainer):
             graph =  torch.sigmoid(gate_inputs)
         else:
             graph = torch.sigmoid(sampling_weights)
+
+        #graph = torch.nn.functional.gumbel_softmax(sampling_weights, tau=temperature, hard=False)
+
         return graph
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
