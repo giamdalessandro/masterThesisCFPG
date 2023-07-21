@@ -59,7 +59,8 @@ def plot_expl_loss(
         expl_name: str, 
         dataset: str,
         losses: dict, 
-        cf_num: list, 
+        cf_num: list,
+        cf_test: int, 
         cf_tot: int, 
         roc_gt: list, 
         roc_preds: list, 
@@ -166,7 +167,7 @@ def plot_expl_loss(
 
         ax3_tx = ax3.twinx()
         ax3_tx.set_ylabel("portion of cf found")
-        ax3_tx.plot(x, cf_num, ".-", alpha=0.2)
+        ax3_tx.plot(x[-1], cf_test, ".", alpha=0.2)
         ax3_tx.set_yticks(y_ticks, minor=True)
         #ax3_tx.set_yticks(ticks=cf_num_tx, labels=cf_ticks)
         ax3_tx.grid(which="major", axis="y", alpha=0.4, color="gray")
@@ -279,7 +280,7 @@ def plot_scatter_node_mask(explanations: list, show: bool=True):
     if show:   plt.show()
     return
 
-def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: int, 
+def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: int, thres: float=0.5,
                     show: bool=True, verbose: bool=False):
     """Plot density of edge weights produced by the explainer.
     - explanations is a list of tuples (edge-idx,weights,node-idx)"""
@@ -298,8 +299,8 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
         all_values.extend(e)
 
         nodes.append(str(n_idx))
-        m, std = torch.std_mean(e, unbiased=False)
-        thres = 0.5 #m + std
+        #m, std = torch.std_mean(e, unbiased=False)
+        #thres = m + std
         over_mean.extend([n_idx for _ in range((e > thres).long().sum().item())])
 
     ### TODO potrei fare uno scatter per ogni nodo ed i valori della sua explanation mask
@@ -365,12 +366,13 @@ def plot_mask_density(explanations: list, em_logs: dict, dataset: str, epochs: i
     print("\t>> [ax3]> over mean:", len(over_mean))
     print("\t>> [ax3]> x3:", len(x3))"""
 
-    ax3.set_title("Mask no. edges post-sampling (over-mean)")
+    ax3.set_title("Mask no. edges post-sampling (over-thres)")
     #ax3.bar(x3, over_mean, width=width, label="no expl.edges")
     _, _, bars = ax3.hist(over_mean, 
                         bins=len(nodes), 
                         align="left", 
-                        edgecolor="white")
+                        edgecolor="white",
+                        color="green")
                         #range=(0,1), 
                         #density=False)
     #ax3.bar_label(bars)

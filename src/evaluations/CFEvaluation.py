@@ -19,7 +19,7 @@ def sparsity_score(explanations):
     avg_spa = torch.FloatTensor(node_spa).mean().item()
     return avg_spa.item()
 
-def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, n_nodes: int, task: str="node"):
+def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, n_nodes: int, thres: float, task: str="node"):
     """Computes common metrics for a Countefactual Explainers. 
     ([Lucic et al., 2022](https://arxiv.org/abs/2102.03322))
     
@@ -59,8 +59,8 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
         for expl in (t := tqdm(explanations, desc="[metrics]> (Fid,Spa,Acc,Size)", colour="magenta")):
                 edge_idx, e_mask, n_idx = expl
 
-                m, std = torch.std_mean(e_mask, unbiased=False)
-                thres = 0.5 #m + std
+                #m, std = torch.std_mean(e_mask, unbiased=False)
+                #thres = m + std
                 e_mask = (e_mask > thres).detach().long() #e_mask.mean()
 
                 n_edges = edge_idx.size(1)

@@ -114,7 +114,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
     parser.add_argument("--train-nodes", default=False, action=argparse.BooleanOptionalAction,
                         help="Whether to explain original train nodes")
     parser.add_argument("--opt", "-o", type=str, default="base", 
-                        choices=["Adam","SGD"], help="learning optimizer")
+                        choices=["Adam","SGD","SGDm"], help="learning optimizer")
 
     # to test gnn conv, may move it to cfg.json
     parser.add_argument("--conv", "-c", type=str, default="base", 

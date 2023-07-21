@@ -23,6 +23,8 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 from evaluations.CFEvaluation import get_cf_metrics
 
 
+THRES = 0.5
+
 
 CUDA = True
 # explainer training
@@ -106,7 +108,8 @@ if EXPLAINER == "PGEex":
 else:
     cfg["expl_params"]["opt"] = cfg["expl_params"]["opt"] if args.opt == "base" else args.opt
     cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"] if args.reg_cf == 0.0 else args.reg_cf
-    
+    cfg["expl_params"]["thres"] = THRES
+
     if EXPLAINER == "CFPG":
         explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
     elif EXPLAINER == "CFPGv2":
@@ -187,7 +190,8 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
                     edge_labels=graph.pn_labels,
                     explanations=explanations,
                     counterfactuals=explainer.test_cf_examples,
-                    n_nodes=x.size(0))
+                    n_nodes=x.size(0),
+                    thres=THRES)
     
     test_cf = explainer.test_cf_examples 
     train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx"] else test_cf
@@ -221,11 +225,12 @@ if args.roc:
         dataset=DATASET,
         losses=e_h["train_loss"],
         cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+        cf_test=test_fnd,
         cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
         roc_gt=roc_gts,
         roc_preds=roc_preds
     )
-    plot_mask_density(explanations, em_logs, DATASET, EPOCHS)
+    plot_mask_density(explanations, em_logs, DATASET, EPOCHS, thres=THRES)
     #plot_scatter_node_mask(explanations)
 
 #exit("\n[DEBUGGONE]> sto a fixà i plot")

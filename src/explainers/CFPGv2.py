@@ -17,7 +17,6 @@ from utils.graphs import index_edge, create_symm_matrix_from_vec
 
 
 NODE_BATCH_SIZE = 32
-THRES = 0.5
 
 class CFPGv2(BaseExplainer):
     """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer v.2)"""
@@ -68,6 +67,7 @@ class CFPGv2(BaseExplainer):
             self.coeffs[k] = v
         print("\t>> explainer:", self.expl_name)
         print("\t>> coeffs:", self.coeffs)
+        self.thres = self.coeffs["thres"]
 
         if self.type == "graph": # graph classification model
             self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -120,14 +120,14 @@ class CFPGv2(BaseExplainer):
         reg_size = self.coeffs["reg_size"]
         reg_ent  = self.coeffs["reg_ent"]
         reg_cf   = self.coeffs["reg_cf"]
-        EPS = 1e-15
+        EPS = 1e-10  #e-15
 
         # Size loss
         #mask_mean = mask.mean().detach()
 
         #m, std = torch.std_mean(mask, unbiased=False)
-        #thres = THRES #m + std
-        #size_loss = (mask > thres).sum()   # working fine
+        #thres = m + std
+        #size_loss = (mask > THRES).sum()   # working fine
         #mask = mask.sigmoid()
         size_loss = (mask.sigmoid()).sum()  # -1
         size_loss = size_loss * reg_size
@@ -210,8 +210,9 @@ class CFPGv2(BaseExplainer):
         if self.coeffs["opt"] == "Adam": 
             optimizer = Adam(self.explainer_module.parameters(), lr=lr)
         elif self.coeffs["opt"] == "SGD":
-            #optimizer = SGD(self.explainer_module.parameters(), lr=lr, nesterov=True, momentum=0.9)
             optimizer = SGD(self.explainer_module.parameters(), lr=lr)
+        elif self.coeffs["opt"] == "SGDm":
+            optimizer = SGD(self.explainer_module.parameters(), lr=lr, nesterov=True, momentum=0.9)
 
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 

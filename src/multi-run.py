@@ -23,12 +23,12 @@ SEEDS = get8RandomBytesFromOS()[:4]
 
 script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
 rid = 0
-for c in CONVS:
+for c in ["GAT"]:
 #    for curr in ENT_COEFFS:
     for s in SEEDS:
         for d in DATASETS:
-            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --seed {s} "
-            suffix_args = f"--prefix rDef-regr-GumbelSoftmaxTorch-1minusMask-{EPOCHS} --log"
+            script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} --heads 3 --reg-ent 1.0 --reg-cf 1.0 --reg-size 1.0 --seed {s} "
+            suffix_args = f"--prefix rAll1-3heads-GumbelSoftmaxTorch-1minusMask-{EPOCHS} --log"
             cmd = script_cmd + script_args + suffix_args
 
             print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
