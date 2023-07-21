@@ -60,7 +60,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
                 edge_idx, e_mask, n_idx = expl
 
                 m, std = torch.std_mean(e_mask, unbiased=False)
-                thres = 0.8 #m + std
+                thres = 0.5 #m + std
                 e_mask = (e_mask > thres).detach().long() #e_mask.mean()
 
                 n_edges = edge_idx.size(1)

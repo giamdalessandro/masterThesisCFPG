@@ -97,7 +97,7 @@ class GCNExplModule(torch.nn.Module):
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim*2, self.dec_h),
             torch.nn.ReLU(), #LeakyReLU(negative_slope=0.01),
-            torch.nn.Linear(self.dec_h, 2),
+            torch.nn.Linear(self.dec_h, 1),
             #torch.nn.Softmax(dim=1)  # ZAVVE: testing
         ).to(self.device)
 
@@ -121,7 +121,7 @@ class GCNExplModule(torch.nn.Module):
         #self.out_decoder.append(out_dec)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = torch.nn.functional.gumbel_softmax(out_dec, tau=temp, hard=False, dim=1)
+        sampled_mask = torch.nn.functional.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
 
         return sampled_mask
 
@@ -160,7 +160,7 @@ class GATExplModule(torch.nn.Module):
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
             torch.nn.ReLU(), #LeakyReLU(negative_slope=0.05),
-            torch.nn.Linear(self.dec_h, 2),
+            torch.nn.Linear(self.dec_h, 1),
             #torch.nn.Softmax(dim=1)
         ).to(self.device)
 
@@ -187,8 +187,8 @@ class GATExplModule(torch.nn.Module):
             out_dec = torch.add(out_dec.squeeze(),att_w,alpha=self.add_att)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = torch.nn.functional.gumbel_softmax(out_dec, tau=temp, hard=False, dim=1)
-        
+        sampled_mask = torch.nn.functional.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+
         return sampled_mask
 
 

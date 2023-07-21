@@ -4,13 +4,13 @@
         "syn1" : {
             "name" : "BAshapes", 
             "opt" : "SGD",
-            "lr" : 0.001,
+            "lr" : 0.003,
             "conv" : "GAT",
             "heads" : 1,
             "reg_ent" : 1.0,
             "reg_size" : 0.001,
             "reg_cf" : 1.0,
-            "temps" : [1.0,1.0],
+            "temps" : [2.0,5.0],
             "sample_bias" : 0.0
         },
         "syn2" : {
@@ -28,13 +28,13 @@
         "syn3" : {
             "name" : "TreeCycles", 
             "opt" : "SGD",
-            "lr" : 0.001,
+            "lr" : 0.002,
             "conv" : "GAT",
             "heads" : 1,
             "reg_ent" : 1.0,
             "reg_size" : 0.01,
             "reg_cf" : 5.0,
-            "temps" : [0.5,0.5],
+            "temps" : [0.5,2.0],
             "sample_bias" : 0.0
         },
         "syn4" : {
