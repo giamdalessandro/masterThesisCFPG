@@ -23,9 +23,9 @@ from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 from evaluations.CFEvaluation import get_cf_metrics
 
 
-THRES = 0.9
+THRES = 0.5
 #-E CFPGv2 -D syn1 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 1.0 --opt Adam --heads 3 --hid-gcn 20 --add-att 1.0
-
+#-E CFPGv2 -D syn2 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 0.5 --opt Adam --heads 5 --hid-gcn 20 --add-att 5.0
 
 CUDA = True
 # explainer training
