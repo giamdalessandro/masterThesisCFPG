@@ -4,14 +4,16 @@
         "syn1" : {
             "name" : "BAshapes", 
             "opt" : "Adam",
-            "lr" : 0.01,
+            "lr" : 0.005,
             "conv" : "GAT",
-            "heads" : 5,
+            "heads" : 3,
             "reg_ent" : 0.5,
             "reg_size" : 0.001,
-            "reg_cf" : 2.0,
+            "reg_cf" : 5.0,
             "temps" : [1.0,1.0],
-            "sample_bias" : 0.5
+            "sample_bias" : 0.5,
+            "hid_gcn" : 32,
+            "add_att" : 1.0
         },
         "syn2" : {
             "name" : "BAcommunities", 
@@ -21,33 +23,39 @@
             "heads" : 5,
             "reg_ent" : 0.5,
             "reg_size" : 0.001,
-            "reg_cf" : 2.0,
+            "reg_cf" : 5.0,
             "temps" : [1.0,1.0],
-            "sample_bias" : 0.2
+            "sample_bias" : 0.2,
+            "hid_gcn" : 20,
+            "add_att" : 5.0
         },
         "syn3" : {
             "name" : "TreeCycles", 
-            "opt" : "SGD",
-            "lr" : 0.002,
+            "opt" : "Adam",
+            "lr" : 0.01,
             "conv" : "GAT",
-            "heads" : 1,
+            "heads" : 5,
             "reg_ent" : 1.0,
-            "reg_size" : 0.01,
+            "reg_size" : 0.1,
             "reg_cf" : 5.0,
-            "temps" : [5.0,1.0],
-            "sample_bias" : 0.0
+            "temps" : [1.0,0.5],
+            "sample_bias" : 0.0,
+            "hid_gcn" : 20,
+            "add_att" : 5.0
         },
         "syn4" : {
             "name" : "TreeGrids", 
             "opt" : "SGD",
-            "lr" : 0.002,
+            "lr" : 0.005,
             "conv" : "GAT",
-            "heads" : 1,
-            "reg_ent" : 2.0,
+            "heads" : 5,
+            "reg_ent" : 0.5,
             "reg_size" : 0.001,
-            "reg_cf" : 2.0,
-            "temps" : [1.0,1.0],
-            "sample_bias" : 0.5
+            "reg_cf" : 5.0,
+            "temps" : [10.0,1.0],
+            "sample_bias" : 0.5,
+            "hid_gcn" : 20,
+            "add_att" : 0.5
         }
     }
 }

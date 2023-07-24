@@ -129,7 +129,7 @@ class CFPGv2(BaseExplainer):
         #thres = m + std
         #size_loss = (mask > THRES).sum()   # working fine
         #mask = mask.sigmoid()
-        size_loss = (mask).sum()  #.sigmoid()
+        size_loss = (mask.sigmoid()).sum()  #
         size_loss = size_loss * reg_size
 
         # Entropy loss (PGE)
@@ -288,7 +288,7 @@ class CFPGv2(BaseExplainer):
 
                     ## basic minus thresholds
                     #cf_adj = torch.ones(mask.size()).to(self.device) 
-                    #cf_mask = (1 - mask) #.abs()
+                    cf_mask = (1 - mask) #.abs()
 
                     ## top-k thresholds
                     #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
@@ -303,8 +303,8 @@ class CFPGv2(BaseExplainer):
                     #cf_mask = (mask.mean() - mask*2).abs()
 
                     ## softmax thresholds
-                    cf_mask = mask.argmin(dim=1).float()
-                    mask = mask[:,1]
+                    #cf_mask = mask.argmin(dim=1).float()
+                    #mask = mask[:,1]
                     #cf_mask = (mask <= 0.5).float()
 
                     masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
@@ -431,7 +431,7 @@ class CFPGv2(BaseExplainer):
         mask = self.explainer_module(embeds, sub_graph, index, train=False)
         
         ## to get opposite of cf-mask, i.e. explanation
-        #cf_mask = (1 - mask)
+        cf_mask = (1 - mask)
 
         ## top-k thresholds
         #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
@@ -446,12 +446,12 @@ class CFPGv2(BaseExplainer):
         #cf_mask = (mask.mean() - mask*2)
         
         ## softmax thresholds
-        cf_mask = mask.argmin(dim=1).float()
+        #cf_mask = mask.argmin(dim=1).float()
         #cf_mask = (mask <= THRES).float()
         #print("\n\t>> cf_mask:", cf_mask)
         #print("\t>> cf_mask:", cf_mask.sum())
         #print("\t>> argmax:", mask.argmax(dim=1).sum())
-        mask = mask[:,1]
+        #mask = mask[:,1]
         #print("\t>> mask:", mask)
         #print("\t>> over:", (mask > 0.5).sum())
         #exit(0)
