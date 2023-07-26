@@ -5,7 +5,7 @@ from colorama import init, Fore
 init(autoreset=True) # initializes Colorama
 
 
-def sparsity_score(explanations):
+def sparsity_score(explanations: list):
     """Compute sparsity score i.e. the proportion of edges that are removed
     ([Yuan et al., 2020](https://arxiv.org/abs/2012.15445))"""
     node_spa = []

@@ -15,7 +15,7 @@ from .BaseExplainer import BaseExplainer
 from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule, GAALVExplModule
 from utils.graphs import index_edge, create_symm_matrix_from_vec
 
-
+THRES = 0.5
 NODE_BATCH_SIZE = 32
 
 class CFPGv2(BaseExplainer):
@@ -288,7 +288,9 @@ class CFPGv2(BaseExplainer):
 
                     ## basic minus thresholds
                     #cf_adj = torch.ones(mask.size()).to(self.device) 
+                    #cf_mask = torch.nn.functional.gumbel_softmax(mask, tau=t, hard=True, dim=0)
                     cf_mask = (1 - mask) #.abs()
+                    #cf_mask = (mask <= THRES).float()
 
                     ## top-k thresholds
                     #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
@@ -305,7 +307,6 @@ class CFPGv2(BaseExplainer):
                     ## softmax thresholds
                     #cf_mask = mask.argmin(dim=1).float()
                     #mask = mask[:,1]
-                    #cf_mask = (mask <= 0.5).float()
 
                     masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
                     original_pred = self.model_to_explain(sub_feats, sub_index)
@@ -429,9 +430,11 @@ class CFPGv2(BaseExplainer):
         #expl_feats = embeds[sub_nodes, :].to(self.device)
         #mask = self.explainer_module(sub_feats, sub_graph, n_map)
         mask = self.explainer_module(embeds, sub_graph, index, train=False)
-        
+        #mask = torch.nn.functional.gumbel_softmax(mask, tau=1.0, hard=False, dim=0)
+
         ## to get opposite of cf-mask, i.e. explanation
-        cf_mask = (1 - mask)
+        #cf_mask = (1 - mask)
+        cf_mask = (mask <= THRES).float()
 
         ## top-k thresholds
         #_, sorted_index = torch.sort(mask.squeeze(), descending=True)

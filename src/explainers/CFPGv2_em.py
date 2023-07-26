@@ -121,7 +121,7 @@ class GCNExplModule(torch.nn.Module):
         #self.out_decoder.append(out_dec)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = torch.nn.functional.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
 
         return sampled_mask
 
@@ -134,7 +134,7 @@ class GATExplModule(torch.nn.Module):
             dec_hidden: int=64,
             heads: int=1,
             add_att: float=0.0,
-            dropout: float=0.2, 
+            dropout: float=0.1, 
             device: str="cpu"
         ) -> None:
         super().__init__()
@@ -152,11 +152,12 @@ class GATExplModule(torch.nn.Module):
 
         if self.add_att != 0.0:
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
+            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False)
         else:
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
-            #self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
+            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
 
-        self.latent_dim = self.enc_h*3
+        self.latent_dim = (self.enc_h*3)*2
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
             torch.nn.ReLU(), #LeakyReLU(negative_slope=0.05),
@@ -167,10 +168,11 @@ class GATExplModule(torch.nn.Module):
     def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float=0.0, train: bool=True):
         """Forward step with a GAT encoder."""
         # encoder step
-        x1, att_w = self.enc_gc1(x, edge_index, return_attention_weights=True)
-        #x1 = F.relu(x1)
-        #x2, att_w = self.enc_gc2(x1, edge_index, return_attention_weights=True)
-        out_enc = F.relu(x1)
+        x1, att_w1 = self.enc_gc1(x, edge_index, return_attention_weights=True)
+        x1 = F.dropout(F.relu(x1),self.dropout)
+        x2, att_w2 = self.enc_gc2(x1, edge_index, return_attention_weights=True)
+        x2 = F.dropout(F.relu(x2),self.dropout)
+        out_enc = torch.cat((x1,x2),dim=1)
         #out_enc = nn.functional.dropout(out_enc,self.dropout)
         # get edge representation
         z = _get_edge_repr(edge_index, out_enc, node_id)
@@ -184,12 +186,14 @@ class GATExplModule(torch.nn.Module):
         # add attention
         if self.add_att != 0.0:
             # att_w contains
-            att_w = torch.mean(att_w[1], dim=1).sigmoid()
+            att_w1 = torch.mean(att_w1[1], dim=1)#.sigmoid()
+            att_w2 = torch.mean(att_w2[1], dim=1)#.sigmoid()
+            att_w = (att_w1 + att_w2)#.sigmoid()
             out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = torch.nn.functional.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        
         return sampled_mask
 
 
