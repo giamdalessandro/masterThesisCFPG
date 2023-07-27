@@ -157,7 +157,7 @@ class GATExplModule(torch.nn.Module):
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
             self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
 
-        self.latent_dim = (self.enc_h*3)*2
+        self.latent_dim = (self.enc_h*3)*3
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
             torch.nn.ReLU(), #LeakyReLU(negative_slope=0.05),
@@ -172,7 +172,9 @@ class GATExplModule(torch.nn.Module):
         x1 = F.dropout(F.relu(x1),self.dropout)
         x2, att_w2 = self.enc_gc2(x1, edge_index, return_attention_weights=True)
         x2 = F.dropout(F.relu(x2),self.dropout)
-        out_enc = torch.cat((x1,x2),dim=1)
+        x3, att_w3 = self.enc_gc2(x2, edge_index, return_attention_weights=True)
+        x3 = F.dropout(F.relu(x3),self.dropout)
+        out_enc = torch.cat((x1,x2,x3),dim=1)
         #out_enc = nn.functional.dropout(out_enc,self.dropout)
         # get edge representation
         z = _get_edge_repr(edge_index, out_enc, node_id)
@@ -190,7 +192,12 @@ class GATExplModule(torch.nn.Module):
             att_w2 = torch.mean(att_w2[1], dim=1)#.sigmoid()
             att_w = (att_w1 + att_w2)#.sigmoid()
             out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
-        
+            #print("\n\t>> out_dec:", out_dec.size())
+            #print("\t>> att_w1:", att_w1.size())
+            #print("\t>> att_w2:", att_w2.size())
+            #out_dec = torch.cat((out_dec,att_w1.unsqueeze(dim=1),att_w2.unsqueeze(dim=1)), dim=1)
+            #print("\n\t>> out_dec:", out_dec.size())
+
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
         sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
         

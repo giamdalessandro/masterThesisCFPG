@@ -21,8 +21,8 @@ def get8RandomBytesFromOS():
 SEEDS = get8RandomBytesFromOS()[:4]
 
 params = {
-    "syn1" : "--opt Adam --heads 3 --hid-gcn 32 --add-att 1.0",
-    "syn2" : "--opt Adam --heads 5 --hid-gcn 32 --add-att 5.0",
+    "syn1" : "--opt Adam --heads 3 --hid-gcn 32 --add-att 0.0",
+    "syn2" : "--opt Adam --heads 5 --hid-gcn 32 --add-att 0.0",
     "syn3" : "--opt Adam --heads 5 --hid-gcn 20 --add-att 0.0",
     "syn4" : "--opt Adam --heads 5 --hid-gcn 20 --add-att 0.0",
 }
@@ -37,7 +37,7 @@ rid = 0
 for s in SEEDS:
     for d in DATASETS:
         script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT {params[d]} --seed {s} "
-        suffix_args = f"--prefix rParams-GumbelSoftmaxMono-2conv-thresTest-{EPOCHS} --log"
+        suffix_args = f"--prefix rParams-GumbelSoftmaxMono-thresTest-3GAT-{EPOCHS} --log"
         cmd = script_cmd + script_args + suffix_args
 
         print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
