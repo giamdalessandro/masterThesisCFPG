@@ -35,8 +35,7 @@ rid = 0
 #    for curr in ENT_COEFFS:
 
 seeds_bar = tqdm(SEEDS, desc=f"[multi-run]> experiments", colour="yellow", disable=False)
-for s in SEEDS: #(p_bar := tqdm(SEEDS, desc=f"[multi-run]> experiments", colour="yellow", disable=False)):
-#for s in SEEDS:
+for s in SEEDS:
     for d in (d_bar := tqdm(DATASETS, desc=f"[multi-run]> datasets   ", colour="green", disable=False)):
         script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT {params[d]} --seed {s} "
         suffix_args = f"--prefix rParams-GumbelSMono-thresTest-3GATreal-{EPOCHS}"
@@ -48,7 +47,7 @@ for s in SEEDS: #(p_bar := tqdm(SEEDS, desc=f"[multi-run]> experiments", colour=
         result = run(cmd, capture_output=True, shell=True)
         for o in (result.stdout).decode("utf-8").split("\n"):
             tqdm.write(o)
-            
+
         rid += 1
 
     seeds_bar.update()
