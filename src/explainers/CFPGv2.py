@@ -16,7 +16,6 @@ from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule, GAALV
 from utils.graphs import index_edge, create_symm_matrix_from_vec
 
 THRES = 0.1
-DISABLE = True
 NODE_BATCH_SIZE = 32
 
 class CFPGv2(BaseExplainer):
@@ -37,7 +36,8 @@ class CFPGv2(BaseExplainer):
             task: str="node", 
             epochs: int=30, 
             device: str="cpu",
-            coeffs: dict=None
+            coeffs: dict=None,
+            verbose: bool=False
         ):
         """Initialize CFPGv2 explainer model
         
@@ -66,8 +66,8 @@ class CFPGv2(BaseExplainer):
         self.conv = conv
         for k,v in coeffs.items():
             self.coeffs[k] = v
-        print("\t>> explainer:", self.expl_name)
-        print("\t>> coeffs:", self.coeffs)
+        if verbose: print("\t>> explainer:", self.expl_name)
+        if verbose: print("\t>> coeffs:", self.coeffs)
         self.thres = self.coeffs["thres"]
 
         if self.type == "graph": # graph classification model
@@ -245,7 +245,7 @@ class CFPGv2(BaseExplainer):
         best_loss = Inf
         #self.kl_loss = nn.KLDivLoss(reduction="batchmean")
         # Start training loop
-        for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=DISABLE)):
+        for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=True)):
             optimizer.zero_grad()
             loss_total = torch.FloatTensor([0]).detach().to(self.device)
             size_total = torch.FloatTensor([0]).detach().to(self.device)

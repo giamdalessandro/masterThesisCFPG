@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser()
 parser = parser_add_args(parser)
 
 args = parser.parse_args()
-if VERBOSE: print(">>", args)
+print(">>", args)
 DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
 EXPLAINER = args.explainer    # "GNN", "CF-GNN" or "PGE"
 EPOCHS    = args.epochs       # explainer epochs
@@ -193,7 +193,8 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
                     explanations=explanations,
                     counterfactuals=explainer.test_cf_examples,
                     n_nodes=x.size(0),
-                    thres=THRES)
+                    thres=THRES,
+                    verbose=VERBOSE)
     
     test_cf = explainer.test_cf_examples 
     train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx"] else test_cf
@@ -204,12 +205,13 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     test_cf_perc = (test_fnd/max_cf)
     train_cf_perc = (train_fnd/max_cf)
     
-    if VERBOSE: print(Fore.MAGENTA + "[metrics]>","CF metrics...")
-    if VERBOSE: print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
-    if VERBOSE: print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
-    if VERBOSE: print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
-    if VERBOSE: print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
-    if VERBOSE: print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
+    if True: 
+        print(Fore.MAGENTA + "[metrics]>","CF metrics...")
+        print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
+        print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
+        print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
+        print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
+        print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
 else:
     # add some log info for log function    
     explainer.coeffs["lr"] = explainer.lr 

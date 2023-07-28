@@ -137,6 +137,8 @@ def parser_add_args(parser: argparse.ArgumentParser):
     parser.add_argument("--store-adv", default=False, action=argparse.BooleanOptionalAction, 
                         help="Whether to store adv samples")
     parser.add_argument("--device", "-d", default="cpu", help="Running device, 'cpu' or 'cuda'")
+    parser.add_argument("--verbose", default=False, action=argparse.BooleanOptionalAction, 
+                        help="Whether to plot infos.")
 
     return parser
 

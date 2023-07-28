@@ -19,7 +19,7 @@ def sparsity_score(explanations: list):
     avg_spa = torch.FloatTensor(node_spa).mean().item()
     return avg_spa.item()
 
-def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, n_nodes: int, thres: float, task: str="node"):
+def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, n_nodes: int, thres: float, task: str="node", verbose: bool=False):
     """Computes common metrics for a Countefactual Explainers. 
     ([Lucic et al., 2022](https://arxiv.org/abs/2102.03322))
     
@@ -47,7 +47,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
     #### Retruns 
         A tuple with the scores for (Fidelity, Sparsity, Expl.Size, Accuracy).
     """
-    print(Fore.MAGENTA + "\n[metrics]> computing CF metrics...")
+    if verbose: print(Fore.MAGENTA + "\n[metrics]> computing CF metrics...")
     if task == "graph":
         return NotImplementedError("Graph classification not yet implemented.")
     elif task == "node":
@@ -56,7 +56,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
         node_spa = []
         node_acc = []
         expl_size = []
-        for expl in (t := tqdm(explanations, desc="[metrics]> (Fid,Spa,Acc,Size)", colour="magenta")):
+        for expl in (t := tqdm(explanations, desc="[metrics]> (Fid,Spa,Acc,Size)", colour="magenta", disable=not(verbose))):
                 edge_idx, e_mask, n_idx = expl
 
                 #m, std = torch.std_mean(e_mask, unbiased=False)
