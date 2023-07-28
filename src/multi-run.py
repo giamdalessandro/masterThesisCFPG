@@ -1,11 +1,12 @@
 import os
-import subprocess
+#import subprocess
+from subprocess import PIPE, run
 from tqdm import tqdm
 
 DATASETS = ["syn1","syn2","syn3","syn4"] #
 CONVS = ["GAT","GCN"] #,"pGCN"
 EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
-EPOCHS = 100
+EPOCHS = 5
 
 # returns a list of 8 random small integers between 0 and 255
 def get8RandomBytesFromOS():
@@ -21,27 +22,35 @@ def get8RandomBytesFromOS():
 SEEDS = get8RandomBytesFromOS()[:4]
 
 params = {
-    "syn1" : "--opt Adam --heads 3 --hid-gcn 32 --add-att 0.0",
-    "syn2" : "--opt Adam --heads 5 --hid-gcn 32 --add-att 0.0",
-    "syn3" : "--opt Adam --heads 5 --hid-gcn 20 --add-att 0.0",
-    "syn4" : "--opt Adam --heads 5 --hid-gcn 20 --add-att 0.0",
+    "syn1" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20 --add-att 0.5",
+    "syn2" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20 --add-att 0.5",
+    "syn3" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20 --add-att 0.5",
+    "syn4" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20 --add-att 0.5",
 }
 
 
-script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py "
+script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py" #src/explain.py"
 rid = 0
 #for c in CONVS:
 #    for curr in ENT_COEFFS:
 
-#for e in (p_bar := tqdm(DATASETS, desc=f"[multi-run]> experiments", disable=False)):
-for s in SEEDS:
-    for d in DATASETS:
-        script_args = f"-E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT {params[d]} --seed {s} "
-        suffix_args = f"--prefix rParams-GumbelSoftmaxMono-thresTest-3GAT-{EPOCHS} --log"
-        cmd = script_cmd + script_args + suffix_args
+seeds_bar = tqdm(SEEDS, desc=f"[multi-run]> experiments", colour="yellow", disable=False)
+for s in SEEDS: #(p_bar := tqdm(SEEDS, desc=f"[multi-run]> experiments", colour="yellow", disable=False)):
+#for s in SEEDS:
+    for d in (d_bar := tqdm(DATASETS, desc=f"[multi-run]> datasets   ", colour="green", disable=False)):
+        script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT {params[d]} --seed {s} "
+        suffix_args = f"--prefix rParams-GumbelSMono-thresTest-3GATreal-{EPOCHS}"
+        args = script_args + suffix_args
+        cmd = script_cmd + args
+        #command = [cmd, args]
 
-        print("\n\n------------------------------ run id:", rid, f"curr-> {EXPLAINER} - {d} - seed {s}\n")
-        returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
+        tqdm.write(f"\n------------------------------ run id: {rid} curr-> {EXPLAINER} - {d} - seed {s}\n")
+        result = run(cmd, capture_output=True, shell=True)
+        for o in (result.stdout).decode("utf-8").split("\n"):
+            tqdm.write(o)
+            
         rid += 1
 
-print("\n[runs]> Multi-run DONE...", returned_value)
+    seeds_bar.update()
+
+print("\n[runs]> Multi-run DONE...", result.returncode)
