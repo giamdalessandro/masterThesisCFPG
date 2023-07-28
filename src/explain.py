@@ -22,7 +22,6 @@ from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 from evaluations.CFEvaluation import get_cf_metrics
 
-
 THRES = 0.1
 #-E CFPGv2 -D syn1 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 1.0 --opt Adam --heads 3 --hid-gcn 20 --add-att 1.0
 #-E CFPGv2 -D syn2 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 0.5 --opt Adam --heads 5 --hid-gcn 20 --add-att 5.0
@@ -33,7 +32,7 @@ parser = argparse.ArgumentParser()
 parser = parser_add_args(parser)
 
 args = parser.parse_args()
-print(">>", args)
+if VERBOSE: print(">>", args)
 DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
 EXPLAINER = args.explainer    # "GNN", "CF-GNN" or "PGE"
 EPOCHS    = args.epochs       # explainer epochs
@@ -42,6 +41,7 @@ PLOT      = args.plot_expl
 TRAIN_NODES = args.train_nodes
 STORE_ADV   = args.store_adv
 STORE_LOG   = args.log
+VERBOSE = args.verbose
 
 # ensure all modules have the same seed
 torch.manual_seed(SEED)
@@ -51,14 +51,14 @@ np.random.seed(SEED)
 device = args.device
 if torch.cuda.is_available() and device == "cuda" and CUDA:
     cuda_dev = torch.cuda.device("cuda")
-    print(">> cuda available", cuda_dev)
-    print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
+    if VERBOSE: print(">> cuda available", cuda_dev)
+    if VERBOSE: print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
     
 
 
 #### STEP 1: load a BAshapes dataset
 cfg = parse_config(dataset=DATASET, to_load=EXPLAINER)
-dataset, test_idxs = load_dataset(dataset=DATASET)
+dataset, test_idxs = load_dataset(dataset=DATASET, verbose=VERBOSE)
 train_idxs = dataset.train_mask
 # add some dataset info to config 
 cfg.update({
@@ -66,8 +66,8 @@ cfg.update({
     "num_node_features": dataset.num_node_features})
 
 graph = dataset.get(0)
-print(Fore.GREEN + "[dataset]> data graph from",f"{dataset}")
-#print("\t>>", graph)
+if VERBOSE: print(Fore.GREEN + "[dataset]> data graph from",f"{dataset}")
+#if VERBOSE: print("\t>>", graph)
 class_labels = graph.y
 class_labels = torch.argmax(class_labels, dim=1)
 x = graph.x
@@ -83,12 +83,13 @@ edge_index = graph.edge_index
 #    norm_adj = normalize_adj(dense_index)
 
 if DATASET == "cfg_syn4": DATASET = "syn4"
-model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=True, config=cfg, device=device)
+model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=True, 
+                            config=cfg, device=device, verbose=VERBOSE)
 
 
 # loading tensors for CUDA computation 
 if device == "cuda" and CUDA:
-    print("\n>> loading tensors to cuda...")
+    if VERBOSE: print("\n>> loading tensors to cuda...")
     model = model.to(device)
     for p in model.parameters():
         p.to(device)
@@ -96,11 +97,11 @@ if device == "cuda" and CUDA:
     x = x.to(device)
     edge_index = edge_index.to(device)
     labels = class_labels.to(device)
-    print(">> DONE")
+    if VERBOSE: print(">> DONE")
 
 
 #### STEP 3: select explainer
-print(Fore.MAGENTA + "\n[explain]> Training the explainer...")
+if VERBOSE: print(Fore.MAGENTA + "\n[explain]> Training the explainer...")
 cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
 cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
 
@@ -138,7 +139,7 @@ inference_eval = EfficiencyEvaluation()
 inference_eval.reset()
 
 # prepare the explainer (i.e. train the Explanation Module)
-#print(">>>> test nodes:", indices.size())
+#if VERBOSE: print(">>>> test nodes:", indices.size())
 if TRAIN_NODES:
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
 else:                              
@@ -150,7 +151,7 @@ explainer.prepare(indices=train_idxs)  # actually train the explainer model
 # Actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
 explanations = []
-with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
+with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=True) as test_epoch:
     top_k = 12 if DATASET != "syn4" else 24
     top_k = 0 if EXPLAINER in ["1hop","perfEx"] else top_k
     verbose = False
@@ -169,17 +170,17 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
 
 inference_eval.done_explaining()
 
-#print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
-#print("\t>> correct expl labels :", explainer.correct_labels.sum())
-#print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
+#if VERBOSE: print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
+#if VERBOSE: print("\t>> correct expl labels :", explainer.correct_labels.sum())
+#if VERBOSE: print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
 
 
 # Metrics: compute AUC score for computed explanation
-print(Fore.MAGENTA + "\n[explain]> explanation metrics")
+if VERBOSE: print(Fore.MAGENTA + "\n[explain]> explanation metrics")
 auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
-print("\t>> final score:",f"{auc_score:.4f}")
-print("\t>> time elapsed:",f"{time_score:.4f}")
+if VERBOSE: print("\t>> final score:",f"{auc_score:.4f}")
+if VERBOSE: print("\t>> time elapsed:",f"{time_score:.4f}")
 
 
 #### STEP 5: Logs and plots
@@ -203,12 +204,12 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     test_cf_perc = (test_fnd/max_cf)
     train_cf_perc = (train_fnd/max_cf)
     
-    print(Fore.MAGENTA + "[metrics]>","CF metrics...")
-    print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
-    print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
-    print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
-    print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
-    print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
+    if VERBOSE: print(Fore.MAGENTA + "[metrics]>","CF metrics...")
+    if VERBOSE: print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
+    if VERBOSE: print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
+    if VERBOSE: print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
+    if VERBOSE: print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
+    if VERBOSE: print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
 else:
     # add some log info for log function    
     explainer.coeffs["lr"] = explainer.lr 
@@ -281,7 +282,7 @@ if STORE_ADV:
         "test_idxs" : dataset.test_mask,
         #"edge_labels" : dataset[0].edge_label,
     }
-    print("adv_features :", adv_node_feats.size()) 
+    if VERBOSE: print("adv_features :", adv_node_feats.size()) 
 
     # store in a .pkl file the adv examples
     rel_path = f"/../datasets/pkls/{DATASET}_adv_train_{EXPLAINER}.pt"

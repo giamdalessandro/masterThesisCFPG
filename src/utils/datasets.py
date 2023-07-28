@@ -96,7 +96,14 @@ def syn_dataset_from_file(dataset: str, data_dir: str=DATA_DIR):
     return loaded_data
 
 
-def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproccessing: bool=False, shuffle: bool=True):
+def load_dataset(
+        dataset: str, 
+        paper: str="", 
+        load_adv: bool=False, 
+        skip_preproccessing: bool=False, 
+        shuffle: bool=True, 
+        verbose: bool=False
+    ):
     r"""High level function which loads the dataset by calling the proper method 
     for node-classification or graph-classification datasets.
 
@@ -111,7 +118,7 @@ def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproc
     Returns:    
         The couple (`torch_geometric.data.Dataset`,list). 
     """
-    print(Fore.GREEN + f"[dataset]> loading dataset...")
+    if verbose: print(Fore.GREEN + f"[dataset]> loading dataset...")
     if "syn" in dataset: 
         # Load node-classification datasets
         if dataset == "syn1" or dataset == "syn2":
@@ -122,13 +129,13 @@ def load_dataset(dataset: str, paper: str="", load_adv: bool=False, skip_preproc
             test_indices = range(511,800,1)
 
         filename = dataset + ".pkl"
-        print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
+        if verbose: print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
 
         # create dataset class with loaded data
-        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv)
-        print("\t>> #graphs:       ", len(pyg_dataset))
-        print("\t>> #classes:      ", pyg_dataset.num_classes)
-        print("\t>> #node_features:", pyg_dataset.num_node_features)
+        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv, verbose=verbose)
+        if verbose: print("\t>> #graphs:       ", len(pyg_dataset))
+        if verbose: print("\t>> #classes:      ", pyg_dataset.num_classes)
+        if verbose: print("\t>> #node_features:", pyg_dataset.num_node_features)
 
         return pyg_dataset, test_indices
         

@@ -51,7 +51,7 @@ def string_to_model(paper: str, dataset: str, device: str, config):
     else:
         raise NotImplementedError(f"Model {paper} not implemented.")
 
-def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
+def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str, verbose: bool=False):
     """Given a paper and dataset loads the pre-trained model.
 
     #### Args    
@@ -84,15 +84,15 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str):
     #elif explainer == "adv":
     #    rel_path = f"{paper}/{explainer}/{dataset}/{model_name}"
 
-    print(Fore.CYAN + "[models]> ...loading checkpoint from",f"'checkpoints/{rel_path}'")
+    if verbose: print(Fore.CYAN + "[models]> ...loading checkpoint from",f"'checkpoints/{rel_path}'")
 
     checkpoint = torch.load(SAVES_DIR + rel_path)
     if paper == "CF-GNN_old":
         model.load_state_dict(checkpoint)
-        print(Fore.CYAN + f"[models]>","Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
+        if verbose: print(Fore.CYAN + f"[models]>","Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
     else:
         model.load_state_dict(checkpoint['model_state_dict'])
-        print(Fore.CYAN + "[models]>","This model obtained:\n",
+        if verbose: print(Fore.CYAN + "[models]>","This model obtained:\n",
             f"\ttrain_acc: {checkpoint['train_acc']:.4f}",
             f"val_acc: {checkpoint['val_acc']:.4f}",
             f"test_acc: {checkpoint['test_acc']:.4f}.")
@@ -105,7 +105,8 @@ def model_selector(
         explainer: str="",  
         pretrained: bool=True, 
         device: str="cpu", 
-        config=None
+        config=None,
+        verbose: bool=False
     ): 
     r"""Given a paper and dataset loads accociated model.
 
@@ -132,7 +133,7 @@ def model_selector(
         `torch.nn.module` models and optionallly a dict containing it's parameters.
     """
     model = string_to_model(paper, dataset, device, config)
-    print(Fore.CYAN + "\n[models]: chosen model\n", model)
+    if verbose: print(Fore.CYAN + "\n[models]: chosen model\n", model)
     if pretrained:
         model, checkpoint = get_pretrained_checkpoint(model, paper, dataset, explainer)
         return model, checkpoint

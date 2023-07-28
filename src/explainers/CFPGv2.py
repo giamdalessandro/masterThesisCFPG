@@ -15,7 +15,8 @@ from .BaseExplainer import BaseExplainer
 from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule, GAALVExplModule
 from utils.graphs import index_edge, create_symm_matrix_from_vec
 
-THRES = 0.5
+THRES = 0.1
+DISABLE = True
 NODE_BATCH_SIZE = 32
 
 class CFPGv2(BaseExplainer):
@@ -244,7 +245,7 @@ class CFPGv2(BaseExplainer):
         best_loss = Inf
         #self.kl_loss = nn.KLDivLoss(reduction="batchmean")
         # Start training loop
-        for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=False)):
+        for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=DISABLE)):
             optimizer.zero_grad()
             loss_total = torch.FloatTensor([0]).detach().to(self.device)
             size_total = torch.FloatTensor([0]).detach().to(self.device)
