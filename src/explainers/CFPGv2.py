@@ -69,6 +69,7 @@ class CFPGv2(BaseExplainer):
         if verbose: print("\t>> explainer:", self.expl_name)
         if verbose: print("\t>> coeffs:", self.coeffs)
         self.thres = self.coeffs["thres"]
+        self.verbose = verbose
 
         if self.type == "graph": # graph classification model
             self.expl_embedding = self.model_to_explain.embedding_size * 2
@@ -245,7 +246,7 @@ class CFPGv2(BaseExplainer):
         best_loss = Inf
         #self.kl_loss = nn.KLDivLoss(reduction="batchmean")
         # Start training loop
-        for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=True)):
+        for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=not(self.verbose))):
             optimizer.zero_grad()
             loss_total = torch.FloatTensor([0]).detach().to(self.device)
             size_total = torch.FloatTensor([0]).detach().to(self.device)

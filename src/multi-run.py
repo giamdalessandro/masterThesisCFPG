@@ -6,7 +6,7 @@ from tqdm import tqdm
 DATASETS = ["syn1","syn2","syn3","syn4"] #
 CONVS = ["GAT","GCN"] #,"pGCN"
 EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
-EPOCHS = 100
+EPOCHS = 50
 
 # returns a list of 8 random small integers between 0 and 255
 def get8RandomBytesFromOS():
@@ -22,10 +22,10 @@ def get8RandomBytesFromOS():
 SEEDS = get8RandomBytesFromOS()[:4]
 
 params = {
-    "syn1" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20",
-    "syn2" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20",
-    "syn3" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20",
-    "syn4" : "--reg-ent 1.0 --reg-cf 1.0 --reg-size 0.1 --opt Adam --heads 3 --hid-gcn 20",
+    "syn1" : "--opt Adam --heads 3 --hid-gcn 20 --add-att 1.0",
+    "syn2" : "--opt Adam --heads 3 --hid-gcn 20 --add-att 1.0",
+    "syn3" : "--opt Adam --heads 3 --hid-gcn 20 --add-att 1.0",
+    "syn4" : "--opt Adam --heads 3 --hid-gcn 20 --add-att 1.0",
 }
 
 
@@ -38,7 +38,7 @@ seeds_bar = tqdm(SEEDS, desc=f"[multi-run]> experiments", colour="yellow", disab
 for s in SEEDS:
     for d in (d_bar := tqdm(DATASETS, desc=f"[seed {s:03}]> datasets... ", colour="green", disable=False)):
         script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT {params[d]} --seed {s} "
-        suffix_args = f"--prefix rAll1-SparsemaxMono-thresTest-3GATreal-CatAtt"
+        suffix_args = f"--prefix rParams-SparsemaxMono-thresTest01-3GATreal-CatAtt --log"
         args = script_args + suffix_args
         cmd = script_cmd + args
         #command = [cmd, args]

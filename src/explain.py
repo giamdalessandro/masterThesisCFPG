@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser()
 parser = parser_add_args(parser)
 
 args = parser.parse_args()
-print(">>", args)
+print(">>", args, "\n")
 DATASET   = args.dataset      # "BAshapes"(syn1), "BAcommunities"(syn2)
 EXPLAINER = args.explainer    # "GNN", "CF-GNN" or "PGE"
 EPOCHS    = args.epochs       # explainer epochs
@@ -120,7 +120,7 @@ else:
         cfg["expl_params"]["heads"]   = args.heads
         cfg["expl_params"]["add_att"] = args.add_att
         cfg["expl_params"]["hid_gcn"] = args.hid_gcn
-        explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"], verbose=False)
+        explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"], verbose=VERBOSE)
         
     # baseline explainers    
     elif EXPLAINER == "1hop":

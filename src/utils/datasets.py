@@ -132,7 +132,7 @@ def load_dataset(
         if verbose: print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
 
         # create dataset class with loaded data
-        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv, verbose=verbose)
+        pyg_dataset = BAGraphDataset(dataset=dataset, load_adv=load_adv, verbose=False)
         if verbose: print("\t>> #graphs:       ", len(pyg_dataset))
         if verbose: print("\t>> #classes:      ", pyg_dataset.num_classes)
         if verbose: print("\t>> #node_features:", pyg_dataset.num_node_features)

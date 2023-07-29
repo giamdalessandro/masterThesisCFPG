@@ -135,7 +135,7 @@ def model_selector(
     model = string_to_model(paper, dataset, device, config)
     if verbose: print(Fore.CYAN + "\n[models]: chosen model\n", model)
     if pretrained:
-        model, checkpoint = get_pretrained_checkpoint(model, paper, dataset, explainer)
+        model, checkpoint = get_pretrained_checkpoint(model, paper, dataset, explainer, verbose=verbose)
         return model, checkpoint
         
     return model, None
