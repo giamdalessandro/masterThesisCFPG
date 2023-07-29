@@ -120,7 +120,7 @@ else:
         cfg["expl_params"]["heads"]   = args.heads
         cfg["expl_params"]["add_att"] = args.add_att
         cfg["expl_params"]["hid_gcn"] = args.hid_gcn
-        explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"])
+        explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"], verbose=False)
         
     # baseline explainers    
     elif EXPLAINER == "1hop":

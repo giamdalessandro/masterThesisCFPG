@@ -162,7 +162,7 @@ class GATExplModule(torch.nn.Module):
             self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
             self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
 
-        self.latent_dim = (self.enc_h*3)*3 + 3
+        self.latent_dim = ((self.enc_h*3)*3 + 3) if self.add_att != 0.0 else ((self.enc_h*3)*3) 
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
             torch.nn.ReLU(), #LeakyReLU(negative_slope=0.05),
