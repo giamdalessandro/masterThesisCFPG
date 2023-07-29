@@ -171,7 +171,7 @@ class GATExplModule(torch.nn.Module):
             #torch.nn.Softmax(dim=1)
         ).to(self.device)
 
-        #self.sparsemax = Sparsemax(dim=0).to(self.device)
+        self.sparsemax = Sparsemax(dim=0).to(self.device)
 
     def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float=0.0, train: bool=True):
         """Forward step with a GAT encoder."""
@@ -212,8 +212,8 @@ class GATExplModule(torch.nn.Module):
         #    out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
 
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        #sampled_mask = self.sparsemax(out_dec)
+        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        sampled_mask = self.sparsemax(out_dec)
         
         return sampled_mask
 
