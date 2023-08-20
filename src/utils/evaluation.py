@@ -127,7 +127,8 @@ def parser_add_args(parser: argparse.ArgumentParser):
     parser.add_argument("--reg-cf", type=float, default=0.0, help="Pred loss coeff")
 
     # other arguments
-    parser.add_argument("--prefix", type=str, default="")
+    parser.add_argument("--prefix", type=str, default="",
+                        help="Notes on the current run")
     parser.add_argument("--log", default=False, action=argparse.BooleanOptionalAction, 
                         help="Whether to store run logs")
     parser.add_argument("--roc", default=False, action=argparse.BooleanOptionalAction, 

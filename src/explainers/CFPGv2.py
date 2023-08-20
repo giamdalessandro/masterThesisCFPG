@@ -66,7 +66,7 @@ class CFPGv2(BaseExplainer):
         self.conv = conv
         for k,v in coeffs.items():
             self.coeffs[k] = v
-        if verbose: print("\t>> explainer:", self.expl_name)
+        #if verbose: print("\t>> explainer:", self.expl_name)
         if verbose: print("\t>> coeffs:", self.coeffs)
         self.thres = self.coeffs["thres"]
         self.verbose = verbose

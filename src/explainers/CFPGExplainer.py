@@ -12,6 +12,8 @@ from torch_geometric.loader import NeighborLoader
 from .BaseExplainer import BaseExplainer
 from utils.graphs import index_edge
 
+from .sparsemax import Sparsemax
+
 
 NODE_BATCH_SIZE = 32
 
@@ -67,7 +69,7 @@ class CFPGExplainer(BaseExplainer):
         self.epochs = epochs
         for k,v in coeffs.items():
             self.coeffs[k] = v
-        print("\t>> explainer:", self.expl_name)
+        #print("\t>> explainer:", self.expl_name)
         print("\t>> coeffs:", self.coeffs)
 
         if self.type == "graph": # graph classificatio model
@@ -81,6 +83,8 @@ class CFPGExplainer(BaseExplainer):
             nn.ReLU(),
             nn.Linear(64, 1),
         ).to(self.device)
+
+        self.sparsemax = Sparsemax(dim=0).to(self.device)
 
 
     def _create_explainer_input(self, pair, embeds, node_id):
@@ -285,7 +289,9 @@ class CFPGExplainer(BaseExplainer):
                         
                         sampling_weights = self.explainer_mlp(input_expl)
                         mask = self._sample_graph(sampling_weights, t, bias=sample_bias, training=False).squeeze()
-                        
+                        #mask = torch.nn.functional.gumbel_softmax(sampling_weights, tau=t, hard=False, dim=0).squeeze()
+                        #mask = self.sparsemax(sampling_weights).squeeze()
+
                         # to get opposite of cf-mask, i.e. explanation
                         #cf_adj = torch.ones(mask.size()).to(self.device) 
                         cf_mask = (1 - mask).abs()
@@ -406,6 +412,8 @@ class CFPGExplainer(BaseExplainer):
         input_expl = self._create_explainer_input(graph, embeds, index).unsqueeze(dim=0)
         sampling_weights = self.explainer_mlp(input_expl)
         mask = self._sample_graph(sampling_weights, training=False).squeeze()
+        #mask = torch.nn.functional.gumbel_softmax(sampling_weights, tau=1.0, hard=False, dim=0).squeeze()
+        #mask = self.sparsemax(sampling_weights).squeeze()
     
         # to get opposite of cf-mask, i.e. explanation
         cf_mask = (1 - mask).abs()

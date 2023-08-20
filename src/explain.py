@@ -17,6 +17,7 @@ from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.plots import plot_graph, plot_expl_loss, plot_mask_density, plot_scatter_node_mask
 from utils.evaluation import store_expl_log, parser_add_args
+from utils.explaining import explainer_selector
 
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
@@ -74,18 +75,10 @@ x = graph.x
 edge_index = graph.edge_index
 
 
-#### STEP 2: instantiate GNN model, one of GNN or CF-GNN
-#if EXPLAINER == "CF-GNN":
-#    # need dense-normalized adjacency matrix for GCNSynthetic model
-#    v = torch.ones(edge_index.size(1))
-#    s = (graph.num_nodes,graph.num_nodes)
-#    dense_index = torch.sparse_coo_tensor(indices=edge_index, values=v, size=s).to_dense()
-#    norm_adj = normalize_adj(dense_index)
-
+#### STEP 2: instantiate pretrained GNN model to be explained
 if DATASET == "cfg_syn4": DATASET = "syn4"
 model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=True, 
                             config=cfg, device=device, verbose=VERBOSE)
-
 
 # loading tensors for CUDA computation 
 if device == "cuda" and CUDA:
@@ -101,34 +94,8 @@ if device == "cuda" and CUDA:
 
 
 #### STEP 3: select explainer
-if VERBOSE: print(Fore.MAGENTA + "\n[explain]> Training the explainer...")
-cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if args.reg_ent == 0.0 else args.reg_ent
-cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if args.reg_size == 0.0 else args.reg_size
-
-if EXPLAINER == "PGEex":
-    explainer = PGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
-else:
-    cfg["expl_params"]["opt"] = cfg["expl_params"]["opt"] if args.opt == "base" else args.opt
-    cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"] if args.reg_cf == 0.0 else args.reg_cf
-    cfg["expl_params"]["thres"] = THRES
-
-    if EXPLAINER == "CFPG":
-        explainer = CFPGExplainer(model, graph, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"])
-    elif EXPLAINER == "CFPGv2":
-        conv = cfg["expl_params"]["conv"] if args.conv == "base" else args.conv
-        cfg["expl_params"]["conv"]    = conv
-        cfg["expl_params"]["heads"]   = args.heads
-        cfg["expl_params"]["add_att"] = args.add_att
-        cfg["expl_params"]["hid_gcn"] = args.hid_gcn
-        explainer = CFPGv2(model, graph, conv=conv, epochs=EPOCHS, coeffs=cfg["expl_params"], verbose=VERBOSE)
-        
-    # baseline explainers    
-    elif EXPLAINER == "1hop":
-        explainer = OneHopExplainer(model, graph, device=device)
-    elif EXPLAINER == "perfEx":
-        explainer = PerfectExplainer(model, graph, device=device)
-#elif EXPLAINER == "CF-GNN":
-#    explainer = PCFExplainer(model, graph, norm_adj, epochs=EPOCHS, device=device, coeffs=cfg["expl_params"]) # needs 'CF-GNN' model
+cfg["expl_params"]["thres"] = THRES
+explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
 
 
 #### STEP 4: train and execute explainer
@@ -139,7 +106,6 @@ inference_eval = EfficiencyEvaluation()
 inference_eval.reset()
 
 # prepare the explainer (i.e. train the Explanation Module)
-#if VERBOSE: print(">>>> test nodes:", indices.size())
 if TRAIN_NODES:
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
 else:                              
