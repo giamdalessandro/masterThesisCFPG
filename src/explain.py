@@ -1,23 +1,18 @@
 import os
 import argparse
-import numpy as np
 from tqdm import tqdm
 from colorama import init, Fore 
 init(autoreset=True) # initializes Colorama
 
 import torch
-from explainers.PGExplainer import PGExplainer
-from explainers.CFPGExplainer import CFPGExplainer
-from explainers.CFPGv2 import CFPGv2
-from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer
-#from explainers.PCFExplainer import PCFExplainer
-#from utils.graphs import normalize_adj
+import numpy as np
 
+from utils.general import parser_add_args, cuda_device_check
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.plots import plot_graph, plot_expl_loss, plot_mask_density, plot_scatter_node_mask
-from utils.evaluation import store_expl_log, parser_add_args
 from utils.explaining import explainer_selector
+from utils.plots import plot_graph, plot_expl_loss, plot_mask_density, plot_scatter_node_mask
+from utils.storelog import store_expl_log
 
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
@@ -50,11 +45,7 @@ torch.cuda.manual_seed(SEED)
 np.random.seed(SEED)
 
 device = args.device
-if torch.cuda.is_available() and device == "cuda" and CUDA:
-    cuda_dev = torch.cuda.device("cuda")
-    if VERBOSE: print(">> cuda available", cuda_dev)
-    if VERBOSE: print(">> device: ", torch.cuda.get_device_name(cuda_dev),"\n")
-    
+cuda_device_check(device, CUDA, VERBOSE)
 
 
 #### STEP 1: load a BAshapes dataset
@@ -181,7 +172,7 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
 else:
     # add some log info for log function    
     explainer.coeffs["lr"] = explainer.lr 
-    explainer.coeffs["opt"] = "Adam"      
+    explainer.coeffs["opt"] = args.opt      
     explainer.coeffs["reg_cf"] = "n/a"    
 
 

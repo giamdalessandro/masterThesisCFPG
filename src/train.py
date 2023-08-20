@@ -8,7 +8,7 @@ import torch
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.evaluation import evaluate, store_checkpoint, load_best_model 
+from utils.storelog import evaluate, store_checkpoint, load_best_model 
 from utils.graphs import normalize_adj
 
 

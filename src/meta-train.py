@@ -14,7 +14,7 @@ from explainers.PCFExplainer import PCFExplainer
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
-from utils.evaluation import evaluate, store_checkpoint, load_best_model
+from utils.storelog import evaluate, store_checkpoint, load_best_model
 from utils.graphs import normalize_adj
 from utils.meta_learn import init_mask, clear_mask, set_mask, meta_update_weights
 
@@ -117,7 +117,7 @@ if TRAIN:
 
             # Extract computational subgraph
             if GNN_MODEL == "CF-GNN":
-                sub_index = edge_idx = norm_edge_index
+                sub_index = edge_idx = None #norm_edge_index
             else:
                 sub_index = k_hop_subgraph(node_idx, 3, edge_index)[1]
                 edge_idx = edge_index
