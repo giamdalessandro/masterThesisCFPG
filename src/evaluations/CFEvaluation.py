@@ -20,7 +20,7 @@ def sparsity_score(explanations: list):
     return avg_spa.item()
 
 def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, n_nodes: int, thres: float, task: str="node", verbose: bool=False):
-    """Computes common metrics for a Countefactual Explainers. 
+    """Computes common metrics for a countefactual explainer. 
     ([Lucic et al., 2022](https://arxiv.org/abs/2102.03322))
     
     - Fidelity: proportion of nodes where the original predictions matches 
@@ -47,7 +47,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
     #### Retruns 
         A tuple with the scores for (Fidelity, Sparsity, Expl.Size, Accuracy).
     """
-    if verbose: print(Fore.MAGENTA + "\n[metrics]> computing CF metrics...")
+    if verbose: print(Fore.MAGENTA + "\n[metrics]> Counterfactual metrics...")
     if task == "graph":
         return NotImplementedError("Graph classification not yet implemented.")
     elif task == "node":

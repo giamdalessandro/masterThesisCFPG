@@ -317,9 +317,9 @@ class CFPGExplainer(BaseExplainer):
                         if pred_same == 0:
                             #print("cf example found for node", global_idx)
                             best_loss = id_loss
-                            cf_ex = {"best_loss": best_loss, "mask": mask, "feats": cf_feat[sub_node_idx]}
+                            cf_ex = {"loss": best_loss, "mask": mask, "feats": cf_feat[sub_node_idx]}
                             try: 
-                                if best_loss < self.cf_examples[str(global_idx)]["best_loss"]:
+                                if best_loss < self.cf_examples[str(global_idx)]["loss"]:
                                     self.cf_examples[str(global_idx)] = cf_ex
                             except KeyError:
                                 self.cf_examples[str(global_idx)] = cf_ex

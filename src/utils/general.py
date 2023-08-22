@@ -26,6 +26,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
                         help="Whether to explain original train nodes")
     parser.add_argument("--opt", "-o", type=str, default="base", 
                         choices=["Adam","SGD","SGDm"], help="learning optimizer")
+    parser.add_argument("--early-stop", "-es", type=int, default=10, help="Early stopping (no. epochs)")
 
     # to test gnn conv, may move it to cfg.json
     parser.add_argument("--conv", "-c", type=str, default="base", 

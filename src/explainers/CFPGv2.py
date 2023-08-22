@@ -204,6 +204,7 @@ class CFPGv2(BaseExplainer):
         lr = self.coeffs["lr"]
         temp = self.coeffs["temps"]
         sample_bias = self.coeffs["sample_bias"]
+        early_stop = self.coeffs["early_stop"]
 
         # Make sure the explainer model can be trained
         self.explainer_module.train()
@@ -337,14 +338,14 @@ class CFPGv2(BaseExplainer):
                     ent_total  += ent_loss
                     pred_total += pred_loss
 
-
                     # if masked prediction is different from original, save the CF example
                     if pred_same == 0:
                         #print("cf example found for node", global_idx)
-                        best_loss = id_loss
-                        cf_ex = {"best_loss": best_loss, "mask": cf_mask, "feats": cf_feat[sub_node_idx]}
+                        #if id_loss < best_loss: best_loss = id_loss
+                        cf_ex = {"loss": id_loss, "mask": cf_mask, "feats": cf_feat[sub_node_idx]}
                         try: 
-                            if best_loss < self.cf_examples[str(global_idx)]["best_loss"]:
+                            # update found CF only if loss has improved
+                            if id_loss < self.cf_examples[str(global_idx)]["loss"]:
                                 self.cf_examples[str(global_idx)] = cf_ex
                         except KeyError:
                             self.cf_examples[str(global_idx)] = cf_ex
@@ -361,6 +362,16 @@ class CFPGv2(BaseExplainer):
 
             loss_total.backward()
             optimizer.step()
+
+            if loss_total < best_loss: 
+                best_loss = loss_total
+                early_stop = self.coeffs["early_stop"]
+            else: 
+                early_stop -= 1
+                if early_stop == 0:
+                    print(f"\n\t>> No loss improvements for {self.coeffs['early_stop']} epochs... Early STOP") 
+                    break
+
 
         self.history["train_loss"] = {
             "loss_tot"  : epoch_loss_tot,

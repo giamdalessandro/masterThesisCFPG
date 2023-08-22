@@ -86,6 +86,7 @@ if device == "cuda" and CUDA:
 
 #### STEP 3: select explainer
 cfg["expl_params"]["thres"] = THRES
+cfg["expl_params"]["early_stop"] = args.early_stop
 explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
 
 
@@ -133,7 +134,7 @@ inference_eval.done_explaining()
 
 
 # Metrics: compute AUC score for computed explanation
-if VERBOSE: print(Fore.MAGENTA + "\n[explain]> explanation metrics")
+if VERBOSE: print(Fore.MAGENTA + "\n[explain]> Explanation metrics")
 auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
 if VERBOSE: print("\t>> final score:",f"{auc_score:.4f}")
@@ -163,7 +164,7 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     train_cf_perc = (train_fnd/max_cf)
     
     if True: 
-        print(Fore.MAGENTA + "[metrics]>","CF metrics...")
+        print(Fore.MAGENTA + "[metrics]>","Average results on all explained predictions")
         print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
         print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
         print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
