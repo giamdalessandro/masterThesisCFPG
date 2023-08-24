@@ -206,6 +206,7 @@ if STORE_LOG:
         "conv"      : args.conv,
         "nodes"     : "train" if TRAIN_NODES else "test",
         "e_cfg"     : explainer.coeffs,
+        "nlays"     : explainer.n_layers if EXPLAINER == "CFPGv2" else 1,
         "time"      : time_score,
         "AUC"       : auc_score,
         "cf_test"   : test_cf_perc if EXPLAINER != "PGEex" else -1.0,

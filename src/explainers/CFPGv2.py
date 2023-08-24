@@ -98,6 +98,8 @@ class CFPGv2(BaseExplainer):
         elif conv == "VAE":
             self.explainer_module = GAALVExplModule(in_feats=in_feats, enc_hidden=hid_gcn,
                                         dec_hidden=64, device=device)
+            
+        self.n_layer = self.explainer_module.n_layers
         
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):

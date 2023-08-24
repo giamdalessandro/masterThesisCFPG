@@ -91,27 +91,31 @@ class GCNExplModule(torch.nn.Module):
             "post-gcn" : [],
         }
 
+        self.n_layers = 3
         self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
-        #self.enc_gc2 = GCNConv(self.enc_h, self.enc_h)
+        self.enc_gc2 = GCNConv(self.enc_h, self.enc_h)
+        self.enc_gc3 = GCNConv(self.enc_h, self.enc_h)
 
-        self.latent_dim = self.enc_h*3
+        self.latent_dim = (self.enc_h*3)*self.n_layers
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
             torch.nn.ReLU(), #LeakyReLU(negative_slope=0.01),
             torch.nn.Linear(self.dec_h, 1),
             #torch.nn.Softmax(dim=1)  # ZAVVE: testing
         ).to(self.device)
-        #self.sparsemax = Sparsemax(dim=0).to(self.device)
+        self.sparsemax = Sparsemax(dim=0).to(self.device)
 
     def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float=0.0, train: bool=True):
         """Forward step with a GCN encoder."""
         # encoder step
         x1 = F.relu(self.enc_gc1(x, edge_index))
         x1 = F.dropout(x1,self.dropout)
-        #x2 = F.relu(self.enc_gc2(x1, edge_index))
-        #x2 = F.dropout(x2,self.dropout)
-        #out_enc = torch.cat((x1,x2),dim=1)
-        out_enc = x1
+        x2 = F.relu(self.enc_gc2(x1, edge_index))
+        x2 = F.dropout(x2,self.dropout)
+        x3 = F.relu(self.enc_gc2(x2, edge_index))
+        x3 = F.dropout(x3,self.dropout)
+        out_enc = torch.cat((x1,x2,x3),dim=1)
+        #out_enc = x1
         # get edge representation
         z = _get_edge_repr(edge_index, out_enc, node_id)
         
@@ -123,8 +127,8 @@ class GCNExplModule(torch.nn.Module):
         #self.out_decoder.append(out_dec)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        #sampled_mask = self.sparsemax(out_dec)
+        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        sampled_mask = self.sparsemax(out_dec)
 
         return sampled_mask
 
@@ -153,16 +157,17 @@ class GATExplModule(torch.nn.Module):
             "post-gcn" : [],
         }
 
+        self.n_layers = 3
         if self.add_att != 0.0:
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
-            #self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False)
-            #self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False)
+            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False)
+            self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False)
         else:
             self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
-            #self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
-            #self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
+            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
+            self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
 
-        self.latent_dim = ((self.enc_h*3) + 3) if self.add_att != 0.0 else ((self.enc_h*3)) #*3) 
+        self.latent_dim = ((self.enc_h*3)*self.n_layers + 3) if self.add_att != 0.0 else ((self.enc_h*3)*self.n_layers) 
         #self.latent_dim = ((self.enc_h*3)*3) 
         self.decoder = torch.nn.Sequential(
             torch.nn.Linear(self.latent_dim, self.dec_h),
@@ -171,29 +176,29 @@ class GATExplModule(torch.nn.Module):
             #torch.nn.Softmax(dim=1)
         ).to(self.device)
 
-        #self.sparsemax = Sparsemax(dim=0).to(self.device)
+        self.sparsemax = Sparsemax(dim=0).to(self.device)
 
     def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float=0.0, train: bool=True):
         """Forward step with a GAT encoder."""
         # encoder step
         x1, att_w1 = self.enc_gc1(x, edge_index, return_attention_weights=True)
         x1 = F.dropout(F.relu(x1),self.dropout)
-        #x2, att_w2 = self.enc_gc2(x1, edge_index, return_attention_weights=True)
-        #x2 = F.dropout(F.relu(x2),self.dropout)
-        #x3, att_w3 = self.enc_gc3(x2, edge_index, return_attention_weights=True)
-        #x3 = F.dropout(F.relu(x3),self.dropout)
-        #out_enc = torch.cat((x1,x2,x3),dim=1)
-        out_enc = x1
+        x2, att_w2 = self.enc_gc2(x1, edge_index, return_attention_weights=True)
+        x2 = F.dropout(F.relu(x2),self.dropout)
+        x3, att_w3 = self.enc_gc3(x2, edge_index, return_attention_weights=True)
+        x3 = F.dropout(F.relu(x3),self.dropout)
+        out_enc = torch.cat((x1,x2,x3),dim=1)
+        #out_enc = x1
         # get edge representation
         z = _get_edge_repr(edge_index, out_enc, node_id)
 
         if self.add_att != 0.0:
             # att_w contains
             att_w1 = torch.mean(att_w1[1], dim=1)#.sigmoid()
-            #att_w2 = torch.mean(att_w2[1], dim=1)#.sigmoid()
-            #att_w3 = torch.mean(att_w3[1], dim=1)#.sigmoid()
+            att_w2 = torch.mean(att_w2[1], dim=1)#.sigmoid()
+            att_w3 = torch.mean(att_w3[1], dim=1)#.sigmoid()
             #print("\t>> z size:", z.size())
-            z = torch.cat((z,att_w1.unsqueeze(dim=1))) #,att_w2.unsqueeze(dim=1),att_w3.unsqueeze(dim=1)), dim=1)
+            z = torch.cat((z,att_w1.unsqueeze(dim=1),att_w2.unsqueeze(dim=1),att_w3.unsqueeze(dim=1)), dim=1)
 
         # decoder step
         out_dec = self.decoder(z)
@@ -212,8 +217,8 @@ class GATExplModule(torch.nn.Module):
         #    out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
 
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        #sampled_mask = self.sparsemax(out_dec)
+        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        sampled_mask = self.sparsemax(out_dec)
         
         return sampled_mask
 

@@ -32,13 +32,15 @@ params = {
 script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py" #src/explain.py"
 rid = 0
 for c in CONVS:
+    if c == "GAT": es = 5
+    elif c == "GCN": es = 10
 #    for curr in ENT_COEFFS:
 #for e in [50, 100]:
     seeds_bar = tqdm(SEEDS, desc=f"[multi-run]> experiments", colour="yellow", disable=False)
     for s in SEEDS:
         for d in (d_bar := tqdm(DATASETS, desc=f"[seed {s:03}]> datasets... ", colour="green", disable=False)):
-            script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} {params[d]} --seed {s} --es 5"
-            suffix_args = f"--prefix rParams-Gumbel0-thres01-1{c}-Estop5 --log"
+            script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} {params[d]} --seed {s} -es {es} "
+            suffix_args = f"--prefix rAllOne-Sparsemax0-thres01-3{c}-Estop{es} --log"
             args = script_args + suffix_args
             cmd = script_cmd + args
             #command = [cmd, args]

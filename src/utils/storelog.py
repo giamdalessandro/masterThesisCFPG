@@ -114,6 +114,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
     eps = logs["epochs"]
     opt = logs["e_cfg"]["opt"]
     conv = logs["conv"]
+    nlays = logs["nlays"]
     log_file = f"{prefix}{explainer}_{dataset}_e{eps}_{conv}_{opt}.log"
     
     e_c = logs["e_cfg"]
@@ -146,7 +147,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "explainer" : [explainer],
         "epochs"    : [eps],
         "dataset"   : [dataset],
-        "expl_arch" : [f"1{conv}{e_c['hid_gcn']}->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
+        "expl_arch" : [f"{nlays}{conv}{e_c['hid_gcn']}->FC64->relu->FC1"] if explainer == "CFPGv2" else [explainer],
         "conv"      : [conv],
         "optimizer" : [opt],
         "l_rate"    : [e_c['lr']],
