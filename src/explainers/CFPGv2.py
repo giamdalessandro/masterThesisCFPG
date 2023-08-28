@@ -99,7 +99,7 @@ class CFPGv2(BaseExplainer):
             self.explainer_module = GAALVExplModule(in_feats=in_feats, enc_hidden=hid_gcn,
                                         dec_hidden=64, device=device)
             
-        self.n_layer = self.explainer_module.n_layers
+        self.n_layers = self.explainer_module.n_layers
         
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
@@ -368,7 +368,7 @@ class CFPGv2(BaseExplainer):
             if loss_total < best_loss: 
                 best_loss = loss_total
                 early_stop = self.coeffs["early_stop"]
-            else: 
+            elif e >= 14: 
                 early_stop -= 1
                 if early_stop == 0:
                     print(f"\n\t>> No loss improvements for {self.coeffs['early_stop']} epochs... Early STOP") 

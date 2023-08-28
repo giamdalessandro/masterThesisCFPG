@@ -127,8 +127,8 @@ class GCNExplModule(torch.nn.Module):
         #self.out_decoder.append(out_dec)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        sampled_mask = self.sparsemax(out_dec)
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        #sampled_mask = self.sparsemax(out_dec)
 
         return sampled_mask
 
@@ -217,8 +217,8 @@ class GATExplModule(torch.nn.Module):
         #    out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
 
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        sampled_mask = self.sparsemax(out_dec)
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        #sampled_mask = self.sparsemax(out_dec)
         
         return sampled_mask
 
@@ -360,7 +360,7 @@ class GAALVExplModule(torch.nn.Module):
         #    nn.AvgPool1d(n_heads),
         #).to(self.device)"""
 
-    def forward(self, x, edge_index, node_id, bias: float= 0.0, train: bool=True):
+    def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float= 0.0, train: bool=True):
         """Forward step with a GCN encoder."""
         # encoder step
         x1 = F.relu(self.enc_gc1(x, edge_index))
@@ -376,6 +376,8 @@ class GAALVExplModule(torch.nn.Module):
         # decoder step
         out_dec = self.decoder(z)
         sampled_mask = _sample_graph(out_dec, bias=bias, training=train)
+        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        #sampled_mask = self.sparsemax(out_dec)
 
         return sampled_mask
 
