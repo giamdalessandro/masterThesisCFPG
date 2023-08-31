@@ -6,7 +6,7 @@ from tqdm import tqdm
 DATASETS = ["syn1","syn2","syn3","syn4"] #
 CONVS = ["GAT","GCN"] #,"pGCN"
 EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
-EPOCHS = 50
+EPOCHS = 100
 
 # returns a list of 8 random small integers between 0 and 255
 def get8RandomBytesFromOS():
@@ -31,27 +31,29 @@ params = {
 
 script_cmd = "/home/zascerta/virtEnvs/XAI-cuda117/bin/python3 src/explain.py" #src/explain.py"
 rid = 0
-#for c in CONVS:
+n_exps = len(SEEDS)*len(DATASETS)*len(CONVS)
+seeds_bar = tqdm(range(n_exps), desc=f"[multi-run]> experiments", colour="yellow", disable=False)
+for c in CONVS:
 #    if c == "GAT": es = 5
 #    elif c == "GCN": es = 10
 #    for curr in ENT_COEFFS:
 #for e in [50, 100]:
-seeds_bar = tqdm(SEEDS, desc=f"[multi-run]> experiments", colour="yellow", disable=False)
-for s in SEEDS:
-    for d in (d_bar := tqdm(DATASETS, desc=f"[seed {s:03}]> datasets... ", colour="green", disable=False)):
-        script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv GAT {params[d]} --seed {s} -es 10 --heads 3 --add-att 0.5 "
-        suffix_args = f"--prefix rParams-Gumbel0-thres01-3GAT3heads-Estop10-addAtt05 --log"
-        args = script_args + suffix_args
-        cmd = script_cmd + args
-        #command = [cmd, args]
+    for s in SEEDS:
+        for d in DATASETS:
+        #for d in (d_bar := tqdm(DATASETS, desc=f"[seed {s:03}]> datasets... ", colour="green", disable=False)):
+            script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} {params[d]} --seed {s} -es 10 "
+            suffix_args = f"--prefix rParams-trainSample-testSparsemax0-thres01-3{c}-Estop10 --log"
+            args = script_args + suffix_args
+            cmd = script_cmd + args
+            #command = [cmd, args]
 
-        tqdm.write(f"\n------------------------------ run id: {rid} curr-> {EXPLAINER} - {d} - seed {s}\n")
-        result = run(cmd, capture_output=True, shell=True)
-        for o in (result.stdout).decode("utf-8").split("\n"):
-            tqdm.write(o)
+            tqdm.write(f"\n------------------------------ run id: {rid} curr-> {EXPLAINER} - {d} - seed {s}\n")
+            result = run(cmd, capture_output=True, shell=True)
+            for o in (result.stdout).decode("utf-8").split("\n"):
+                tqdm.write(o)
+            rid += 1
 
-        rid += 1
+            seeds_bar.update()
 
-    seeds_bar.update()
-
-print("\n[runs]> ...Multi-run DONE") #, result.returncode)
+seeds_bar.close()
+print("\n[multi-runs]> ...DONE") #, result.returncode)

@@ -126,9 +126,11 @@ class GCNExplModule(torch.nn.Module):
             self.logs_d["post-gcn"].append(torch.reshape(z, (-1,)).detach())
         #self.out_decoder.append(out_dec)
         
-        #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        #sampled_mask = self.sparsemax(out_dec)
+        if train:
+            sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
+        else:
+            #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+            sampled_mask = self.sparsemax(out_dec)
 
         return sampled_mask
 
@@ -216,9 +218,11 @@ class GATExplModule(torch.nn.Module):
         #    att_w = (att_w1 + att_w2 + att_w3)#.sigmoid()
         #    out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
 
-        #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        #sampled_mask = self.sparsemax(out_dec)
+        if train: 
+            sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
+        else:
+            #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+            sampled_mask = self.sparsemax(out_dec)
         
         return sampled_mask
 
