@@ -89,6 +89,8 @@ cfg["expl_params"]["thres"] = THRES
 cfg["expl_params"]["early_stop"] = args.early_stop
 explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
 
+#print(">> state-dict:", explainer.explainer_module.state_dict().keys())
+#exit(0)
 
 #### STEP 4: train and execute explainer
 # Initialize evalution modules for AUC score and efficiency

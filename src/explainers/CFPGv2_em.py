@@ -126,11 +126,11 @@ class GCNExplModule(torch.nn.Module):
             self.logs_d["post-gcn"].append(torch.reshape(z, (-1,)).detach())
         #self.out_decoder.append(out_dec)
         
-        if train:
-            sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        else:
-            #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-            sampled_mask = self.sparsemax(out_dec)
+        #if train:
+        #    sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
+        #else:
+        #    sampled_mask = self.sparsemax(out_dec)
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
 
         return sampled_mask
 
@@ -218,11 +218,11 @@ class GATExplModule(torch.nn.Module):
         #    att_w = (att_w1 + att_w2 + att_w3)#.sigmoid()
         #    out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
 
-        if train: 
-            sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        else:
-            #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-            sampled_mask = self.sparsemax(out_dec)
+        #if train: 
+        #    sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
+        #else:
+        #    sampled_mask = self.sparsemax(out_dec)
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
         
         return sampled_mask
 
@@ -368,18 +368,19 @@ class GAALVExplModule(torch.nn.Module):
         """Forward step with a GCN encoder."""
         # encoder step
         x1 = F.relu(self.enc_gc1(x, edge_index))
-        # get edge representation
-        x2 = _get_edge_repr(edge_index, x1, node_id)
         
         # compute KLdiv loss
-        mu =  self.enc_fc_mu(x2)
-        sigma = torch.exp(self.enc_fc_var(x2))
+        mu =  self.enc_fc_mu(x1)
+        sigma = torch.exp(self.enc_fc_var(x1))
         z = mu + sigma*self.Normal.sample(mu.shape)
         self.kl = (sigma**2 + mu**2 - torch.log(sigma) - 1/2).sum()
 
         # decoder step
         out_dec = self.decoder(z)
-        sampled_mask = _sample_graph(out_dec, bias=bias, training=train)
+        # get edge representation
+        edge_rep = _get_edge_repr(edge_index, out_dec, node_id)
+        
+        sampled_mask = _sample_graph(edge_rep, bias=bias, training=train)
         #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
         #sampled_mask = self.sparsemax(out_dec)
 
