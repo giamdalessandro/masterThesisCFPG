@@ -1,15 +1,15 @@
 import argparse
-from torch.cuda import device, is_available, get_device_name
+from torch import cuda
 
 
 def cuda_device_check(device, switch: bool=False, verbose: bool=False): 
     """Check CUDA availabilty and print device, if any."""
     if device == "cuda":
-        if is_available() and switch:
-            cuda_dev = device("cuda")
+        if cuda.is_available() and switch:
+            cuda_dev = cuda.device("cuda")
             if verbose: 
                 print(">> cuda available", cuda_dev)
-                print(">> device: ", get_device_name(cuda_dev),"\n")
+                print(">> device: ", cuda.get_device_name(cuda_dev),"\n")
     else: 
         if verbose: print(">> Device 'cpu' selected")
 
