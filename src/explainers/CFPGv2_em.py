@@ -92,9 +92,9 @@ class GCNExplModule(torch.nn.Module):
         }
 
         self.n_layers = 3
-        self.enc_gc1 = GCNConv(self.in_feats, self.enc_h)
-        self.enc_gc2 = GCNConv(self.enc_h, self.enc_h)
-        self.enc_gc3 = GCNConv(self.enc_h, self.enc_h)
+        self.enc_gc1 = GCNConv(self.in_feats, self.enc_h).to(self.device)
+        self.enc_gc2 = GCNConv(self.enc_h, self.enc_h).to(self.device)
+        self.enc_gc3 = GCNConv(self.enc_h, self.enc_h).to(self.device)
 
         self.latent_dim = (self.enc_h*3)*self.n_layers
         self.decoder = torch.nn.Sequential(
@@ -114,10 +114,10 @@ class GCNExplModule(torch.nn.Module):
         x2 = F.dropout(x2,self.dropout)
         x3 = F.relu(self.enc_gc2(x2, edge_index))
         x3 = F.dropout(x3,self.dropout)
-        out_enc = torch.cat((x1,x2,x3),dim=1)
+        out_enc = torch.cat((x1,x2,x3),dim=1).to(self.device)
         #out_enc = x1
         # get edge representation
-        z = _get_edge_repr(edge_index, out_enc, node_id)
+        z = _get_edge_repr(edge_index, out_enc, node_id, device=self.device)
         
         # decoder step
         out_dec = self.decoder(z)
@@ -129,7 +129,7 @@ class GCNExplModule(torch.nn.Module):
         #if train:
         #    sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
         #else:
-        #    sampled_mask = self.sparsemax(out_dec)
+        #sampled_mask = self.sparsemax(out_dec)
         sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
 
         return sampled_mask
@@ -161,13 +161,13 @@ class GATExplModule(torch.nn.Module):
 
         self.n_layers = 3
         if self.add_att != 0.0:
-            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False)
-            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False)
-            self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False)
+            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False).to(self.device)
+            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False).to(self.device)
+            self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False).to(self.device)
         else:
-            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False)
-            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
-            self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False)
+            self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False).to(self.device)
+            self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False).to(self.device)
+            self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False).to(self.device)
 
         self.latent_dim = ((self.enc_h*3)*self.n_layers + 3) if self.add_att != 0.0 else ((self.enc_h*3)*self.n_layers) 
         #self.latent_dim = ((self.enc_h*3)*3) 
@@ -189,10 +189,10 @@ class GATExplModule(torch.nn.Module):
         x2 = F.dropout(F.relu(x2),self.dropout)
         x3, att_w3 = self.enc_gc3(x2, edge_index, return_attention_weights=True)
         x3 = F.dropout(F.relu(x3),self.dropout)
-        out_enc = torch.cat((x1,x2,x3),dim=1)
+        out_enc = torch.cat((x1,x2,x3),dim=1).to(self.device)
         #out_enc = x1
         # get edge representation
-        z = _get_edge_repr(edge_index, out_enc, node_id)
+        z = _get_edge_repr(edge_index, out_enc, node_id, device=self.device)
 
         if self.add_att != 0.0:
             # att_w contains
@@ -221,7 +221,7 @@ class GATExplModule(torch.nn.Module):
         #if train: 
         #    sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
         #else:
-        #    sampled_mask = self.sparsemax(out_dec)
+        #sampled_mask = self.sparsemax(out_dec)
         sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
         
         return sampled_mask

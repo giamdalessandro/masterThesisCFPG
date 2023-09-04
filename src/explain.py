@@ -12,7 +12,7 @@ from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector
 from utils.explaining import explainer_selector
 from utils.plots import plot_graph, plot_expl_loss, plot_mask_density, plot_scatter_node_mask
-from utils.storelog import store_expl_log
+from utils.storelog import store_expl_log, store_expl_checkpoint
 
 from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
@@ -78,8 +78,9 @@ if device == "cuda" and CUDA:
     for p in model.parameters():
         p.to(device)
 
-    x = x.to(device)
-    edge_index = edge_index.to(device)
+    #x = x.to(device)
+    #edge_index = edge_index.to(device)
+    graph = graph.to(device)
     labels = class_labels.to(device)
     if VERBOSE: print(">> DONE")
 
@@ -106,6 +107,8 @@ else:
     train_idxs = test_idxs   # use only nodes that have an explanation ground truth
     #train_idxs = test_idxs   # TODO: basta fa uno split qui
 explainer.prepare(indices=train_idxs)  # actually train the explainer model
+
+store_expl_checkpoint(explainer, DATASET, -1)
 
 
 # Actually explain GNN predictions for all test indices

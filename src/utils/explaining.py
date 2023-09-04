@@ -33,7 +33,7 @@ def explainer_selector(cfg, model, graph, s_args, verbose: bool=False):
             cfg["expl_params"]["heads"]   = s_args.heads
             cfg["expl_params"]["add_att"] = s_args.add_att
             cfg["expl_params"]["hid_gcn"] = s_args.hid_gcn
-            explainer = CFPGv2(model, graph, conv=conv, epochs=epochs, coeffs=cfg["expl_params"], verbose=verbose)
+            explainer = CFPGv2(model, graph, conv=conv, epochs=epochs, device=device, coeffs=cfg["expl_params"], verbose=verbose)
             
         # baseline explainers    
         elif expl == "1hop":
