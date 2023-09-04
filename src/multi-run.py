@@ -22,10 +22,10 @@ def get8RandomBytesFromOS():
 SEEDS = get8RandomBytesFromOS()[:4]
 
 params = {
-    "syn1" : "--opt SGD --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
-    "syn2" : "--opt SGD --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
-    "syn3" : "--opt SGD --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
-    "syn4" : "--opt SGD --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn1" : "--opt SGDm",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn2" : "--opt SGDm",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn3" : "--opt SGDm",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn4" : "--opt SGDm",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
 }
 
 
@@ -42,7 +42,7 @@ for c in CONVS:
         for d in DATASETS:
         #for d in (d_bar := tqdm(DATASETS, desc=f"[seed {s:03}]> datasets... ", colour="green", disable=False)):
             script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} {params[d]} --seed {s} -es 10 "
-            suffix_args = f"--prefix rAllOne-Gumbel0-thres01-3{c}-Estop10 --log"
+            suffix_args = f"--prefix rParams-Gumbel0-thres01-3{c}-Estop10 --device cuda"
             args = script_args + suffix_args
             cmd = script_cmd + args
             #command = [cmd, args]

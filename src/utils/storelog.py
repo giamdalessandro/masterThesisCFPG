@@ -97,6 +97,39 @@ def load_best_model(model, best_epoch: int, gnn: str, dataset: str, explainer: s
 
     return model
 
+def store_expl_checkpoint(model, dataset: str, epoch: int):
+    """Store explainer model checkpoint into saves directory"""
+    expl = model.expl_name
+    save_path = SAVES_DIR + f"{expl}/{dataset}" 
+    if not os.path.isdir(save_path):
+        os.makedirs(save_path)
+
+    if expl == "CFPG-v2":
+        expl_model = model.explainer_module
+        checkpoint = {"model_state_dict": expl_model.state_dict(),
+                    "dataset": dataset,
+                    "epoch": epoch,
+                    "conv": model.conv,
+                    "thres": model.thres}
+        
+        save_name = f"{model.conv}{model.n_layers}_e{epoch}_thres{model.thres}"
+    else:    
+        expl_model = model.explainer_mlp
+        checkpoint = {"model_state_dict": expl_model.state_dict(),
+                    "dataset": dataset,
+                    "epoch": epoch}
+        
+        save_name = f"{dataset}_e{epoch}"
+
+    if epoch == -1: torch.save(checkpoint, os.path.join(save_path, save_name+"_best"))
+    else: torch.save(checkpoint, os.path.join(save_path, save_name))
+    print("\n[log]> explainer checkpoint stored at", f"./checkpoints/{expl}/{dataset}/")
+
+    return
+
+def load_expl_checkpoint():
+    return
+
 
 
 path_to_logs = "/../../logs/"
@@ -173,3 +206,4 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
     df.to_csv(csv_path, mode="a+", header=not os.path.exists(csv_path), index=False)
 
     return
+
