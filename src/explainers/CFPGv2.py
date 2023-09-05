@@ -59,7 +59,7 @@ class CFPGv2(BaseExplainer):
             lr, temprature, etc..).
         """
         super().__init__(model_to_explain, data_graph, task, device)
-        self.expl_name = "CFPG-v2"
+        self.expl_name = "CFPGv2"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
@@ -100,6 +100,7 @@ class CFPGv2(BaseExplainer):
                                         dec_hidden=64, device=device).to(self.device)
             
         self.n_layers = self.explainer_module.n_layers
+        self.test_cf_examples = {}
         
 
     def loss(self, masked_pred: torch.Tensor, original_pred: torch.Tensor, mask: torch.Tensor):
@@ -393,8 +394,6 @@ class CFPGv2(BaseExplainer):
         indices : `list`
             node indices over which we wish to train.
         """
-        self.test_cf_examples = {}
-
         if indices is None: # Consider all indices
             indices = range(0, self.adj.size(0))
 

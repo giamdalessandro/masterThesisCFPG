@@ -45,7 +45,7 @@ class PGExplainer(BaseExplainer):
             coeffs: dict=None
         ):
         super().__init__(model_to_explain, data_graph, task, device)
-        self.expl_name = "PGExplainer"
+        self.expl_name = "PGEx"
         self.features = self.data_graph.x.to(self.device)
         self.adj = self.data_graph.edge_index.to(self.device)
         self.epochs = epochs

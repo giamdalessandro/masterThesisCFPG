@@ -123,9 +123,9 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
     for idx in test_epoch:
         subgraph, expl = explainer.explain(idx)
 
-        if (curr_id%(n_tests//5)) == 0: 
+        if (curr_id%(n_tests//5)) == 0:
             plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
-        elif idx == test_idxs[-1]: 
+        elif idx == test_idxs[-1]:
             plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         
         explanations.append((subgraph, expl, idx))

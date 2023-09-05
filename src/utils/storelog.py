@@ -104,7 +104,7 @@ def store_expl_checkpoint(model, dataset: str, epoch: int):
     if not os.path.isdir(save_path):
         os.makedirs(save_path)
 
-    if expl == "CFPG-v2":
+    if expl == "CFPGv2":
         expl_model = model.explainer_module
         checkpoint = {"model_state_dict": expl_model.state_dict(),
                     "dataset": dataset,
@@ -123,12 +123,30 @@ def store_expl_checkpoint(model, dataset: str, epoch: int):
 
     if epoch == -1: torch.save(checkpoint, os.path.join(save_path, save_name+"_best"))
     else: torch.save(checkpoint, os.path.join(save_path, save_name))
-    print("\n[log]> explainer checkpoint stored at", f"./checkpoints/{expl}/{dataset}/")
+    print("\n[log]> explainer checkpoint stored at", f"checkpoints/{expl}/{dataset}/")
 
     return
 
-def load_expl_checkpoint():
-    return
+def load_expl_checkpoint(model, dataset: str, best_epoch: int):
+    expl = model.expl_name
+    to_load = "_best" if best_epoch == -1 else f"e{best_epoch}"
+
+    path = SAVES_DIR + f"{expl}/{dataset}/"
+    for f in os.listdir(path):
+        if f[-5:] == to_load:
+            checkpoint = torch.load(path + f)
+            break
+        elif f[-3:] == to_load:
+            checkpoint = torch.load(path + f)
+            break
+    
+    if expl == "CFPGv2": expl_model = model.explainer_module
+    else: expl_model = model.explainer_mlp
+        
+    expl_model.load_state_dict(checkpoint['model_state_dict'])
+    print("\n[log]: explainer checkpoint loaded from", f"{f}")
+
+    return model
 
 
 
