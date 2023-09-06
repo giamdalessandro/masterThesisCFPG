@@ -85,6 +85,7 @@ class CFPGExplainer(BaseExplainer):
         ).to(self.device)
 
         self.sparsemax = Sparsemax(dim=0).to(self.device)
+        self.test_cf_examples = {}
 
 
     def _create_explainer_input(self, pair, embeds, node_id):
@@ -360,8 +361,6 @@ class CFPGExplainer(BaseExplainer):
         indices : `list`
             node indices over which we wish to train.
         """
-        self.test_cf_examples = {}
-
         if indices is None: # Consider all indices
             indices = range(0, self.adj.size(0))
 

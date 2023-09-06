@@ -51,30 +51,35 @@ explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
 explainer = load_expl_checkpoint(explainer, DATASET, -1)
 
 ## cf testing
-explanations = []
-for idx in (te := tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1)):
-    subgraph, expl = explainer.explain(idx)   
-    explanations.append((subgraph, expl, idx))
+seeds = [42,64,112,156]
+for s in seeds:
+    torch.manual_seed(s)       # ensure all modules have the same seed
+    torch.cuda.manual_seed(s)
 
+    explanations = []
+    for idx in (te := tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1)):
+        subgraph, expl = explainer.explain(idx)   
+        explanations.append((subgraph, expl, idx))
 
-#if EXPLAINER == "CFPG": explainer.coeffs["heads"] = "n/a"    
-cf_metrics = get_cf_metrics(
-                edge_labels=graph.pn_labels,
-                explanations=explanations,
-                counterfactuals=explainer.test_cf_examples,
-                n_nodes=graph.x.size(0),
-                thres=THRES,
-                verbose=VERBOSE)
+    #if EXPLAINER == "CFPG": explainer.coeffs["heads"] = "n/a"    
+    cf_metrics = get_cf_metrics(
+                    edge_labels=graph.pn_labels,
+                    explanations=explanations,
+                    counterfactuals=explainer.test_cf_examples,
+                    n_nodes=graph.x.size(0),
+                    thres=THRES,
+                    verbose=VERBOSE)
 
-test_cf = explainer.test_cf_examples
-max_cf = len(test_idxs)
+    test_cf = explainer.test_cf_examples
+    max_cf = len(test_idxs)
 
-test_fnd = len(test_cf.keys())
-test_cf_perc = (test_fnd/max_cf)
-
-print(Fore.MAGENTA + "[metrics]>","Average results on all explained predictions")
-print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
-print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%)")
-print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
-print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
-print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
+    test_fnd = len(test_cf.keys())
+    test_cf_perc = (test_fnd/max_cf)
+    
+    print(f"\n[log]> using seed {s}...")
+    print(Fore.MAGENTA+"[metrics]>","Average results on all explained predictions")
+    print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}",f"  [w/ CF: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%)]")
+    print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
+    print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
+    print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
+    print()
