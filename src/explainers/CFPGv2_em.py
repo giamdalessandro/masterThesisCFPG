@@ -386,3 +386,76 @@ class GAALVExplModule(torch.nn.Module):
 
         return sampled_mask
 
+
+
+## SparseMAP
+class SMAPExplModule(torch.nn.Module):
+    """Class for the GAT-conv explanation module of CFPG-v.2"""
+    def __init__(self, 
+            in_feats: int, 
+            enc_hidden: int=20,
+            dec_hidden: int=64,
+            heads: int=1,
+            add_att: float=0.0,
+            dropout: float=0.1, 
+            device: str="cpu"
+        ) -> None:
+        super().__init__()
+        self.in_feats = in_feats
+        self.enc_h    = enc_hidden
+        self.dec_h    = dec_hidden
+        self.heads    = heads
+        self.add_att  = add_att
+        self.device   = device
+        self.dropout = dropout
+        self.logs_d = {
+            "pre-sample" : [],
+            "post-gcn" : [],
+        }
+
+        self.n_layers = 3
+        #if self.add_att != 0.0:
+        #    self.enc_gc1 = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False, add_self_loops=False).to(self.device)
+        #    self.enc_gc2 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False).to(self.device)
+        #    self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False, add_self_loops=False).to(self.device)
+        #else:
+        self.enc_gcn = GATv2Conv(self.in_feats, self.enc_h, self.heads, concat=False).to(self.device)
+        #self.dec_gcn = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False).to(self.device)
+        #self.enc_gc3 = GATv2Conv(self.enc_h, self.enc_h, self.heads, concat=False).to(self.device)
+
+        self.sparsemax = Sparsemax(dim=0).to(self.device)
+
+    def forward(self, x, edge_index, node_id, temp: float=1.0, bias: float=0.0, train: bool=True):
+        """Forward step with a GAT encoder."""
+        # encoder step
+        x1, att_w1 = self.enc_gcn(x, edge_index, return_attention_weights=True)
+        x1 = F.dropout(F.relu(x1),self.dropout)
+        #x2, att_w2 = self.enc_gc2(x1, edge_index, return_attention_weights=True)
+        #x2 = F.dropout(F.relu(x2),self.dropout)
+        #x3, att_w3 = self.enc_gc3(x2, edge_index, return_attention_weights=True)
+        #x3 = F.dropout(F.relu(x3),self.dropout)
+        #out_enc = torch.cat((x1,x2,x3),dim=1).to(self.device)
+        
+        # get edge representation
+        z = self._full_adjacency(x1)
+
+        out_row = F.gumbel_softmax(z,tau=temp,hard=False,dim=0)
+        out_col = F.gumbel_softmax(z,tau=temp,hard=False,dim=1)
+        print(">> cacca:", out_row.size())
+        print(">> cacca:", out_col.size())
+
+        sampled_mask = out_row + out_col
+        
+        return sampled_mask
+
+    def _full_adjacency(self, encoded_f):
+        """Get full adjacency matrix edge features"""
+        n_rows = n_cols = encoded_f.size(0)
+        idxs = torch.tril_indices(n_rows,n_cols)
+        
+        full_adj = torch.zeros((n_rows,n_cols))
+        for i in idxs.T:    # not really efficient
+            #full_adj[i[0],i[1]] = torch.cat((encoded_f[i[0]],encoded_f[i[1]]), dim=0)
+            full_adj[i[0],i[1]] = (encoded_f[i[0]] + encoded_f[i[1]]).mean().item()
+
+        return full_adj

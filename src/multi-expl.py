@@ -42,7 +42,6 @@ class_labels = torch.argmax(graph.y, dim=1)
 model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=True, 
                             config=cfg, verbose=VERBOSE)
 
-
 ## load explainer
 cfg["expl_params"]["thres"] = THRES
 cfg["expl_params"]["early_stop"] = args.early_stop
@@ -50,7 +49,7 @@ explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
 
 explainer = load_expl_checkpoint(explainer, DATASET, -1)
 
-## cf testing
+## multi-seed testing
 seeds = [42,64,112,156]
 for s in seeds:
     torch.manual_seed(s)       # ensure all modules have the same seed

@@ -12,7 +12,7 @@ from torch_geometric.loader import NeighborLoader
 from torch_geometric.nn import GCNConv, GATv2Conv
 
 from .BaseExplainer import BaseExplainer
-from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule, GAALVExplModule
+from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule, GAALVExplModule, SMAPExplModule
 from utils.graphs import index_edge, create_symm_matrix_from_vec
 
 THRES = 0.1
@@ -98,6 +98,11 @@ class CFPGv2(BaseExplainer):
         elif conv == "VAE":
             self.explainer_module = GAALVExplModule(in_feats=in_feats, enc_hidden=hid_gcn,
                                         dec_hidden=64, device=device).to(self.device)
+            
+        elif conv == "SMAP":
+            self.explainer_module = SMAPExplModule(in_feats=in_feats, enc_hidden=hid_gcn,
+                                        device=device).to(self.device)
+
             
         self.n_layers = self.explainer_module.n_layers
         self.test_cf_examples = {}
@@ -289,8 +294,9 @@ class CFPGv2(BaseExplainer):
                     expl_feats = embeds[global_n_ids].to(self.device)
                     mask = self.explainer_module(expl_feats, sub_index, n_map, temp=t, bias=sample_bias)
                     #print("\n\t>> node id:", global_idx)                        
-                    #print("\t>> mask mean:", mask.mean())
-                    #print("\t>> over mean:", (mask > mask.mean()).sum())
+                    print("\t>> mask mean:", mask.mean())
+                    print("\t>> over mean:", (mask > 0.1).sum())
+                    exit(0)
 
                     ## basic minus thresholds
                     #cf_adj = torch.ones(mask.size()).to(self.device) 

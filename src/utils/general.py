@@ -30,7 +30,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
 
     # to test gnn conv, may move it to cfg.json
     parser.add_argument("--conv", "-c", type=str, default="base", 
-                        choices=["base","GCN","GAT","pGCN","VAE"], help="Explainer graph convolution")
+                        choices=["base","GCN","GAT","pGCN","VAE","SMAP"], help="Explainer graph convolution")
     parser.add_argument("--heads", type=int, default=1, help="Attention heads (if conv is 'GAT')")
     parser.add_argument("--hid-gcn", type=int, default=20, help="Graph convolution hidden dimension.")
     parser.add_argument("--add-att", type=float, default=0.0, help="Attention coeff")
