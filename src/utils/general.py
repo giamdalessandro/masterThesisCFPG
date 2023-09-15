@@ -17,7 +17,7 @@ def cuda_device_check(device, switch: bool=False, verbose: bool=False):
 def parser_add_args(parser: argparse.ArgumentParser):
     """Add arguments to argparser."""
     parser.add_argument("--explainer", "-E", type=str, default="CFPG",
-                        choices=["PGEex","CFPG","CFPGv2","1hop","perfEx"])
+                        choices=["PGEex","CFPG","CFPGv2","CFGNN","1hop","perfEx"])
     parser.add_argument("--dataset", "-D", type=str, default="syn1", 
                         choices=['syn1','syn2','syn3','syn4'], help="Dataset used for training")
     parser.add_argument("--epochs", "-e", type=int, default=5, help="Number of explainer epochs")

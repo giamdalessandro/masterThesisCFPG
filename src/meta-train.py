@@ -10,7 +10,7 @@ from torch_geometric.utils import k_hop_subgraph
 
 from explainers.CFPGExplainer import CFPGExplainer
 from explainers.PGExplainer import PGExplainer
-from explainers.PCFExplainer import PCFExplainer
+from explainers.CFGNNExplainer import CFGNNExplainer
 
 from utils.datasets import load_dataset, parse_config
 from utils.models import model_selector

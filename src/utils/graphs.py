@@ -1,4 +1,5 @@
 import torch
+from torch_geometric.utils import k_hop_subgraph, dense_to_sparse, to_dense_adj, subgraph
 
 
 def index_edge(graph, pair):
@@ -49,3 +50,20 @@ def create_vec_from_symm_matrix(matrix, P_vec_size):
 	idx = torch.tril_indices(matrix.shape[0], matrix.shape[0])
 	vector = matrix[idx[0], idx[1]]
 	return vector
+
+
+
+def get_degree_matrix(adj):
+	return torch.diag(sum(adj))
+
+def get_neighbourhood(node_idx, edge_index, n_hops, features, labels):
+	edge_subset = k_hop_subgraph(node_idx, n_hops, edge_index[0])                      # Get all nodes involved
+	edge_subset_relabel = subgraph(edge_subset[0], edge_index[0], relabel_nodes=True)  # Get relabelled subset of edges
+	sub_adj = to_dense_adj(edge_subset_relabel[0]).squeeze()
+	sub_feat = features[edge_subset[0], :]
+	sub_labels = labels[edge_subset[0]]
+	new_index = np.array([i for i in range(len(edge_subset[0]))])
+	node_dict = dict(zip(edge_subset[0].numpy(), new_index))                           # Maps orig labels to new
+	# print("Num nodes in subgraph: {}".format(len(edge_subset[0])))
+	return sub_adj, sub_feat, sub_labels, node_dict
+

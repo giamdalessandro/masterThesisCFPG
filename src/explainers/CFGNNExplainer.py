@@ -14,14 +14,13 @@ from torch_geometric.loader import NeighborLoader
 from .BaseExplainer import BaseExplainer
 from gnns.CFGNNpaper import GCNSyntheticPerturb
 
-from utils.graphs import index_edge
-from utils.graphs import normalize_adj
+from utils.graphs import index_edge, get_degree_matrix, normalize_adj
 
 
 NODE_BATCH_SIZE = 32
 
 
-class PCFExplainer(BaseExplainer):
+class CFGNNExplainer(BaseExplainer):
     """Parametrized-CF-GNNExplainer class, computes counterfactual subgraph. 
     Based on CF-GNNexplainer (https://arxiv.org/abs/2102.03322).
 	"""
@@ -48,7 +47,7 @@ class PCFExplainer(BaseExplainer):
             coeffs: dict= None
         ):
         super().__init__(model, data_graph, task, device)
-        self.expl_name = "PCF"
+        self.expl_name = "CFGNN"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
         self.norm_adj = norm_adj.to(device)
@@ -62,12 +61,12 @@ class PCFExplainer(BaseExplainer):
         print("\t>> explainer:", self.expl_name)
         print("\t>> coeffs:", self.coeffs)
 
-        gcn_layers = 3
+        self.gcn_layers = 3
         n_hid = self.coeffs["n_hid"]
         if self.type == "graph":
-            self.expl_embedding = (n_hid*gcn_layers)*2
+            self.expl_embedding = (n_hid*self.gcn_layers)*2
         else:
-            self.expl_embedding = (n_hid*gcn_layers)*3
+            self.expl_embedding = (n_hid*self.gcn_layers)*3
 
         # instantiate explainer_mlp;
         self.explainer_mlp = torch.nn.Sequential(
@@ -119,6 +118,164 @@ class PCFExplainer(BaseExplainer):
 
         return cf_model
         
+
+    def _train(self, epoch, verbose: bool=False):
+        """
+        Train the explainer, one step at a time.
+        """
+        t = time.time()
+        self.cf_model.train()
+        self.cf_optimizer.zero_grad()
+
+		# output uses differentiable P_hat ==> adjacency matrix not binary, but needed for training
+        output = self.cf_model.forward(self.x, self.A_x)
+		# output_actual uses thresholded P ==> binary adjacency matrix ==> gives actual prediction
+        output_actual, self.P = self.cf_model.forward_prediction(self.x)
+
+		# Need to use new_idx from now on since sub_adj is reindexed
+        y_pred_new = torch.argmax(output[self.new_idx])
+        y_pred_new_actual = torch.argmax(output_actual[self.new_idx])
+
+		# loss_pred indicator should be based on y_pred_new_actual NOT y_pred_new!
+        loss_total, loss_pred, loss_graph_dist, cf_adj = self.cf_model.loss(
+                                                            output=output[self.new_idx], 
+                                                            y_pred_orig=self.y_pred_orig, 
+                                                            y_pred_new_actual=y_pred_new_actual)
+        loss_total.backward()
+        clip_grad_norm_(self.cf_model.parameters(), 2.0)
+        self.cf_optimizer.step()
+        if verbose:
+            print(f"--------------------- Epoch: {epoch+1:04d}")
+            print(f"Epoch: {epoch+1:04d}  \t\tloss: {loss_total.item():.4f}\n",
+                f"Node idx: {self.node_idx}\t\tpred loss: {loss_pred.item():.4f}\n",
+                f"New idx: {self.new_idx} \t\tgraph loss: {loss_graph_dist.item():.4f}\n")
+
+            print(f"Output: {output[self.new_idx].data}\n ",
+                f"Output nondiff: {output_actual[self.new_idx].data}\n ",
+                f"orig pred: {self.y_pred_orig}, new pred: {y_pred_new}, new pred nondiff: {y_pred_new_actual}")
+
+            #print("\ncf_adj  ->", cf_adj.size())
+            #print("sub_adj ->", self.sub_adj.size())
+            print(" ")
+        
+        cf_stats = []
+        if y_pred_new_actual != self.y_pred_orig:
+            cf_stats = {
+                "node_idx" : self.node_idx.item(), 
+                "new_idx" : self.new_idx.item(),
+                "cf_adj" : cf_adj.detach().numpy(), 
+                "sub_adj" : self.sub_adj.detach().numpy(),
+                "y_pred_orig" : self.y_pred_orig.item(),
+                "y_pred_new" : y_pred_new.item(),
+                "y_pred_new_actual" : y_pred_new_actual.item(),
+                "sub_labels" : self.sub_labels[self.new_idx].numpy(),
+                "sub_adj_shape" : self.sub_adj.shape[0],
+                "loss_total" : loss_total.item(),
+                "loss_total_t" : loss_total,
+                "loss_pred" : loss_pred.item(),
+                "loss_graph_dist" : loss_graph_dist.item()
+            }
+                        
+        return cf_stats, loss_total.item(), loss_total
+
+    def _cf_explain(self, node_idx, new_idx, cf_optimizer: str, lr: float, n_momentum: float, 
+                    num_epochs: int, verbose: bool=False):
+        self.node_idx = node_idx
+        self.new_idx = new_idx
+
+        self.x   = self.sub_feat
+        self.A_x = self.sub_adj
+        self.D_x = get_degree_matrix(self.A_x)
+
+        if cf_optimizer == "SGD" and n_momentum == 0.0:
+            self.cf_optimizer = optim.SGD(self.cf_model.parameters(), lr=lr)
+        elif cf_optimizer == "SGD" and n_momentum != 0.0:
+            self.cf_optimizer = optim.SGD(self.cf_model.parameters(), lr=lr, nesterov=True, momentum=n_momentum)
+        elif cf_optimizer == "Adadelta":
+            self.cf_optimizer = optim.Adadelta(self.cf_model.parameters(), lr=lr)
+        
+        best_cf_example = []
+        best_loss = np.inf
+        num_cf_examples = 0
+
+        with tqdm(range(num_epochs), desc=f"[CFExpl]> node idx {int(node_idx)}", miniters=50, disable=(verbose)) as epochs_bar:
+            for epoch in epochs_bar:
+                new_example, loss_total, loss_total_t = self._train(epoch)
+                if len(new_example) != 0 and (loss_total < best_loss):
+                    best_cf_example.append(new_example)
+                    best_loss = loss_total
+                    num_cf_examples += 1
+                
+                epochs_bar.set_postfix(best_loss=f"{best_loss:.4f}", cf_examples=num_cf_examples)
+
+        if verbose: 
+            print(f"[CFExpl]: {num_cf_examples} CF examples for node_idx = {self.node_idx}")
+            print(" ")
+
+        return best_cf_example, loss_total_t
+
+
+    def prepare(self, node_index):
+        """Prepare the PCFExplainer to explain the given node."""
+        original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj).to(self.device)
+
+        subset, sub_index, n_map, _ = k_hop_subgraph(node_index, 3, self.adj, relabel_nodes=True)
+        self.sub_adj = sub_index
+        self.sub_feat = self.features[subset]
+        self.new_idx = n_map.int().item()
+
+        n_feats = self.features.size(0)
+        # cf_prepare deve preparare il modello per la spiegazione instance-level
+        # devo usare un modello-expl ad ogni spiegazione? Penso di si.
+        self._cf_prepare(sub_index, n_feats, subset, original_preds)
+        
+    def explain(self, index, config, meta_train: bool=False):
+        """
+        Compute counterfactual explanation for node `index`, i.e. compute a CF
+        examples for the prediction on given node.
+
+        Args
+        - `index`      : index of node/graph in self.graphs;
+        - `config`     : dict containing config file params;
+        - `meta_train` : if True computes only one explanation step, i.e. only one
+            training step for the explanation model, used for the meta-learning loop;
+
+        Return
+            Explanation for sample.
+        """
+        #subset, sub_index, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
+        #self.sub_adj = sub_index
+        #self.sub_feat = self.features[subset]
+        #self.new_idx = n_map.int().item()
+
+        # call CFExp original explaining method
+        best_cf_examples, loss_total_t = self._cf_explain(
+                                node_idx=index,
+                                new_idx=self.new_idx,
+                                cf_optimizer=config.optimizer,
+                                lr=config.lr,
+                                n_momentum=config.n_momentum,
+                                num_epochs=config.epochs)
+        
+        # Retrieve final explanation, need to compute proper return
+        # values for graph, expl_graph_weights
+        if len(best_cf_examples) > 0:
+            best_cf_example = best_cf_examples[-1]  
+            graph = best_cf_example["sub_adj"]
+            expl_graph_weights = best_cf_example["cf_adj"]
+        else:
+            # no CF example found
+            graph = self.sub_adj
+            expl_graph_weights = self.sub_feat
+            best_cf_example = {"loss_total_t":loss_total_t}
+
+        return graph, expl_graph_weights, best_cf_example
+    
+    
+
+
+
+class Caccola():
     def _create_explainer_input(self, pair, embeds, node_id):
         """Given the embedding of the sample by the model that we wish to explain, 
         this method construct the input to the mlp explainer model. Depending on
@@ -349,18 +506,6 @@ class PCFExplainer(BaseExplainer):
                 loss_total.backward()
                 optimizer.step()
               
-
-    def prepare(self, indices):
-        """Prepare the PCFExplainer, this happens at every index."""
-        if indices is None: # Consider all indices
-            indices = range(0, self.norm_adj.size(0))
-        indices = torch.LongTensor(indices).to(self.device)
-
-        #print("feats", self.features.device)   
-        #print("n_adj", self.norm_adj.device)   
-        original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj).to(self.device)
-        self._train(indices=indices, original_preds=original_preds)
-        
     def explain(self, index):
         """Given the index of a node/graph this method returns its 
         explanation. This only gives sensible results if the prepare
@@ -398,5 +543,3 @@ class PCFExplainer(BaseExplainer):
             expl_graph_weights[t] = mask[i]
 
         return graph, expl_graph_weights
-    
-    
