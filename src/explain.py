@@ -35,7 +35,8 @@ EPOCHS    = args.epochs       # explainer epochs
 SEED      = args.seed
 PLOT      = args.plot_expl
 TRAIN_NODES = args.train_nodes
-STORE_ADV   = args.store_adv
+STORE_ADV   = False
+STORE_CKPT  = args.store_ckpt
 STORE_LOG   = args.log
 VERBOSE = args.verbose
 
@@ -108,7 +109,7 @@ else:
     #train_idxs = test_idxs   # TODO: basta fa uno split qui
 explainer.prepare(indices=train_idxs)  # actually train the explainer model
 
-store_expl_checkpoint(explainer, DATASET, -1)
+if STORE_CKPT: store_expl_checkpoint(explainer, DATASET, -1)
 
 
 # Actually explain GNN predictions for all test indices

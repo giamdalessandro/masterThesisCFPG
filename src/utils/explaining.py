@@ -5,7 +5,7 @@ from explainers.PGExplainer import PGExplainer
 from explainers.CFPGExplainer import CFPGExplainer
 from explainers.CFPGv2 import CFPGv2
 from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer
-#from explainers.CFGNNExplainer import CFGNNExplainer
+from explainers.CFGNNExplainer import CFGNNExplainer
 #from utils.graphs import normalize_adj
 
 
@@ -35,6 +35,9 @@ def explainer_selector(cfg, model, graph, s_args, verbose: bool=False):
             cfg["expl_params"]["hid_gcn"] = s_args.hid_gcn
             explainer = CFPGv2(model, graph, conv=conv, epochs=epochs, device=device, coeffs=cfg["expl_params"], verbose=verbose)
             
+        elif expl == "CFGNN":
+            explainer = CFGNNExplainer(model, graph, coeffs=cfg["expl_params"])
+
         # baseline explainers    
         elif expl == "1hop":
             explainer = OneHopExplainer(model, graph, device=device)

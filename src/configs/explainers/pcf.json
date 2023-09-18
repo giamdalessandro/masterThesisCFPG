@@ -1,9 +1,10 @@
 {
-    "paper" : "CF-GNN",
-    "dataset" : {
+    "explainer" : "CFGNN",
+    "datasets" : {
         "syn1" : {
             "name" : "BAshapes",
             "lr" : 0.005,
+            "opt" : "SGD",
             "reg_ent" : 10.0,
             "reg_size" : 0.05,
             "reg_cf" : 7.5,
@@ -13,6 +14,7 @@
         "syn2" : {
             "name" : "BAcommunities",
             "lr" : 0.005,
+            "opt" : "SGD",
             "reg_ent" : 1.0,
             "reg_size" : 0.05,
             "reg_cf" : 7.5,
@@ -22,6 +24,7 @@
         "syn3" : {
             "name" : "TreeCycles",
             "lr" : 0.01,
+            "opt" : "SGD",
             "reg_ent" : 10.0,
             "reg_size" : 0.05,
             "reg_cf" : 7.5,
@@ -31,6 +34,7 @@
         "syn4" : {
             "name" : "TreeGrids",
             "lr" : 0.01,
+            "opt" : "SGD",
             "reg_ent" : 1.0,
             "reg_size" : 0.01,
             "reg_cf" : 7.5,

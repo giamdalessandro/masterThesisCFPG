@@ -16,12 +16,15 @@ def parse_config(to_load: str, dataset: str):
     if to_load in ["PGE", "CF-GNN"]:  # only need to load gnn model config
         gnn = to_load
         explainer = ""
-    elif to_load in ["PGEex", "CFPG", "CFPGv2"]:  # need to load explainer and related gnn configs
-        gnn = "PGE"
-        explainer = to_load
     elif to_load in ["1hop","perfEx"]:  # baseline experiments
         gnn = "PGE"
         explainer = "CFPG"
+    elif to_load in ["PGEex", "CFPG", "CFPGv2"]:  # need to load explainer and related gnn configs
+        gnn = "PGE"
+        explainer = to_load
+    elif to_load == "CFGNN":
+        gnn = "CF-GNN"
+        explainer = "CFGNN"
 
     if gnn   == "PGE":    gnn_file = "pgeGNN" 
     elif gnn == "CF-GNN": gnn_file = "cfGNN"
@@ -40,6 +43,7 @@ def parse_config(to_load: str, dataset: str):
         if explainer   == "PGEex":  expl_file = "pge" 
         elif explainer == "CFPG":   expl_file = "cfpg_base"
         elif explainer == "CFPGv2": expl_file = "cfpg_v2"
+        elif explainer == "CFGNN": expl_file = "pcf"
 
         rel_path = f"/../configs/explainers/{expl_file}.json"
         expl_path = os.path.dirname(os.path.realpath(__file__)) + rel_path

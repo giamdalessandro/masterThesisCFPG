@@ -63,10 +63,7 @@ class CFGNNExplainer(BaseExplainer):
 
         self.gcn_layers = 3
         n_hid = self.coeffs["n_hid"]
-        if self.type == "graph":
-            self.expl_embedding = (n_hid*self.gcn_layers)*2
-        else:
-            self.expl_embedding = (n_hid*self.gcn_layers)*3
+        self.expl_embedding = (n_hid*self.gcn_layers)*2 if self.type == "graph" else (n_hid*self.gcn_layers)*3
 
         # instantiate explainer_mlp;
         self.explainer_mlp = torch.nn.Sequential(
@@ -217,17 +214,17 @@ class CFGNNExplainer(BaseExplainer):
 
     def prepare(self, node_index):
         """Prepare the PCFExplainer to explain the given node."""
-        original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj).to(self.device)
+        self.n_feats = self.features.size(0)
+        self.original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj).to(self.device)
 
-        subset, sub_index, n_map, _ = k_hop_subgraph(node_index, 3, self.adj, relabel_nodes=True)
-        self.sub_adj = sub_index
-        self.sub_feat = self.features[subset]
-        self.new_idx = n_map.int().item()
+        #subset, sub_index, n_map, _ = k_hop_subgraph(node_index, 3, self.adj, relabel_nodes=True)
+        #self.sub_adj = sub_index
+        #self.sub_feat = self.features[subset]
+        #self.new_idx = n_map.int().item()
 
-        n_feats = self.features.size(0)
-        # cf_prepare deve preparare il modello per la spiegazione instance-level
-        # devo usare un modello-expl ad ogni spiegazione? Penso di si.
-        self._cf_prepare(sub_index, n_feats, subset, original_preds)
+        ## cf_prepare deve preparare il modello per la spiegazione instance-level
+        ## devo usare un modello-expl ad ogni spiegazione? Penso di si.
+        #self._cf_prepare(sub_index, self.n_feats, subset, self.original_preds)
         
     def explain(self, index, config, meta_train: bool=False):
         """
@@ -243,15 +240,16 @@ class CFGNNExplainer(BaseExplainer):
         Return
             Explanation for sample.
         """
-        #subset, sub_index, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
-        #self.sub_adj = sub_index
-        #self.sub_feat = self.features[subset]
-        #self.new_idx = n_map.int().item()
+        subset, sub_index, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
+        self.sub_adj = sub_index
+        self.sub_feat = self.features[subset]
+        self._cf_prepare(sub_index, self.n_feats, subset, self.original_preds)
 
         # call CFExp original explaining method
+        new_idx = n_map.int().item()
         best_cf_examples, loss_total_t = self._cf_explain(
                                 node_idx=index,
-                                new_idx=self.new_idx,
+                                new_idx=new_idx,
                                 cf_optimizer=config.optimizer,
                                 lr=config.lr,
                                 n_momentum=config.n_momentum,
