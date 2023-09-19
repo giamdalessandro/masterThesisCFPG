@@ -54,7 +54,7 @@ cfg = parse_config(dataset=DATASET, to_load=GNN_MODEL)
 dataset, test_indices = load_dataset(dataset=DATASET)  #, load_adv=(MODE=="adv"))
 graph = dataset.get(0) # get base BAgraph
 print(Fore.GREEN + f"\n[dataset]> {dataset} dataset graph...")
-print("\t>>", graph)
+#print("\t>>", graph)
 
 # add dataset info to config 
 cfg.update({

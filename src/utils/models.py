@@ -92,7 +92,8 @@ def get_pretrained_checkpoint(model, paper: str, dataset: str, explainer: str, v
         if verbose: print(Fore.CYAN + f"[models]>","Model checkpoint weights for: {[k for k,v in checkpoint.items()]}")
     else:
         model.load_state_dict(checkpoint['model_state_dict'])
-        if verbose: print(Fore.CYAN + "[models]>","This model obtained:\n",
+        if verbose: 
+            print(Fore.CYAN + "[models]>","This model obtained:\n",
             f"\ttrain_acc: {checkpoint['train_acc']:.4f}",
             f"val_acc: {checkpoint['val_acc']:.4f}",
             f"test_acc: {checkpoint['test_acc']:.4f}.")

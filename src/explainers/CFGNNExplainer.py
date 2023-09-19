@@ -39,7 +39,7 @@ class CFGNNExplainer(BaseExplainer):
     def __init__(self, 
             model: torch.nn.Module, 
             data_graph: torch_geometric.data.Data,
-            norm_adj: torch.Tensor, 
+            norm_adj: torch.Tensor=None, 
             task: str="node",  
             epochs=30, 
             lr=0.003, 
@@ -50,15 +50,20 @@ class CFGNNExplainer(BaseExplainer):
         self.expl_name = "CFGNN"
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
-        self.norm_adj = norm_adj.to(device)
         self.model_to_explain.eval()
+
+        ## need dense adjacency matrix for GCNSynthetic model
+        v = torch.ones(self.adj.size(1))
+        s = (data_graph.num_nodes,data_graph.num_nodes)
+        dense_edge_index = torch.sparse_coo_tensor(indices=self.adj, values=v, size=s).to_dense()
+        self.norm_adj = normalize_adj(dense_edge_index).to(device)
 
         # from config
         self.epochs = epochs
         self.lr     = lr
         for k,v in coeffs.items():
             self.coeffs[k] = v
-        print("\t>> explainer:", self.expl_name)
+        #print("\t>> short-name:", self.expl_name)
         print("\t>> coeffs:", self.coeffs)
 
         self.gcn_layers = 3
@@ -84,14 +89,16 @@ class CFGNNExplainer(BaseExplainer):
         nclass  = self.model_to_explain.nclass
 
         # need dense adjacency matrix for GCNSynthetic model
+        #print("\t>> sub:", sub_index.size())
         v = torch.ones(sub_index.size(1))
         s = (n_nodes,n_nodes)
         dense_index = torch.sparse_coo_tensor(indices=sub_index, values=v, size=s).to_dense()
         norm_sub_adj = normalize_adj(dense_index).to(self.device)
+        #print("\t>> norm adj:", norm_sub_adj.size())
 
 		# Instantiate CF model class, load weights from original model
-        cf_model = GCNSyntheticPerturb(    
-                            nfeat = n_feats, 
+        self.cf_model = GCNSyntheticPerturb(    
+                            nfeat=n_feats, 
                             nhid=n_hid, 
                             nout=n_hid,
                             nclass=nclass, 
@@ -101,19 +108,19 @@ class CFGNNExplainer(BaseExplainer):
                             edge_additions=True,
                             device=self.device).to(self.device)
         
-        cf_model.load_state_dict(self.model_to_explain.state_dict(), strict=False)
+        self.cf_model.load_state_dict(self.model_to_explain.state_dict(), strict=False)
 
 		# Freeze weights from original model in cf_model
-        for name, param in cf_model.named_parameters():
+        for name, param in self.cf_model.named_parameters():
             if name.endswith("weight") or name.endswith("bias"):
                 param.requires_grad = False
         if verbose:
             for name, param in self.model_to_explain.named_parameters():
                 print("orig model requires_grad: ", name, param.requires_grad)
-            for name, param in cf_model.named_parameters():
+            for name, param in self.cf_model.named_parameters():
                 print("cf model requires_grad: ", name, param.requires_grad)
 
-        return cf_model
+        return self.cf_model
         
 
     def _train(self, epoch, verbose: bool=False):
@@ -127,7 +134,7 @@ class CFGNNExplainer(BaseExplainer):
 		# output uses differentiable P_hat ==> adjacency matrix not binary, but needed for training
         output = self.cf_model.forward(self.x, self.A_x)
 		# output_actual uses thresholded P ==> binary adjacency matrix ==> gives actual prediction
-        output_actual, self.P = self.cf_model.forward_prediction(self.x)
+        output_actual, self.P, _ = self.cf_model.forward_prediction(self.x)
 
 		# Need to use new_idx from now on since sub_adj is reindexed
         y_pred_new = torch.argmax(output[self.new_idx])
@@ -158,8 +165,8 @@ class CFGNNExplainer(BaseExplainer):
         cf_stats = []
         if y_pred_new_actual != self.y_pred_orig:
             cf_stats = {
-                "node_idx" : self.node_idx.item(), 
-                "new_idx" : self.new_idx.item(),
+                "node_idx" : self.node_idx, 
+                "new_idx" : self.new_idx,
                 "cf_adj" : cf_adj.detach().numpy(), 
                 "sub_adj" : self.sub_adj.detach().numpy(),
                 "y_pred_orig" : self.y_pred_orig.item(),
@@ -180,7 +187,7 @@ class CFGNNExplainer(BaseExplainer):
         self.node_idx = node_idx
         self.new_idx = new_idx
 
-        self.x   = self.sub_feat
+        self.x   = self.features
         self.A_x = self.sub_adj
         self.D_x = get_degree_matrix(self.A_x)
 
@@ -195,7 +202,7 @@ class CFGNNExplainer(BaseExplainer):
         best_loss = np.inf
         num_cf_examples = 0
 
-        with tqdm(range(num_epochs), desc=f"[CFExpl]> node idx {int(node_idx)}", miniters=50, disable=(verbose)) as epochs_bar:
+        with tqdm(range(num_epochs), desc=f"[CFExpl]> node idx {int(node_idx)}", miniters=50, disable=True) as epochs_bar:
             for epoch in epochs_bar:
                 new_example, loss_total, loss_total_t = self._train(epoch)
                 if len(new_example) != 0 and (loss_total < best_loss):
@@ -212,9 +219,9 @@ class CFGNNExplainer(BaseExplainer):
         return best_cf_example, loss_total_t
 
 
-    def prepare(self, node_index):
+    def prepare(self, indices=None):
         """Prepare the PCFExplainer to explain the given node."""
-        self.n_feats = self.features.size(0)
+        self.n_feats = self.features.size(1)  #no. node features
         self.original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj).to(self.device)
 
         #subset, sub_index, n_map, _ = k_hop_subgraph(node_index, 3, self.adj, relabel_nodes=True)
@@ -226,7 +233,7 @@ class CFGNNExplainer(BaseExplainer):
         ## devo usare un modello-expl ad ogni spiegazione? Penso di si.
         #self._cf_prepare(sub_index, self.n_feats, subset, self.original_preds)
         
-    def explain(self, index, config, meta_train: bool=False):
+    def explain(self, index, meta_train: bool=False):
         """
         Compute counterfactual explanation for node `index`, i.e. compute a CF
         examples for the prediction on given node.
@@ -240,34 +247,37 @@ class CFGNNExplainer(BaseExplainer):
         Return
             Explanation for sample.
         """
+        #self.sub_feat = self.features#[subset]
+        self.y_pred_orig = torch.argmax(self.original_preds[index])
+
         subset, sub_index, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
         self.sub_adj = sub_index
-        self.sub_feat = self.features[subset]
-        self._cf_prepare(sub_index, self.n_feats, subset, self.original_preds)
+        self.sub_labels = subset
+        self._cf_prepare(self.features.size(0), self.n_feats, sub_index)
 
         # call CFExp original explaining method
         new_idx = n_map.int().item()
         best_cf_examples, loss_total_t = self._cf_explain(
                                 node_idx=index,
                                 new_idx=new_idx,
-                                cf_optimizer=config.optimizer,
-                                lr=config.lr,
-                                n_momentum=config.n_momentum,
-                                num_epochs=config.epochs)
+                                cf_optimizer=self.coeffs["opt"],
+                                lr=self.lr,
+                                n_momentum=self.coeffs["n_momentum"],
+                                num_epochs=self.epochs)
         
         # Retrieve final explanation, need to compute proper return
         # values for graph, expl_graph_weights
         if len(best_cf_examples) > 0:
             best_cf_example = best_cf_examples[-1]  
-            graph = best_cf_example["sub_adj"]
+            sub_graph = self.sub_adj #best_cf_example["sub_adj"]
             expl_graph_weights = best_cf_example["cf_adj"]
         else:
             # no CF example found
-            graph = self.sub_adj
-            expl_graph_weights = self.sub_feat
             best_cf_example = {"loss_total_t":loss_total_t}
+            sub_graph = self.sub_adj
+            expl_graph_weights = torch.rand(sub_graph.size(1)).float()
 
-        return graph, expl_graph_weights, best_cf_example
+        return sub_graph, expl_graph_weights #, best_cf_example
     
     
 

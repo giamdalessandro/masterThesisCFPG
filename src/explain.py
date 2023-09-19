@@ -115,7 +115,7 @@ if STORE_CKPT: store_expl_checkpoint(explainer, DATASET, -1)
 # Actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
 explanations = []
-with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=True) as test_epoch:
+with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
     top_k = 12 if DATASET != "syn4" else 24
     top_k = 0 if EXPLAINER in ["1hop","perfEx"] else top_k
     verbose = False
@@ -124,10 +124,11 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
     for idx in test_epoch:
         subgraph, expl = explainer.explain(idx)
 
-        if (curr_id%(n_tests//5)) == 0:
-            plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
-        elif idx == test_idxs[-1]:
-            plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
+        if EXPLAINER != "CFGNN":
+            if (curr_id%(n_tests//5)) == 0:
+                plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
+            elif idx == test_idxs[-1]:
+                plot_graph(subgraph, expl_weights=expl, n_idx=idx, e_cap=top_k, show=PLOT, verbose=verbose)
         
         explanations.append((subgraph, expl, idx))
         curr_id += 1
