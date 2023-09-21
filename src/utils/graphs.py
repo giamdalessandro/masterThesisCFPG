@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch_geometric.utils import k_hop_subgraph, dense_to_sparse, to_dense_adj, subgraph
 

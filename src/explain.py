@@ -18,7 +18,7 @@ from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 from evaluations.CFEvaluation import get_cf_metrics
 
-THRES = 0.1
+THRES = 0.5
 #-E CFPGv2 -D syn1 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 1.0 --opt Adam --heads 3 --hid-gcn 20 --add-att 1.0
 #-E CFPGv2 -D syn2 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 0.5 --opt Adam --heads 5 --hid-gcn 20 --add-att 5.0
 
@@ -142,9 +142,9 @@ inference_eval.done_explaining()
 
 # Metrics: compute AUC score for computed explanation
 if VERBOSE: print(Fore.MAGENTA + "\n[explain]> Explanation metrics")
-auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
+#auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
-if VERBOSE: print("\t>> final score:",f"{auc_score:.4f}")
+#if VERBOSE: print("\t>> final score:",f"{auc_score:.4f}")
 if VERBOSE: print("\t>> time elapsed:",f"{time_score:.4f}")
 
 
@@ -162,7 +162,7 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
                     verbose=VERBOSE)
     
     test_cf = explainer.test_cf_examples 
-    train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx"] else test_cf
+    train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx","CFGNN"] else test_cf
     max_cf = len(train_idxs)
 
     test_fnd = len(test_cf.keys())

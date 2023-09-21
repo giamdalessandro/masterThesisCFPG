@@ -292,11 +292,11 @@ class CFPGv2(BaseExplainer):
 
                     # compute explanation mask
                     expl_feats = embeds[global_n_ids].to(self.device)
-                    mask = self.explainer_module(expl_feats, sub_index, n_map, temp=t, bias=sample_bias)
+                    #mask = self.explainer_module(expl_feats, sub_index, n_map, temp=t, bias=sample_bias)
+                    mask = self.explainer_module(embeds, batch_graph, n_map, temp=t, bias=sample_bias)
                     #print("\n\t>> node id:", global_idx)                        
-                    print("\t>> mask mean:", mask.mean())
-                    print("\t>> over mean:", (mask > 0.1).sum())
-                    exit(0)
+                    #print("\t>> mask mean:", mask.mean())
+                    #print("\t>> over mean:", (mask > 0.1).sum())
 
                     ## basic minus thresholds
                     #cf_adj = torch.ones(mask.size()).to(self.device) 
@@ -320,8 +320,10 @@ class CFPGv2(BaseExplainer):
                     #cf_mask = mask.argmin(dim=1).float()
                     #mask = mask[:,1]
 
-                    masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
-                    original_pred = self.model_to_explain(sub_feats, sub_index)
+                    #masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
+                    masked_pred, cf_feat = self.model_to_explain(batch_feats, batch_graph, edge_weights=cf_mask, cf_expl=True)
+                    #original_pred = self.model_to_explain(sub_feats, sub_index)
+                    original_pred = self.model_to_explain(batch_feats, batch_graph)
 
 
                     sub_node_idx = n_map.item()
