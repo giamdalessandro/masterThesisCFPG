@@ -28,6 +28,8 @@ def _eval_AUC_node(explanations, explanation_labels):
     expl_labels_dense = explanation_labels[1].to_dense()
     #expl_labels_sparse = explanation_labels[1].indices()
     #print("\n\t[DEBUG]> labels:", expl_labels_sparse.size(1))
+    #print("\t[DEBUG]> expl:", explanations[0][0].size())
+    #print("\t[DEBUG]> expl:", explanations[0][1].size())
 
     # Need per-node labels to avoid overlapping between explanation
     # edges of different nodes that may be in the same 3-hop-neighborhood,
