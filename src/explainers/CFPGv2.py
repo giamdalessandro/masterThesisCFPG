@@ -20,14 +20,14 @@ NODE_BATCH_SIZE = 32
 
 class CFPGv2(BaseExplainer):
     """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer v.2)"""
-    coeffs = {     ## default values for explainer parameters
-        "lr": 0.003,
-        "reg_size": 0.5,
-        "reg_ent" : 1.0,
-        "reg_cf"  : 5.0, 
-        "temps": [5.0, 2.0],
-        "sample_bias": 0.0,
-    }
+    #coeffs = {     ## default values for explainer parameters
+    #    "lr": 0.003,
+    #    "reg_size": 0.5,
+    #    "reg_ent" : 1.0,
+    #    "reg_cf"  : 5.0, 
+    #    "temps": [5.0, 2.0],
+    #    "sample_bias": 0.0,
+    #}
 
     def __init__(self, 
             model_to_explain: torch.nn.Module, 
@@ -64,8 +64,10 @@ class CFPGv2(BaseExplainer):
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
         self.conv = conv
-        for k,v in coeffs.items():
-            self.coeffs[k] = v
+
+        self.coeffs = coeffs
+        #for k,v in coeffs.items():
+        #    self.coeffs[k] = v
         #if verbose: print("\t>> explainer:", self.expl_name)
         if verbose: print("\t>> coeffs:", self.coeffs)
         self.thres = self.coeffs["thres"]
@@ -254,6 +256,7 @@ class CFPGv2(BaseExplainer):
         self.cf_examples = {}
         best_loss = Inf
         #self.kl_loss = nn.KLDivLoss(reduction="batchmean")
+
         # Start training loop
         for e in (p_bar := tqdm(range(0, self.epochs), desc=f"[{self.expl_name}]> training", disable=not(self.verbose))):
             optimizer.zero_grad()
@@ -288,42 +291,52 @@ class CFPGv2(BaseExplainer):
                     # relabel sub-graph with global node indices   # still needed?
                     global_n_ids = global_n_ids.to(self.device)
                     sub_graph = torch.take(global_n_ids,sub_index)    
-                    
 
                     # compute explanation mask
-                    expl_feats = embeds[global_n_ids].to(self.device)
-                    #mask = self.explainer_module(expl_feats, sub_index, n_map, temp=t, bias=sample_bias)
-                    mask = self.explainer_module(embeds, batch_graph, n_map, temp=t, bias=sample_bias)
-                    #print("\n\t>> node id:", global_idx)                        
-                    #print("\t>> mask mean:", mask.mean())
-                    #print("\t>> over mean:", (mask > 0.1).sum())
+                    expl_feats = embeds[sub_nodes, :].to(self.device)
 
-                    ## basic minus thresholds
-                    #cf_adj = torch.ones(mask.size()).to(self.device) 
-                    #cf_mask = torch.nn.functional.gumbel_softmax(mask, tau=t, hard=True, dim=0)
-                    cf_mask = (1 - mask) #.abs()
+                    b_nodes = sub_nodes.size(0)
+                    full_neighbors = torch.tril_indices(b_nodes,b_nodes,offset=-1)
+                    
+                    #print("\n\t>> batch graph:", batch_graph.size())
+                    #print("\t>> batch feats:", batch_feats.size())
+                    #print("\t--------------------------------------")
+                    #print("\t>> node index:", global_idx)
+                    #print("\t>> sub graph :", sub_index.size())
+                    #print("\t>> sub nodes :", sub_nodes.size())
+                    #print("\t>> node mapping:", n_map)
+                    #print("\t--------------------------------------")
+                    #print("\t>> full neighbors:", full_neighbors.size())
+                    #print("\t>> expl_feats:", expl_feats.size())
+                    ##exit(0)
+
+                    #mask = self.explainer_module(expl_feats, sub_index, n_map, temp=t, bias=sample_bias)
+                    mask = self.explainer_module(expl_feats, full_neighbors, n_map, temp=t, bias=sample_bias)
+                    #print("\t--------------------------------------")                     
+                    #print("\t>> mask mean:", mask.mean())
+                    #print("\t>> over mean:", (mask > THRES).sum())
+                    #exit(0)
+
+                    cf_mask = (mask > THRES).float().squeeze()
+                    cf_mask = torch.sparse_coo_tensor(
+                        indices=full_neighbors,
+                        values=cf_mask,
+                        size=(b_nodes,b_nodes)).to_dense()
+                    dense_full = torch.sparse_coo_tensor(
+                        indices=sub_index,
+                        values=torch.ones(sub_index.size(1)),
+                        size=(b_nodes,b_nodes)).to_dense()
+
+                    cf_mask = torch.logical_xor(cf_mask,dense_full)
+                    cf_mask = cf_mask[full_neighbors[0],full_neighbors[1]].float()
+                    #cf_mask = (1 - mask) #.abs()
                     #cf_mask = (mask <= THRES).float()
 
-                    ## top-k thresholds
-                    #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
-                    #top_k = sorted_index[:6] #12
-                    #cf_mask = torch.zeros(mask.size())# - 0.5
-                    #cf_mask[top_k] = 1.0
-
-                    ## mean thresholds
-                    #m, std = torch.std_mean(mask, unbiased=False)
-                    #thres = m + std
-                    #cf_mask = (mask <= thres).float() #mask.mean()
-                    #cf_mask = (mask.mean() - mask*2).abs()
-
-                    ## softmax thresholds
-                    #cf_mask = mask.argmin(dim=1).float()
-                    #mask = mask[:,1]
-
-                    #masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
-                    masked_pred, cf_feat = self.model_to_explain(batch_feats, batch_graph, edge_weights=cf_mask, cf_expl=True)
-                    #original_pred = self.model_to_explain(sub_feats, sub_index)
-                    original_pred = self.model_to_explain(batch_feats, batch_graph)
+                    with torch.no_grad():
+                        #masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
+                        masked_pred, cf_feat = self.model_to_explain(sub_feats, full_neighbors, edge_weights=cf_mask, cf_expl=True)
+                        #original_pred = self.model_to_explain(sub_feats, sub_index)
+                        original_pred = self.model_to_explain(sub_feats, sub_index)
 
 
                     sub_node_idx = n_map.item()
@@ -377,7 +390,7 @@ class CFPGv2(BaseExplainer):
             if loss_total < best_loss: 
                 best_loss = loss_total
                 early_stop = self.coeffs["early_stop"]
-            elif e >= 14: 
+            elif e > 15:  # 15 epochs patience
                 early_stop -= 1
                 if early_stop == 0:
                     print(f"\n\t>> No loss improvements for {self.coeffs['early_stop']} epochs... Early STOP") 
@@ -408,12 +421,12 @@ class CFPGv2(BaseExplainer):
         indices = torch.LongTensor(indices).to(self.device)   
         self._train(indices=indices)
 
-    def _extract_cf_example(self, index, sub_graph, cf_mask):
+    def _extract_cf_example(self, index, sub_graph, cf_mask, sub_feats, full_neigh):
         """Given the computed CF edge mask for a node prediction extracts
         the related CF example, if any."""
         with torch.no_grad():
-            masked_pred, cf_feat = self.model_to_explain(self.features, sub_graph, edge_weights=cf_mask, cf_expl=True)
-            original_pred = self.model_to_explain(self.features, sub_graph)
+            masked_pred, cf_feat = self.model_to_explain(sub_feats, full_neigh, edge_weights=cf_mask, cf_expl=True)
+            original_pred = self.model_to_explain(sub_feats, sub_graph)
         
         masked_pred   = masked_pred[index]
         original_pred = original_pred[index].argmax()
@@ -441,7 +454,7 @@ class CFPGv2(BaseExplainer):
         index = int(index)
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
-            sub_nodes, sub_graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=False)
+            sub_nodes, sub_graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
             embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
@@ -449,39 +462,47 @@ class CFPGv2(BaseExplainer):
             embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
         # Use explainer mlp to get an explanation
-        #expl_feats = embeds[sub_nodes, :].to(self.device)
+        expl_feats = embeds[sub_nodes, :].to(self.device)
         #mask = self.explainer_module(sub_feats, sub_graph, n_map)
-        mask = self.explainer_module(embeds, sub_graph, index, train=False)
+
+        b_nodes = sub_nodes.size(0)
+        full_neighbors = torch.tril_indices(b_nodes,b_nodes,offset=-1)
+        #mask = self.explainer_module(embeds, sub_graph, index, train=False)
+        mask = self.explainer_module(expl_feats, full_neighbors, n_map, train=False)
         #mask = torch.nn.functional.gumbel_softmax(mask, tau=1.0, hard=False, dim=0)
 
-        ## to get opposite of cf-mask, i.e. explanation
-        #cf_mask = (1 - mask)
-        cf_mask = (mask <= THRES).float()
-
-        ## top-k thresholds
-        #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
-        #top_k = sorted_index[:6] #12
-        #cf_mask = torch.zeros(mask.size())# - 0.5
-        #cf_mask[top_k] = 1.0
-        
-        ## mean thresholds
-        #m, std = torch.std_mean(mask, unbiased=False)
-        #thres = m + std
-        #cf_mask = (mask <= thres).float()  #mask.mean()
-        #cf_mask = (mask.mean() - mask*2)
-        
-        ## softmax thresholds
-        #cf_mask = mask.argmin(dim=1).float()
-        #cf_mask = (mask <= THRES).float()
-        #print("\n\t>> cf_mask:", cf_mask)
-        #print("\t>> cf_mask:", cf_mask.sum())
-        #print("\t>> argmax:", mask.argmax(dim=1).sum())
-        #mask = mask[:,1]
-        #print("\t>> mask:", mask)
-        #print("\t>> over:", (mask > 0.5).sum())
+        #print("\n\t>> adj:", self.adj.size())
+        #print("\t>> feats:", self.features.size())
+        #print("\t--------------------------------------")
+        #print("\t>> node index:", index)
+        #print("\t>> sub graph :", sub_graph.size())
+        #print("\t>> sub nodes :", sub_nodes.size())
+        #print("\t>> node mapping:", n_map)
+        #print("\t--------------------------------------")
+        #print("\t>> full neighbors:", full_neighbors.size())
+        #print("\t>> expl_feats:", expl_feats.size())
         #exit(0)
 
-        self._extract_cf_example(index, sub_graph, cf_mask)
+        ## to get opposite of cf-mask, i.e. explanation
+        cf_mask = (mask > THRES).float().squeeze()
+        cf_mask = torch.sparse_coo_tensor(
+            indices=full_neighbors,
+            values=cf_mask,
+            size=(b_nodes,b_nodes)).to_dense()
+        dense_full = torch.sparse_coo_tensor(
+            indices=sub_graph,
+            values=torch.ones(sub_graph.size(1)),
+            size=(b_nodes,b_nodes)).to_dense()
+
+        cf_mask = torch.logical_xor(cf_mask,dense_full)
+        cf_mask = cf_mask[full_neighbors[0],full_neighbors[1]].float()
+        #cf_mask = (1 - mask)
+        #cf_mask = (mask <= THRES).float()
+
+        #self._extract_cf_example(index, sub_graph, cf_mask)
+        sub_feats = self.features[sub_nodes, :].to(self.device)
+        self._extract_cf_example(int(n_map), sub_graph, cf_mask, sub_feats, full_neighbors)
+        sub_graph = full_neighbors
 
         expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph
         for i in range(0, mask.size(0)):

@@ -16,25 +16,25 @@ def explainer_selector(cfg, model, graph, s_args, verbose: bool=False):
     device = s_args.device
     if verbose: print(Fore.MAGENTA+"\n[explain]> Loading",f"{expl}",Fore.MAGENTA+"explainer..")
 
-    cfg["expl_params"]["reg_ent"] = cfg["expl_params"]["reg_ent"] if s_args.reg_ent == 0.0 else s_args.reg_ent
-    cfg["expl_params"]["reg_size"] = cfg["expl_params"]["reg_size"] if s_args.reg_size == 0.0 else s_args.reg_size
+    # if params are not given in the command line, use values from config file
+    args_d = vars(s_args)
+    on_file = []
+    for k,v in cfg["expl_params"].items():
+            try:
+                if args_d[k] != -1.0 and args_d[k] != "base":
+                    cfg["expl_params"][k] = args_d[k]
+            except KeyError:
+                on_file.append(k)
 
+    #if verbose: print(f"\t>> {on_file} from config file")
     if expl == "PGEex":
         explainer = PGExplainer(model, graph, epochs=epochs, device=device, coeffs=cfg["expl_params"]) # needs 'GNN' model
     else:
-        cfg["expl_params"]["opt"] = cfg["expl_params"]["opt"] if s_args.opt == "base" else s_args.opt
-        cfg["expl_params"]["reg_cf"] = cfg["expl_params"]["reg_cf"] if s_args.reg_cf == 0.0 else s_args.reg_cf
-
         if expl == "CFPG":
             explainer = CFPGExplainer(model, graph, epochs=epochs, device=device, coeffs=cfg["expl_params"])
         elif expl == "CFPGv2":
-            conv = cfg["expl_params"]["conv"] if s_args.conv == "base" else s_args.conv
-            cfg["expl_params"]["conv"]    = conv
-            cfg["expl_params"]["heads"]   = s_args.heads
-            cfg["expl_params"]["add_att"] = s_args.add_att
-            cfg["expl_params"]["hid_gcn"] = s_args.hid_gcn
-            explainer = CFPGv2(model, graph, conv=conv, epochs=epochs, device=device, coeffs=cfg["expl_params"], verbose=verbose)
-            
+            conv = cfg["expl_params"]["conv"]
+            explainer = CFPGv2(model, graph, conv=conv, epochs=epochs, device=device, coeffs=cfg["expl_params"], verbose=verbose)       
         elif expl == "CFGNN":
             explainer = CFGNNExplainer(model, graph, coeffs=cfg["expl_params"])
 
