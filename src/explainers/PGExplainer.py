@@ -28,13 +28,6 @@ class PGExplainer(BaseExplainer):
     :function train: train the explainer
     :function explain: search for the subgraph which contributes most to the clasification decision of the model-to-be-explained.
     """
-    coeffs = {
-        "reg_size": 0.05,
-        "reg_ent" : 1.0,
-        "temps": [5.0, 2.0],
-        "sample_bias": 0.0,
-    }
-
     def __init__(self, 
             model_to_explain: torch.nn.Module, 
             data_graph: ptgeom.data.Data,
@@ -50,9 +43,7 @@ class PGExplainer(BaseExplainer):
         self.adj = self.data_graph.edge_index.to(self.device)
         self.epochs = epochs
         self.lr = lr
-        for k,v in coeffs.items():
-            self.coeffs[k] = v
-        print("\t>> explainer:", self.expl_name)
+        self.coeffs = coeffs
         print("\t>> coeffs:", self.coeffs)
 
         if self.type == "graph":

@@ -20,15 +20,6 @@ NODE_BATCH_SIZE = 32
 
 class CFPGv2(BaseExplainer):
     """A class encaptulating CF-PGExplainer v.2 (Counterfactual-PGExplainer v.2)"""
-    #coeffs = {     ## default values for explainer parameters
-    #    "lr": 0.003,
-    #    "reg_size": 0.5,
-    #    "reg_ent" : 1.0,
-    #    "reg_cf"  : 5.0, 
-    #    "temps": [5.0, 2.0],
-    #    "sample_bias": 0.0,
-    #}
-
     def __init__(self, 
             model_to_explain: torch.nn.Module, 
             data_graph: torch_geometric.data.Data,
@@ -64,14 +55,10 @@ class CFPGv2(BaseExplainer):
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
         self.conv = conv
-
-        self.coeffs = coeffs
-        #for k,v in coeffs.items():
-        #    self.coeffs[k] = v
-        #if verbose: print("\t>> explainer:", self.expl_name)
-        if verbose: print("\t>> coeffs:", self.coeffs)
-        self.thres = self.coeffs["thres"]
         self.verbose = verbose
+        self.coeffs = coeffs
+        self.thres = self.coeffs["thres"]
+        if verbose: print("\t>> coeffs:", self.coeffs)
 
         if self.type == "graph": # graph classification model
             self.expl_embedding = self.model_to_explain.embedding_size * 2

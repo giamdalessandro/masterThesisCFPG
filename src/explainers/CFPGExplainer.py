@@ -27,16 +27,6 @@ class CFPGExplainer(BaseExplainer):
     `explain`: search for the subgraph which contributes most to the clasification
              decision of the model-to-be-explained.
     """
-    ## default values for explainer parameters
-    coeffs = {
-        "lr": 0.003,
-        "reg_size": 0.5,
-        "reg_ent" : 1.0,
-        "reg_cf"  : 5.0, 
-        "temps": [5.0, 2.0],
-        "sample_bias": 0.0,
-    }
-
     def __init__(self, 
             model_to_explain: torch.nn.Module, 
             data_graph: torch_geometric.data.Data,
@@ -67,9 +57,7 @@ class CFPGExplainer(BaseExplainer):
         self.adj = self.data_graph.edge_index.to(device)
         self.features = self.data_graph.x.to(device)
         self.epochs = epochs
-        for k,v in coeffs.items():
-            self.coeffs[k] = v
-        #print("\t>> explainer:", self.expl_name)
+        self.coeffs = coeffs
         print("\t>> coeffs:", self.coeffs)
 
         if self.type == "graph": # graph classificatio model

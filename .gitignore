@@ -4,6 +4,7 @@ datasets/
 checkpoints/
 results/
 logs/
+robevecchie.py
 
 ### github default
 # Byte-compiled / optimized / DLL files
