@@ -51,6 +51,9 @@ def _eval_AUC_node(explanations, explanation_labels):
         expl_edges = torch.LongTensor(expl_pn_labels[str(node_idx)]).T  # use sparse repr for better indexing
         mask[expl_edges[0],expl_edges[1]] = 1
         mask[expl_edges[1],expl_edges[0]] = 1  # graph is undirected
+        #print(">> expl edges:", expl_edges)
+        #print(">> sub graph :", sub_graph.T)
+        #exit(0)
 
         n_edges = sub_graph.size(1)
         for i in range(0, n_edges): # Loop over each edge in the explanation sub-graph
@@ -62,14 +65,18 @@ def _eval_AUC_node(explanations, explanation_labels):
             #edge     = expl_labels_dense[pair[0]][pair[1]].item()  # to use old labels
             #edge_rev = expl_labels_dense[pair[1]][pair[0]].item()  # to use old labels
             pair = sub_graph.T[i].long() #.numpy()          
-            edge = mask[pair[0]][pair[1]]
-            edge_rev = mask[pair[1]][pair[0]]
+            edge = mask[pair[0]][pair[1]].item()
+            edge_rev = mask[pair[1]][pair[0]].item()
             
             gt = edge + edge_rev
-            #print("ground truth:", gt)
+            #print(">> ground truth:", gt)
             if gt == 0:
                 ground_truth_node.append(0)
             else:
+                #if edge_pred > 0.1:
+                #    print("\n>> node:", node_idx, ">> edge:", pair)
+                #    print(f">> idd: {edge_pred:.4f}")
+                #    print(">> gt :", expl_edges.T)
                 ground_truth_node.append(1)
 
         #exit("\n[DEBUG]: sto a debbuggà, stacce.")            

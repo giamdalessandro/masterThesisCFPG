@@ -304,7 +304,7 @@ class CFPGExplainer(BaseExplainer):
 
                         # if original prediction changes save the CF example
                         if pred_same == 0:
-                            #print("cf example found for node", global_idx)
+                            #print("[log]> CF found for node", global_idx)
                             best_loss = id_loss
                             cf_ex = {"loss": best_loss, "mask": mask, "feats": cf_feat[sub_node_idx]}
                             try: 

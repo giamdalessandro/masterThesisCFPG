@@ -93,7 +93,7 @@ class CFGNNExplainer(BaseExplainer):
         v = torch.ones(sub_index.size(1))
         s = (n_nodes,n_nodes)
         dense_index = torch.sparse_coo_tensor(indices=sub_index, values=v, size=s).to_dense()
-        norm_sub_adj = normalize_adj(dense_index).to(self.device)
+        #norm_sub_adj = normalize_adj(dense_index).to(self.device)
         #print("\t>> norm adj:", norm_sub_adj.size())
 
 		# Instantiate CF model class, load weights from original model
@@ -102,10 +102,10 @@ class CFGNNExplainer(BaseExplainer):
                             nhid=n_hid, 
                             nout=n_hid,
                             nclass=nclass, 
-                            adj=norm_sub_adj, 
+                            adj=dense_index, #norm_sub_adj, 
                             dropout=dropout, 
                             beta=beta,
-                            edge_additions=True,
+                            edge_additions=False,
                             device=self.device).to(self.device)
         
         self.cf_model.load_state_dict(self.model_to_explain.state_dict(), strict=False)
@@ -124,9 +124,7 @@ class CFGNNExplainer(BaseExplainer):
         
 
     def _train(self, epoch, verbose: bool=False):
-        """
-        Train the explainer, one step at a time.
-        """
+        """Train the explainer, one step at a time."""
         t = time.time()
         self.cf_model.train()
         self.cf_optimizer.zero_grad()
@@ -167,7 +165,7 @@ class CFGNNExplainer(BaseExplainer):
             cf_stats = {
                 "node_idx" : self.node_idx, 
                 "new_idx" : self.new_idx,
-                "cf_adj" : cf_adj.detach().numpy(), 
+                "cf_adj" : cf_adj.detach(), 
                 "sub_adj" : self.sub_adj.detach().numpy(),
                 "y_pred_orig" : self.y_pred_orig.item(),
                 "y_pred_new" : y_pred_new.item(),
@@ -179,7 +177,14 @@ class CFGNNExplainer(BaseExplainer):
                 "loss_pred" : loss_pred.item(),
                 "loss_graph_dist" : loss_graph_dist.item()
             }
+            cf_ex = {"mask": cf_adj, "loss": loss_total}
+            try: 
+                self.test_cf_examples[str(self.node_idx)] = cf_ex
+            except KeyError:
+                self.test_cf_examples[str(self.node_idx)] = cf_ex
                         
+        #print("\t>> cacca:",cf_adj.detach().size()) 
+        #exit(0)
         return cf_stats, loss_total.item(), loss_total
 
     def _cf_explain(self, node_idx, new_idx, cf_optimizer: str, lr: float, n_momentum: float, 
@@ -223,19 +228,10 @@ class CFGNNExplainer(BaseExplainer):
         """Prepare the PCFExplainer to explain the given node."""
         self.n_feats = self.features.size(1)  #no. node features
         self.original_preds = self.model_to_explain.forward(self.features, adj=self.norm_adj).to(self.device)
+        self.test_cf_examples = {} 
 
-        #subset, sub_index, n_map, _ = k_hop_subgraph(node_index, 3, self.adj, relabel_nodes=True)
-        #self.sub_adj = sub_index
-        #self.sub_feat = self.features[subset]
-        #self.new_idx = n_map.int().item()
-
-        ## cf_prepare deve preparare il modello per la spiegazione instance-level
-        ## devo usare un modello-expl ad ogni spiegazione? Penso di si.
-        #self._cf_prepare(sub_index, self.n_feats, subset, self.original_preds)
-        
     def explain(self, index, meta_train: bool=False):
-        """
-        Compute counterfactual explanation for node `index`, i.e. compute a CF
+        """Compute counterfactual explanation for node `index`, i.e. compute a CF
         examples for the prediction on given node.
 
         Args
@@ -270,13 +266,20 @@ class CFGNNExplainer(BaseExplainer):
         if len(best_cf_examples) > 0:
             best_cf_example = best_cf_examples[-1]  
             sub_graph = self.sub_adj #best_cf_example["sub_adj"]
-            expl_graph_weights = best_cf_example["cf_adj"]
+            expl_graph_weights = (self.sub_adj - best_cf_example["cf_adj"])
+            #expl_graph_weights = torch.rand(sub_graph.size(1)).float()
+            #expl_graph_weights = (torch.zeros(sub_graph.size(1)) + 0.5).float()
+            #print("\t>> cacca mean:", expl_graph_weights.mean())
         else:
             # no CF example found
             best_cf_example = {"loss_total_t":loss_total_t}
             sub_graph = self.sub_adj
-            expl_graph_weights = torch.rand(sub_graph.size(1)).float()
+            expl_graph_weights = (torch.zeros(sub_graph.size(1)) + 0.5).float()
+            #expl_graph_weights = torch.rand(sub_graph.size(1)).float()
 
+        #print("\n\t>> sub_graph:", sub_graph.size())
+        #print("\t>> expl_weights:", expl_graph_weights.size())
+        #exit(0)
         return sub_graph, expl_graph_weights #, best_cf_example
     
     

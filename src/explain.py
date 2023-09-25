@@ -18,7 +18,7 @@ from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 from evaluations.CFEvaluation import get_cf_metrics
 
-THRES = 0.5
+THRES = 0.1
 #-E CFPGv2 -D syn1 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 1.0 --opt Adam --heads 3 --hid-gcn 20 --add-att 1.0
 #-E CFPGv2 -D syn2 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 0.5 --opt Adam --heads 5 --hid-gcn 20 --add-att 5.0
 
@@ -51,8 +51,12 @@ cuda_device_check(device, CUDA, VERBOSE)
 
 #### STEP 1: load a BAshapes dataset
 cfg = parse_config(dataset=DATASET, to_load=EXPLAINER)
-dataset, test_idxs = load_dataset(dataset=DATASET, verbose=VERBOSE)
-train_idxs = dataset.train_mask
+dataset, train_idxs, test_idxs = load_dataset(dataset=DATASET, verbose=VERBOSE)
+#print(">> train_indices:", train_idxs)
+#print(">> test_indices:", test_idxs)
+#exit(0)
+
+#train_idxs = dataset.train_mask
 # add some dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -89,6 +93,7 @@ if device == "cuda" and CUDA:
 #### STEP 3: select explainer
 cfg["expl_params"]["thres"] = THRES
 cfg["expl_params"]["early_stop"] = args.early_stop
+cfg["expl_params"]["drop_out"] = args.drop_out
 explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
 
 #print(">> state-dict:", explainer.explainer_module.state_dict().keys())
@@ -102,11 +107,9 @@ inference_eval = EfficiencyEvaluation()
 inference_eval.reset()
 
 # prepare the explainer (i.e. train the Explanation Module)
-if TRAIN_NODES:
+if TRAIN_NODES: # use all training no
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
-else:                              
-    train_idxs = test_idxs   # use only nodes that have an explanation ground truth
-    #train_idxs = test_idxs   # TODO: basta fa uno split qui
+#train_idxs = test_idxs    # use only nodes that have an explanation ground truth
 explainer.prepare(indices=train_idxs)  # actually train the explainer model
 
 if STORE_CKPT: store_expl_checkpoint(explainer, DATASET, -1)
@@ -163,17 +166,18 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     
     test_cf = explainer.test_cf_examples 
     train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx","CFGNN"] else test_cf
-    max_cf = len(train_idxs)
+    max_train_cf = len(train_idxs)
+    max_test_cf = len(test_idxs)
 
     test_fnd = len(test_cf.keys())
     train_fnd = len(train_cf.keys())
-    test_cf_perc = (test_fnd/max_cf)
-    train_cf_perc = (train_fnd/max_cf)
+    test_cf_perc = (test_fnd/max_test_cf)
+    train_cf_perc = (train_fnd/max_train_cf)
     
     if True: 
         print(Fore.MAGENTA + "[metrics]>","Average results on all explained predictions")
         print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
-        print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
+        print(f"\t\t-- w/ CF: test: {test_fnd}/{max_test_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_train_cf} ({train_cf_perc*100:.2f}%)")
         print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
         print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
         print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
@@ -189,16 +193,16 @@ if args.roc:
     e_name = explainer.expl_name
     e_h = explainer.history
     em_logs = {} if EXPLAINER != "CFPGv2" else explainer.explainer_module.logs_d
-    plot_expl_loss(
-        expl_name=e_name,
-        dataset=DATASET,
-        losses=e_h["train_loss"],
-        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
-        cf_test=test_fnd,
-        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
-        roc_gt=roc_gts,
-        roc_preds=roc_preds
-    )
+    #plot_expl_loss(
+    #    expl_name=e_name,
+    #    dataset=DATASET,
+    #    losses=e_h["train_loss"],
+    #    cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+    #    cf_test=test_fnd,
+    #    cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
+    #    roc_gt=roc_gts,
+    #    roc_preds=roc_preds
+    #)
     plot_mask_density(explanations, em_logs, DATASET, EPOCHS, thres=THRES)
     #plot_scatter_node_mask(explanations)
 
@@ -215,7 +219,7 @@ if STORE_LOG:
         "e_cfg"     : explainer.coeffs,
         "nlays"     : explainer.n_layers if EXPLAINER == "CFPGv2" else 1,
         "time"      : time_score,
-        "AUC"       : auc_score,
+        "AUC"       : -1.0, #auc_score,
         "cf_test"   : test_cf_perc if EXPLAINER != "PGEex" else -1.0,
         "cf_train"  : train_cf_perc if EXPLAINER != "PGEex" else -1.0,
         "cf_tot"    : max_cf if EXPLAINER != "PGEex" else "a",
