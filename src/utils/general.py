@@ -18,7 +18,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
     """Add arguments to argparser. When no value is given in the command line 
     the default config (.json files) are used."""
     parser.add_argument("--explainer", "-E", type=str, default="CFPG",
-                        choices=["PGEex","CFPG","CFPGv2","CFGNN","1hop","perfEx"],
+                        choices=["PGEex","CFPG","CFPGv2","CFGNN","1hop","perfEx","Random"],
                         help="Which explainer model to use")
     parser.add_argument("--dataset", "-D", type=str, default="syn1", 
                         choices=['syn1','syn2','syn3','syn4'], 
@@ -30,6 +30,7 @@ def parser_add_args(parser: argparse.ArgumentParser):
     parser.add_argument("--seed", "-s", type=int, default=42, help="Random seed (default: 42)")
     parser.add_argument("--opt", "-o", type=str, default="base", choices=["Adam","SGD","SGDm"], help="learning optimizer")
     parser.add_argument("--early-stop", "-es", type=int, default=10, help="Early stopping (no. epochs)")
+    parser.add_argument("--drop-out", "-do", type=float, default=0.0, help="Dropout")
 
     # to test gnn conv, may move it to cfg.json
     parser.add_argument("--conv", "-c", type=str, default="base", 

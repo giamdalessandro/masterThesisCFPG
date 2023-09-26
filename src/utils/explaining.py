@@ -4,7 +4,7 @@ init(autoreset=True) # initializes Colorama
 from explainers.PGExplainer import PGExplainer
 from explainers.CFPGExplainer import CFPGExplainer
 from explainers.CFPGv2 import CFPGv2
-from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer
+from explainers.OneHopExplainer import OneHopExplainer, PerfectExplainer, RandomExplainer
 from explainers.CFGNNExplainer import CFGNNExplainer
 #from utils.graphs import normalize_adj
 
@@ -43,6 +43,8 @@ def explainer_selector(cfg, model, graph, s_args, verbose: bool=False):
             explainer = OneHopExplainer(model, graph, device=device)
         elif expl == "perfEx":
             explainer = PerfectExplainer(model, graph, device=device)
+        elif expl == "Random":
+            explainer = RandomExplainer(model, graph, device=device)
 
     return explainer
 

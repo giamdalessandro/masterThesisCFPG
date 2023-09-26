@@ -16,7 +16,7 @@ def parse_config(to_load: str, dataset: str):
     if to_load in ["PGE", "CF-GNN"]:  # only need to load gnn model config
         gnn = to_load
         explainer = ""
-    elif to_load in ["1hop","perfEx"]:  # baseline experiments
+    elif to_load in ["1hop","perfEx","Random"]:  # baseline experiments
         gnn = "PGE"
         explainer = "CFPG"
     elif to_load in ["PGEex", "CFPG", "CFPGv2"]:  # need to load explainer and related gnn configs
