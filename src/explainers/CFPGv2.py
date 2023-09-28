@@ -9,13 +9,13 @@ from torch.optim import Adam, SGD
 import torch_geometric
 from torch_geometric.utils import k_hop_subgraph 
 from torch_geometric.loader import NeighborLoader
-from torch_geometric.nn import GCNConv, GATv2Conv
+#from torch_geometric.nn import GCNConv, GATv2Conv
 
 from .BaseExplainer import BaseExplainer
 from .CFPGv2_em import GCNExplModule, GATExplModule, GCNPerturbExplModule, GAALVExplModule, SMAPExplModule
 from utils.graphs import index_edge, create_symm_matrix_from_vec
 
-THRES = 0.1
+PATIENCE = 50
 NODE_BATCH_SIZE = 32
 
 class CFPGv2(BaseExplainer):
@@ -72,12 +72,12 @@ class CFPGv2(BaseExplainer):
         dropout = self.coeffs["drop_out"]
         if conv == "GCN": 
             self.explainer_module = GCNExplModule(in_feats=in_feats, enc_hidden=hid_gcn, # 20
-                                        dec_hidden=64, device=device).to(self.device)
+                                        dec_hidden=32, device=device).to(self.device)
         elif conv == "GAT":
             heads    = self.coeffs["heads"] 
             add_att  = self.coeffs["add_att"]
             self.explainer_module = GATExplModule(in_feats=in_feats, enc_hidden=hid_gcn, # 20
-                                        dec_hidden=64, heads=heads, add_att=add_att,
+                                        dec_hidden=32, heads=heads, add_att=add_att,
                                         device=device).to(self.device)
         elif conv == "pGCN":
             n_nodes = self.features.size(0)
@@ -130,7 +130,7 @@ class CFPGv2(BaseExplainer):
         size_loss = (mask > self.thres).sum()   # working fine
         #mask = mask.sigmoid()
         #size_loss = (mask.sigmoid()).sum()  #
-        size_loss = size_loss * reg_size
+        size_loss = (size_loss * reg_size)
 
         # Entropy loss (PGE)
         mask_ent_reg = -mask * torch.log(mask + EPS) - (1 - mask) * torch.log(1 - mask + EPS)
@@ -218,8 +218,8 @@ class CFPGv2(BaseExplainer):
         temp_schedule = lambda e: temp[0]*((temp[1]/temp[0])**(e/self.epochs))
 
         ## If we are explaining a graph, we can determine the embeddings before we run
-        if self.type == 'node':
-            embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
+        #if self.type == 'node':
+        #    embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach().to(self.device)
 
         # use NeighborLoader to sample batch_size nodes and their respective 3-hop neighborhood
         gnn_iter = 3               # GCN model has 3 mp iteration
@@ -281,60 +281,72 @@ class CFPGv2(BaseExplainer):
                     sub_graph = torch.take(global_n_ids,sub_index)    
 
                     # compute explanation mask
-                    expl_feats = embeds[sub_nodes, :].to(self.device)
+                    expl_feats = self.embeds[sub_nodes, :].to(self.device)
 
                     b_nodes = sub_nodes.size(0)
-                    full_neighbors = torch.tril_indices(b_nodes,b_nodes,offset=0)
-                    
-                    #print("\n\t>> batch graph:", batch_graph.size())
-                    #print("\t>> batch feats:", batch_feats.size())
-                    #print("\t--------------------------------------")
-                    #print("\t>> node index:", global_idx)
-                    #print("\t>> sub graph :", sub_index.size())
-                    #print("\t>> sub nodes :", sub_nodes.size())
-                    #print("\t>> node mapping:", n_map)
-                    #print("\t--------------------------------------")
-                    #print("\t>> full neighbors:", full_neighbors.size())
-                    #print("\t>> expl_feats:", expl_feats.size())
-                    ##exit(0)
+                    full_neighbors = torch.ones(b_nodes,b_nodes).to_sparse_coo()
+                    full_neighbors = full_neighbors.indices()
 
                     #mask = self.explainer_module(expl_feats, sub_index, n_map, temp=t, bias=sample_bias)
                     mask = self.explainer_module(expl_feats, full_neighbors, n_map, temp=t, bias=sample_bias)
-                    #mask = (mask + 0.1)
-                    #print("\t--------------------------------------")                     
-                    #print("\t>> mask mean:", mask.mean())
-                    #print("\t>> over mean:", (mask > self.thres).sum())
-                    #exit(0)
 
                     cf_mask = (mask > self.thres).float().squeeze()
-                    cf_mask = torch.sparse_coo_tensor(
-                        indices=full_neighbors,
-                        values=cf_mask,
-                        size=(b_nodes,b_nodes)).to_dense()
-                    dense_full = torch.sparse_coo_tensor(
+                    sub_index_dense = torch.sparse_coo_tensor(
                         indices=sub_index,
-                        values=torch.ones(sub_index.size(1)),
+                        values=torch.ones(sub_index.size(1)).float(),
                         size=(b_nodes,b_nodes)).to_dense()
+                    #sub_index_dense = torch.sparse_coo_tensor(
+                    #    indices=self.adj,
+                    #    values=torch.ones(self.adj.size(1)).float(),
+                    #    size=(self.features.size(0),self.features.size(0))).to_dense()
+                    
+                    chosen = torch.argwhere(cf_mask)
+                    for ed in full_neighbors.T[chosen].squeeze(1):
+                        #print(f"\n>> node {global_idx} pertubing edge <{ed[0]},{ed[1]}>")
+                        if sub_index_dense[ed[0],ed[1]] == 0.0:
+                            # adding an edge
+                            sub_index_dense[ed[0],ed[1]] = 1.0
+                            sub_index_dense[ed[1],ed[0]] = 1.0
+                        elif sub_index_dense[ed[0],ed[1]] == 1.0:
+                            # removing an edge
+                            sub_index_dense[ed[0],ed[1]] = 0.0
+                            sub_index_dense[ed[1],ed[0]] = 0.0
+                
 
-                    cf_mask = torch.logical_xor(cf_mask,dense_full)
-                    cf_mask = cf_mask[full_neighbors[0],full_neighbors[1]].float()
+                    sub_index_full = sub_index_dense[full_neighbors[0],full_neighbors[1]].float()
+                    cf_mask = (cf_mask - sub_index_full).abs()
+                    cf_adj = torch.argwhere(sub_index_dense)
+
+                    #if cf_mask.sum().item() != 0:
+                    #    chosen = torch.argwhere(cf_mask)
+                    #    print("[cacca]>> sub graph:", sub_index.size())
+                    #    print("[cacca]>> sub graph:", sub_index)
+                    #    print("[cacca]>> chosen:", full_neighbors[:,chosen].squeeze().size())
+                    #    print("[cacca]>> chosen:", full_neighbors[:,chosen].squeeze())
+                    #    print("[cacca]>> cf adj:", cf_adj.T.size())
+                    #    print("[cacca]>> cf adj:", cf_adj.T)
+                    #    exit(0)
+                    
                     #cf_mask = (1 - mask) #.abs()
                     #cf_mask = (mask <= self.thres).float()
 
                     with torch.no_grad():
                         #masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_index, edge_weights=cf_mask, cf_expl=True)
-                        masked_pred, cf_feat = self.model_to_explain(sub_feats, full_neighbors, edge_weights=cf_mask, cf_expl=True)
-                        #original_pred = self.model_to_explain(sub_feats, sub_index)
-                        original_pred = self.model_to_explain(sub_feats, sub_index)
-
+                        #masked_pred, cf_feat = self.model_to_explain(sub_feats, full_neighbors, edge_weights=cf_mask, cf_expl=True)
+                        masked_pred, cf_feat = self.model_to_explain(sub_feats, cf_adj.T, cf_expl=True)
+                        o_pred = self.model_to_explain(sub_feats, sub_index)
+                        #masked_pred, cf_feat = self.model_to_explain(self.features, cf_adj.T, cf_expl=True)
+                        
 
                     sub_node_idx = n_map.item()
                     if self.type == 'node': # node class prediction
                         # when considering the features subset, node prediction is at index 0
                         masked_pred = masked_pred[sub_node_idx]
-                        op = original_pred[sub_node_idx]
-                        original_pred = op.argmax()
-                        pred_same = (masked_pred.argmax() == original_pred)
+                        #masked_pred = masked_pred[global_idx]
+                        original_pred = self.original_preds[global_idx].argmax()
+                        pred_same = (masked_pred.argmax() == o_pred[sub_node_idx].argmax())
+                        #print("[log]> pred same:", pred_same)
+                    #exit(0)
 
                     if self.conv == "VAE":
                         id_loss, size_loss, ent_loss, pred_loss = self.lossVAE(masked_pred=masked_pred, 
@@ -353,7 +365,6 @@ class CFPGv2(BaseExplainer):
 
                     # if masked prediction is different from original, save the CF example
                     if pred_same == 0:
-                        #print("[log]> CF found for node", global_idx)
                         #if id_loss < best_loss: best_loss = id_loss
                         cf_ex = {"loss": id_loss, "mask": cf_mask, "feats": cf_feat[sub_node_idx]}
                         try: 
@@ -361,6 +372,11 @@ class CFPGv2(BaseExplainer):
                             if id_loss < self.cf_examples[str(global_idx)]["loss"]:
                                 self.cf_examples[str(global_idx)] = cf_ex
                         except KeyError:
+                            #print("\n[log]> CF found for node", global_idx)
+                            #print("[log]>> mask sum :", (mask > self.thres).float().sum())
+                            #print("[log]>> sub graph:", sub_graph.size())
+                            #chosen = torch.argwhere(cf_mask)
+                            #print("[log]>> chosen   :", full_neighbors.T[chosen].squeeze().size())
                             self.cf_examples[str(global_idx)] = cf_ex
 
             p_bar.set_postfix(loss=f"{loss_total.item():.4f}", l_size=f"{size_total.item():.4f}",
@@ -372,19 +388,21 @@ class CFPGv2(BaseExplainer):
             epoch_loss_ent.append(ent_total.item())
             epoch_loss_pred.append(pred_total.item())
             epoch_cf_ex.append(len(self.cf_examples.keys()))
-
+            
             loss_total.backward()
             optimizer.step()
 
             if loss_total < best_loss: 
                 best_loss = loss_total
                 early_stop = self.coeffs["early_stop"]
-            elif e > 15:  # 15 epochs patience
+            elif e > PATIENCE:  # 15 epochs patience
                 early_stop -= 1
                 if early_stop == 0:
                     print(f"\n\t>> No loss improvements for {self.coeffs['early_stop']} epochs... Early STOP") 
                     break
 
+            #print(">> CF found -> ", len(self.cf_examples.keys()))
+            #input(">> Continue?...:")
 
         self.history["train_loss"] = {
             "loss_tot"  : epoch_loss_tot,
@@ -404,26 +422,32 @@ class CFPGv2(BaseExplainer):
         indices : `list`
             node indices over which we wish to train.
         """
+        with torch.no_grad():
+            self.original_preds = self.model_to_explain(self.features, self.adj).detach()
+            self.embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
+
         if indices is None: # Consider all indices
             indices = range(0, self.adj.size(0))
 
         indices = torch.LongTensor(indices).to(self.device)   
         self._train(indices=indices)
 
-    def _extract_cf_example(self, index, sub_graph, cf_mask, sub_feats, full_neigh):
+    def _extract_cf_example(self, index, sub_feats, sub_graph, cf_adj, g_index= 0):
         """Given the computed CF edge mask for a node prediction extracts
         the related CF example, if any."""
         with torch.no_grad():
             #masked_pred, cf_feat = self.model_to_explain(sub_feats, sub_graph, edge_weights=cf_mask, cf_expl=True)
-            masked_pred, cf_feat = self.model_to_explain(sub_feats, full_neigh, edge_weights=cf_mask, cf_expl=True)
+            #masked_pred, cf_feat = self.model_to_explain(sub_feats, full_neigh, edge_weights=cf_mask, cf_expl=True)
+            masked_pred, cf_feat = self.model_to_explain(sub_feats, cf_adj.T, cf_expl=True)
             original_pred = self.model_to_explain(sub_feats, sub_graph)
-        
-        masked_pred   = masked_pred[index]
+
+        masked_pred   = masked_pred[index].argmax()
         original_pred = original_pred[index].argmax()
-        pred_same = (masked_pred.argmax() == original_pred)
+        #original_pred = self.original_preds[g_index].argmax()
+        pred_same = (masked_pred == original_pred)
 
         if not pred_same:
-            cf_ex = {"mask": cf_mask, "feats": cf_feat[index]}
+            cf_ex = {"mask": cf_adj, "feats": cf_feat[index]}
             try: 
                 self.test_cf_examples[str(index)] = cf_ex
             except KeyError:
@@ -445,73 +469,54 @@ class CFPGv2(BaseExplainer):
         if self.type == 'node':
             # Similar to the original paper we only consider a subgraph for explaining
             sub_nodes, sub_graph, n_map, _ = k_hop_subgraph(index, 3, self.adj, relabel_nodes=True)
-            with torch.no_grad(): embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
+            #embeds = self.model_to_explain.embedding(self.features, self.adj)[0].detach()
         else:
             feats = self.features[index].clone().detach()
             graph = self.adj[index].clone().detach()
             embeds = self.model_to_explain.embedding(feats, graph)[0].detach()
 
         # Use explainer mlp to get an explanation
-        expl_feats = embeds[sub_nodes, :].to(self.device)
+        expl_feats = self.embeds[sub_nodes, :].to(self.device)
         #mask = self.explainer_module(sub_feats, sub_graph, n_map)
 
         b_nodes = sub_nodes.size(0)
-        full_neighbors = torch.tril_indices(b_nodes,b_nodes,offset=0)
+        full_neighbors = torch.ones(b_nodes,b_nodes).to_sparse_coo()
+        full_neighbors = full_neighbors.indices()
         #mask = self.explainer_module(expl_feats, sub_graph, n_map, train=False)
-        mask = self.explainer_module(expl_feats, full_neighbors, n_map, train=False)
-        #mask = torch.nn.functional.gumbel_softmax(mask, tau=1.0, hard=False, dim=0)
-
-        #print("\n\t>> adj:", self.adj.size())
-        #print("\t>> feats:", self.features.size())
-        #print("\t--------------------------------------")
-        #print("\t>> node index:", index)
-        #print("\t>> sub graph :", sub_graph.size())
-        #print("\t>> sub nodes :", sub_nodes.size())
-        #print("\t>> node mapping:", n_map)
-        #print("\t--------------------------------------")
-        #print("\t>> full neighbors:", full_neighbors.size())
-        #print("\t>> expl_feats:", expl_feats.size())
-        #exit(0)
+        mask = self.explainer_module(expl_feats, full_neighbors, n_map, temp=1.0, bias=self.coeffs["sample_bias"], train=False)
 
         ## to get opposite of cf-mask, i.e. explanation
         cf_mask = (mask > self.thres).float().squeeze()
-        cf_mask = torch.sparse_coo_tensor(
-            indices=full_neighbors,
-            values=cf_mask,
-            size=(b_nodes,b_nodes)).to_dense()
-        dense_full = torch.sparse_coo_tensor(
+
+        sub_index_dense = torch.sparse_coo_tensor(
             indices=sub_graph,
             values=torch.ones(sub_graph.size(1)),
             size=(b_nodes,b_nodes)).to_dense()
-        cf_mask = torch.logical_xor(cf_mask,dense_full)
-        cf_mask = cf_mask[full_neighbors[0],full_neighbors[1]].float()
         
+        chosen = torch.argwhere(cf_mask).long()
+        for ed in full_neighbors.T[chosen].squeeze(1):
+            #print(f"\n>> node {global_idx} pertubing edge <{ed[0]},{ed[1]}>")
+            if sub_index_dense[ed[0],ed[1]] == 0.0:
+                # adding an edge
+                sub_index_dense[ed[0],ed[1]] = 1.0
+                sub_index_dense[ed[1],ed[0]] = 1.0
+            elif sub_index_dense[ed[0],ed[1]] == 1.0:
+                # removing an edge
+                sub_index_dense[ed[0],ed[1]] = 0.0
+                sub_index_dense[ed[1],ed[0]] = 0.0
+        
+        #sub_index_full = sub_index_dense[full_neighbors[0],full_neighbors[1]].float()
+        #cf_mask = (cf_mask - sub_index_full).abs()
+        cf_adj = torch.argwhere(sub_index_dense)
+
         #cf_mask = (1 - mask)
         #cf_mask = (mask <= self.thres).float()
 
         #self._extract_cf_example(index, sub_graph, cf_mask)
         sub_feats = self.features[sub_nodes, :].to(self.device)
-        self._extract_cf_example(int(n_map), sub_graph, cf_mask, sub_feats, full_neighbors)
-
-        #print(">> sub graph:",sub_graph)
-        #print(">> sub graph:",sub_graph.size())
-        #print(">> sub nodes:",sub_nodes)
-        #print(">> sub nodes:",sub_nodes.size())
+        self._extract_cf_example(int(n_map), sub_feats, sub_graph, cf_adj)
 
         # Use original graph node indices in the output
         sub_graph = torch.take(sub_nodes,full_neighbors)
-        #sub_graph = full_neighbors
-        #print(">> global idx:",sub_graph)
-        #print(">> global idx:",sub_graph.size())
-        #exit(0)
-        #print(">> subgraph:",sub_graph.size())
-        #print(">> mask:",mask.size())
-
-        #expl_graph_weights = torch.zeros(sub_graph.size(1)) # Combine with original graph
-        #for i in range(0, mask.size(0)):
-        #    pair = sub_graph.T[i]
-        #    t = index_edge(sub_graph, pair)
-        #    expl_graph_weights[t] = mask[i]
-
-        return sub_graph, mask.squeeze() #expl_graph_weights
+        return sub_graph, mask.squeeze()
 

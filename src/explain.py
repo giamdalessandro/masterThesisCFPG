@@ -18,7 +18,7 @@ from evaluations.AUCEvaluation import AUCEvaluation
 from evaluations.EfficiencyEvaluation import EfficiencyEvaluation
 from evaluations.CFEvaluation import get_cf_metrics
 
-THRES = 0.5
+THRES = 0.1
 #-E CFPGv2 -D syn1 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 1.0 --opt Adam --heads 3 --hid-gcn 20 --add-att 1.0
 #-E CFPGv2 -D syn2 -e 100 --roc --reg-size 0.001 --reg-cf 2.0 --reg-ent 0.5 --opt Adam --heads 5 --hid-gcn 20 --add-att 5.0
 
@@ -220,7 +220,7 @@ if STORE_LOG:
         "e_cfg"     : explainer.coeffs,
         "nlays"     : explainer.n_layers if EXPLAINER == "CFPGv2" else 1,
         "time"      : time_score,
-        "AUC"       : -1.0, #auc_score,
+        "AUC"       : auc_score,
         "cf_test"   : test_cf_perc if EXPLAINER != "PGEex" else -1.0,
         "cf_train"  : train_cf_perc if EXPLAINER != "PGEex" else -1.0,
         "cf_tot"    : max_test_cf if EXPLAINER != "PGEex" else "a",
