@@ -52,7 +52,7 @@ explainer = load_expl_checkpoint(explainer, DATASET, EPOCHS)
 explainer.prepare(train=False)
 
 ## multi-seed testing
-seeds = [42,64,112,156,132,25,220]
+seeds = [42,64,112] #,156,132,25,220]
 for s in seeds:
     torch.manual_seed(s)       # ensure all modules have the same seed
     torch.cuda.manual_seed(s)

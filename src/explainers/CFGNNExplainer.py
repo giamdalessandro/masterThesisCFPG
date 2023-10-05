@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 import torch
 import torch.optim as optim
+from torch.optim import Adam, SGD
 from torch.nn.utils import clip_grad_norm_
 
 import torch_geometric
@@ -252,6 +253,7 @@ class CFGNNExplainer(BaseExplainer):
         self._cf_prepare(self.features.size(0), self.n_feats, sub_index)
 
         # call CFExp original explaining method
+        # Create optimizer and temperature schedule
         new_idx = n_map.int().item()
         best_cf_examples, loss_total_t = self._cf_explain(
                                 node_idx=index,
