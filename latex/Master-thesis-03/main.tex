@@ -1,0 +1,143 @@
+% !TeX encoding = UTF-8
+% !TeX program = pdflatex
+% !TeX spellcheck = en_US
+\documentclass[binding=0.6cm,LaM]{sapthesis}
+\usepackage{microtype}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+%\usepackage{setspace}
+%\singlespacing
+%\linespread{0.9}
+\usepackage[backend=bibtex,citestyle=authoryear,bibstyle=apa]{biblatex}
+\bibliography{bibliography}
+
+%%%% ZAVVE: to add parenthesis to \cite{} command
+\newcommand{\mycite}[1]{(\cite{#1})}
+
+\usepackage{hyperref}
+\hypersetup{
+    %hyperfootnotes=true,			
+    %bookmarks=true,			
+    %colorlinks=true,
+    %linkcolor=red,
+    %linktoc=page,
+    %anchorcolor=black,
+    %citecolor=red,
+    %urlcolor=blue,
+    pdftitle={Parametrized CF Explanations in Graph Neural Networks},
+    pdfauthor={Giammarco D'Alessandro},
+    pdfkeywords={thesis, sapienza, roma, university}
+ }
+
+
+\title{Parametrized Counterfactual Explanations for Node Classification in Graph Neural Networks}
+\author{Giammarco D'Alessandro}
+\IDnumber{1753102}
+\course{Engineering in Computer Science - Ingegneria Informatica}
+\courseorganizer{Facoltà di Ingengneria dell'Informazione, Informatica e Statistica}
+\AcademicYear{2022/2023}
+\advisor{Prof. Fabrizio Silvestri}
+\coadvisor{Prof. Simone Scardapane}
+%\examdate{... November 2023}
+\authoremail{dalessandro.1753102@studenti.uniroma1.it}
+\copyyear{2023}
+%\thesistype{Master thesis}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\dedication{Dedicato a\\ Donald Knuth}
+
+\begin{abstract}
+Given the increasing popularity of Graph Neural Networks (GNNs) in real-world applications such as computational biology, natural language processing (NLP), and computer security, etc...; and the \textit{black-box} nature of such models, several methods have been developed for explaining their predictions. One recent approach to address this problem is counterfactual reasoning, where the goal of an explainer algorithm is to induce a change in the GNN prediction by minimal perturbation of the input structure. 
+
+Existing methods for interpreting predictions from GNNs have primarily focused on generating subgraphs that are especially relevant for a particular prediction. However, such methods are not counterfactual (CF) in nature: given a prediction, we want to understand how the prediction can be changed in order to achieve an alternative outcome. In this work, we propose a method for generating CF explanations for GNNs: the minimal perturbation to the input (graph) data such that the prediction changes. Using only edge deletions, we find that our method, CF-GNNExplainer, can generate CF explanations for the majority of instances across three widely used datasets for GNN explanations, while removing less than 3 edges on average, with at least 94\% accuracy. This indicates that CF-GNNExplainer primarily removes edges that are crucial for the original predictions, resulting in minimal CF explanations.
+
+Graph neural networks (GNNs) find applications in various domains such as computational biology, natural language processing, and computer security. Owing to their popularity, there is an increasing need to explain GNN predictions since GNNs are black-box machine learning models. One way to address this is counterfactual reasoning where the objective is to change the GNN prediction by minimal changes in the input graph. Existing methods for counterfactual explanation of GNNs are limited to instance-specific local reasoning. This approach has two major limitations of not being able to offer global recourse policies and overloading human cognitive ability with too much information. In this work, we study the global explainability of GNNs through global counterfactual reasoning. Specifically, we want to find a small set of representative counterfactual graphs that explains all input graphs. Towards this goal, we propose GCFExplainer, a novel algorithm powered by vertexreinforced random walks on an edit map of graphs with a greedy summary. Extensive experiments on real graph datasets show that the global explanation from GCFExplainer provides important high-level insights of the model behavior and achieves a 46.9% gain in recourse coverage and a 9.5% reduction in recourse cost
+\end{abstract}
+
+\tableofcontents
+\mainmatter
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.1 : Introduction 
+\chapter{Introduction}
+\label{chap:1} 
+General introduction to the work don in this thesis, aka longer version of the abstract
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.2 : Introduction
+\chapter{Background}
+\label{chap:2}
+\section{Graph Neural Networks}
+\label{sec:gnns}
+Graph Neural Networks (GNNs) represent a revolutionary paradigm in the field of machine learning, particularly suited for analyzing and extracting insights from complex structured data, such as graphs. Traditional neural networks excel at processing Euclidean data like images or sequences, but they struggle with non-Euclidean data, like graphs, which lack a fixed grid-like structure. Graph Neural Networks, on the other hand, have emerged as a powerful tool for handling these intricate data structures by incorporating graph-related properties.
+
+In essence, GNNs are a class of deep learning models designed to operate on graphs, capturing both the node-level and the edge-level information within a graph. They are engineered to learn meaningful representations of nodes and edges by leveraging the graph's topology and associated features. These representations are instrumental in performing various tasks, such as node classification, link prediction, community detection, and graph generation.
+
+The applications of GNNs are vast and diverse, ranging from social network analysis and recommendation systems to drug discovery and molecular chemistry. GNNs have shown remarkable performance in domains where relationships and interactions between entities are crucial for understanding system dynamics and making informed predictions.
+
+This introduction will delve deeper into the foundations, architectures, and applications of Graph Neural Networks, providing a comprehensive understanding of this cutting-edge approach to processing complex relational data.
+
+\subsection{what are graphs, graphs in real world}
+\subsection{ML on graphs, GNN intro and tasks}
+\subsection{different types of GNNs}
+
+\section{Explainability - XAI}
+\label{sec:xai}
+Intro base sul problema della explainability/interpretability e sulla sua necessità
+\subsection{Explainability vs Interpretability}
+\subsection{Explainability in GNNs}
+Lallero \mycite{ying2019gnnexplainer}
+\subsection{Counterfactual reasoning}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.3 : My method
+\chapter{Parametrized Counterfactual Explainations for Node Classification in Graph Neural Networks}
+\label{chap:3}
+\section{Related works - Global CF}
+\label{sec:gcf}
+\section{Problem formal definition}
+\label{sec:form-def}
+\section{Proposed Approach}
+\label{sec:cfpg}
+\subsection{Discrete latent structures}
+Lallero \mycite{Krizhevsky2009,cifair10,raunak-etal-2020-long}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.4 : Experiments
+\chapter{Experimental results}
+\label{chap:4}
+
+\section{Synthetic datasets}
+\label{sec:syns}
+Property of the European Southern Observatory...
+
+\section{Runs setup}
+\label{sec:moons}
+The \textit{Multi-Object Optical and Near-infrared Spectrograph} is a future generation MOS instrument for the VLT. 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.5 : Conclusions
+\chapter{Conclusions}
+\label{chap:5} 
+The grasping power of the mirror..
+
+
+
+
+
+\backmatter
+\cleardoublepage % blank page after each chapter
+
+%%%%%%%%%%%%%%%%%%%%%%%%% bibliography
+\phantomsection % Give this command only if hyperref is loaded
+\addcontentsline{toc}{chapter}{\bibname}
+% Here put the code for the bibliography. You can use BibTeX or
+% the BibLaTeX package or the simple environment thebibliography.
+\printbibheading
+\printbibliography[type=article,heading=subbibliography,title={Articles}]
+\printbibliography[type=inproceedings,heading=subbibliography,title={Inproceedings}]
+\printbibliography[type=misc,heading=subbibliography,title={Miscellaneous}]
+
+\end{document}

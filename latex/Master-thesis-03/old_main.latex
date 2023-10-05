@@ -1,0 +1,139 @@
+\documentclass[english, LaM, oneside]{sapthesis}%remove "english" for a thesis written in Italian
+%Bachelor's (laurea triennale) thesis : Lau 
+%Master's (laurea specialistica) thesis: LaM 
+%PhD's thesis: PhD 
+%\usepackage[italian]{babel} %use this package for a thesis written in Italian
+\usepackage[utf8]{inputenx}
+\usepackage{indentfirst}
+\usepackage{microtype}
+%\usepackage{chemformula}
+%\usepackage{setspace}
+%\usepackage{yfonts,color}
+%\usepackage{siunitx}
+%\usepackage{comment}
+%\usepackage{multirow}
+%\usepackage{varioref}
+%\usepackage[bottom]{footmisc}
+%\usepackage{wrapfig}
+%\usepackage{float}
+%\usepackage{type1cm}
+%\usepackage{lettrine}
+\usepackage{setspace}
+\singlespacing
+%\linespread{0.9}
+%\usepackage{chngcntr}
+\usepackage[nottoc, notlof, notlot]{tocbibind}
+%\onehalfspacing
+%\counterwithout{footnote}{chapter}
+\usepackage{hyperref}
+\hypersetup{
+			hyperfootnotes=true,			
+			bookmarks=true,			
+			colorlinks=true,
+			linkcolor=red,
+            linktoc=page,
+			anchorcolor=black,
+			citecolor=red,
+			urlcolor=blue,
+			pdftitle={Parametrized Counterfactual Explanations in Graph Neural Networks},
+			pdfauthor={Giammarco D'Alessandro},
+			pdfkeywords={thesis, sapienza, roma, university}
+ }
+
+\title{Parametrized Counterfactual Explanations in Graph Neural Networks: Interpreting Discrete Latent Structures for eXplainable AI}
+\author{Giammarco D'Alessandro}
+\IDnumber{1753102}
+\course[]{Engineering in Computer Science - Ingegneria Informatica}
+\courseorganizer{Facolt\`a di Ingegneria dell'Informazione, Informatica e Statistica}
+\submitdate{2022/2023}
+\copyyear{2023}
+\advisor{Prof. Fabrizio Silvestri}
+\coadvisor{Prof. Simone Scardapane}
+\authoremail{dalessandro.1753102@studenti.uniroma1.it}
+\examdate{... October 2023}
+\examiner{Prof. ...} \examiner{Prof. ...} \examiner{Prof. ...}  \examiner{Prof. ...}  \examiner{Prof. ...} \examiner{Prof. ...}  \examiner{Prof. ...} 
+
+%we refer to http://ctan.mirrorcatalogs.com/macros/latex/contrib/sapthesis/sapthesis-doc.pdf for an exhaustive description of the sapthesis documentclass.
+
+
+\begin{document}
+
+\frontmatter
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%% Abstract
+\begin{abstract}
+write your abstract here
+\end{abstract}
+
+\tableofcontents
+
+\mainmatter
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.1 : Introduction 
+\chapter{Introduction}
+\label{chap:1} 
+\lettrine[lines=2, findent=3pt, nindent=0pt]{I}{}n the frame of astronomical spectroscopy...
+
+\bigskip
+In \hyperref[chap:1]{Chapter~\ref*{chap:1}} we  briefly present...
+
+\bigskip
+In \hyperref[chap:2]{Chapter~\ref*{chap:2}} we summarize...
+
+\section{Graph Neural Networks}
+\label{sec:gnn}
+\subsection{why are so popular}
+\subsection{how they work}
+
+\section{Explainability - XAI}
+\label{sec:xai}
+\subsection{Explainability in general}
+\subsection{Explainability in GNNs}
+\subsection{Counterfactual reasoning}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.2 : My method
+\chapter{Counterfactual Parametrized Explainer for Graph Neural Networks}
+\label{chap:2} 
+\section{The Problem of global explanations}
+\subsection{Discrete Latent Structures}
+\label{sec:caso}
+Over the last decades, innovative observational techniques have been developed to allow spectrographs observing...
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.3 : Experiments
+\chapter{Experimental results}
+\label{chap:3}
+\section{The Very Large Telescope}
+Property of the European Southern Observatory...
+
+\section{The Multi-Object Optical and Near-infrared Spectrograph}
+\label{sec:moons}
+
+The \textit{Multi-Object Optical and Near-infrared Spectrograph} is a future generation MOS instrument for the VLT. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.4 :
+\chapter{Conclusions}
+\label{chap:4} 
+The grasping power of the mirror..
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% bibliography
+\backmatter
+\phantomsection
+\begin{thebibliography}{17}
+
+\bibitem{ref:vph}
+Blanche P.A., Gailly P., et al., “\textit{Volume phase holographic gratings: large size and high diffraction efficiency}“, Optical Engineering, Vol. 43, No.11, November 2004
+
+\bibitem{ref:science}
+Cirasuolo M., et al., \textit{"MOONS Science Report"}, MOONS Document Number: VLT-TRE-MON-14620-0001, Issue: $1.0$, $31^{\textup{st}}$ January $2013$
+
+\bibitem{ref:eso}
+European Southern Observatory, \url{http://www.eso.org}
+
+\end{thebibliography}
+
+\end{document}
