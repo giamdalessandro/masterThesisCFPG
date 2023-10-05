@@ -29,7 +29,7 @@ VERBOSE = args.verbose
 cfg = parse_config(dataset=DATASET, to_load=EXPLAINER)
 
 ## load dataset
-dataset, test_idxs = load_dataset(dataset=DATASET, verbose=VERBOSE)
+dataset, _, test_idxs = load_dataset(dataset=DATASET, verbose=VERBOSE)
 train_idxs = dataset.train_mask
 cfg.update({"num_classes": dataset.num_classes, "num_node_features": dataset.num_node_features})
 
@@ -45,12 +45,14 @@ model, ckpt = model_selector(paper=cfg["paper"], dataset=DATASET, pretrained=Tru
 ## load explainer
 cfg["expl_params"]["thres"] = THRES
 cfg["expl_params"]["early_stop"] = args.early_stop
+cfg["expl_params"]["drop_out"] = args.drop_out
 explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
 
-explainer = load_expl_checkpoint(explainer, DATASET, -1)
+explainer = load_expl_checkpoint(explainer, DATASET, EPOCHS)
+explainer.prepare(train=False)
 
 ## multi-seed testing
-seeds = [42,64,112,156]
+seeds = [42,64,112,156,132,25,220]
 for s in seeds:
     torch.manual_seed(s)       # ensure all modules have the same seed
     torch.cuda.manual_seed(s)
