@@ -95,7 +95,7 @@ cfg["expl_params"]["thres"] = THRES
 cfg["expl_params"]["early_stop"] = args.early_stop
 cfg["expl_params"]["drop_out"] = args.drop_out
 explainer = explainer_selector(cfg, model, graph, args, VERBOSE)
-
+#model.eval()
 #print(">> state-dict:", explainer.explainer_module.state_dict().keys())
 #exit(0)
 
@@ -107,26 +107,26 @@ inference_eval = EfficiencyEvaluation()
 inference_eval.reset()
 
 # prepare the explainer (i.e. train the Explanation Module)
-if TRAIN_NODES: # use all training no
-    train_idxs = torch.argwhere(torch.Tensor(train_idxs))
-#train_idxs = test_idxs    # use only nodes that have an explanation ground truth
+if TRAIN_NODES: train_idxs = torch.argwhere(torch.Tensor(train_idxs))
+train_idxs = test_idxs    # use only nodes that have an explanation ground truth
 #test_idxs = train_idxs    # use only nodes that have an explanation ground truth
 explainer.prepare(indices=train_idxs)  # actually train the explainer model
 
-if STORE_CKPT: store_expl_checkpoint(explainer, DATASET, -1)
+if STORE_CKPT: store_expl_checkpoint(explainer, DATASET, EPOCHS)
 
 
 # Actually explain GNN predictions for all test indices
 inference_eval.start_explaining()
 explanations = []
-with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=False) as test_epoch:
+with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, disable=True) as test_epoch:
     top_k = 12 if DATASET != "syn4" else 24
     top_k = 0 if EXPLAINER in ["1hop","perfEx"] else top_k
     verbose = False
     curr_id = 0
     n_tests = len(test_epoch)
     for idx in test_epoch:
-        subgraph, expl = explainer.explain(idx)
+        with torch.no_grad():
+            subgraph, expl = explainer.explain(idx)
 
         if EXPLAINER != "CFGNN":
             if (curr_id%(n_tests//5)) == 0:
@@ -139,16 +139,12 @@ with tqdm(test_idxs[:], desc=f"[{explainer.expl_name}]> testing", miniters=1, di
 
 inference_eval.done_explaining()
 
-#if VERBOSE: print("\n\t>> expl labels matrix:", explainer.correct_labels.size())
-#if VERBOSE: print("\t>> correct expl labels :", explainer.correct_labels.sum())
-#if VERBOSE: print("\t>> original expl labels:", dataset.get(0).edge_label.values().sum())
-
 
 # Metrics: compute AUC score for computed explanation
 if VERBOSE: print(Fore.MAGENTA + "\n[explain]> Explanation metrics")
-auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
+#auc_score, roc_gts, roc_preds = auc_eval.get_score(explanations)
 time_score = inference_eval.get_score(explanations)
-if VERBOSE: print("\t>> final score:",f"{auc_score:.4f}")
+#if VERBOSE: print("\t>> final score:",f"{auc_score:.4f}")
 if VERBOSE: print("\t>> time elapsed:",f"{time_score:.4f}")
 
 
@@ -164,9 +160,11 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
                     n_nodes=x.size(0),
                     thres=THRES,
                     verbose=VERBOSE)
-    
-    test_cf = explainer.test_cf_examples 
+
+    test_cf = explainer.test_cf_examples
     train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx","Random","CFGNN"] else test_cf
+    #print("\n[log]> test cf:", test_cf.keys()) 
+    #print("[log]> train cf:", train_cf.keys()) 
     max_train_cf = len(train_idxs)
     max_test_cf = len(test_idxs)
 
@@ -177,8 +175,8 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     
     if True: 
         print(Fore.MAGENTA + "[metrics]>","Average results on all explained predictions")
-        print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
-        print(f"\t\t-- w/ CF: test: {test_fnd}/{max_test_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_train_cf} ({train_cf_perc*100:.2f}%)")
+        print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}", f"  [w/ CF: test: {test_fnd}/{max_test_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_train_cf} ({train_cf_perc*100:.2f}%)]")
+        #print(f"\t\t-- w/ CF: test: {test_fnd}/{max_test_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_train_cf} ({train_cf_perc*100:.2f}%)")
         print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
         print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
         print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")
@@ -194,16 +192,16 @@ if args.roc:
     e_name = explainer.expl_name
     e_h = explainer.history
     em_logs = {} if EXPLAINER != "CFPGv2" else explainer.explainer_module.logs_d
-    plot_expl_loss(
-        expl_name=e_name,
-        dataset=DATASET,
-        losses=e_h["train_loss"],
-        cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
-        cf_test=test_fnd,
-        cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
-        roc_gt=roc_gts,
-        roc_preds=roc_preds
-    )
+    #plot_expl_loss(
+    #    expl_name=e_name,
+    #    dataset=DATASET,
+    #    losses=e_h["train_loss"],
+    #    cf_num=e_h["cf_fnd"] if EXPLAINER != "PGEex" else [-1],
+    #    cf_test=test_fnd,
+    #    cf_tot=e_h["cf_tot"] if EXPLAINER != "PGEex" else -1,
+    #    roc_gt=roc_gts,
+    #    roc_preds=roc_preds
+    #)
     plot_mask_density(explanations, em_logs, DATASET, EPOCHS, thres=THRES)
     #plot_scatter_node_mask(explanations)
 
@@ -220,10 +218,11 @@ if STORE_LOG:
         "e_cfg"     : explainer.coeffs,
         "nlays"     : explainer.n_layers if EXPLAINER == "CFPGv2" else 1,
         "time"      : time_score,
-        "AUC"       : auc_score,
+        "AUC"       : -1.0, #auc_score,
         "cf_test"   : test_cf_perc if EXPLAINER != "PGEex" else -1.0,
         "cf_train"  : train_cf_perc if EXPLAINER != "PGEex" else -1.0,
         "cf_tot"    : max_test_cf if EXPLAINER != "PGEex" else "a",
+        "cf_train_tot" : max_train_cf if EXPLAINER != "PGEex" else "a",
         "fnd_test"  : test_fnd if EXPLAINER != "PGEex" else "n",
         "fnd_train" : train_fnd if EXPLAINER != "PGEex" else "n",
         "fidelity"  : cf_metrics[0] if EXPLAINER != "PGEex" else "n/a",
