@@ -1,0 +1,523 @@
+% !TeX encoding = UTF-8
+% !TeX program = pdflatex
+% !TeX spellcheck = en_US
+\documentclass[binding=0.6cm]{sapthesis}
+\usepackage{microtype}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{csquotes}
+\usepackage{dirtytalk}
+
+%\usepackage{setspace}
+%\singlespacing
+%\linespread{0.9}
+%\usepackage[backend=bibtex,citestyle=authoryear,bibstyle=apa]{biblatex}
+\usepackage[backend=biber,style=apa]{biblatex}
+\bibliography{bibliography}
+
+%%%% ZAVVE: to add parenthesis to \cite{} command
+\newcommand{\mycite}[1]{(\cite{#1})}
+
+\usepackage{hyperref}
+\hypersetup{
+    %hyperfootnotes=true,			
+    %bookmarks=true,			
+    %colorlinks=true,
+    %linkcolor=red,
+    %linktoc=page,
+    %anchorcolor=black,
+    %citecolor=red,
+    %urlcolor=blue,
+    pdftitle={Parametrized CF Explanations in Graph Neural Networks},
+    pdfauthor={Giammarco D'Alessandro},
+    pdfkeywords={thesis, sapienza, roma, university}
+ }
+\usepackage{cleveref}
+
+
+
+\title{Parametrized Counterfactual Explanations for Node Classification in Graph Neural Networks}
+\author{Giammarco D'Alessandro}
+\IDnumber{1753102}
+\course{Corso di laurea magistrale in Engineering in Computer Science - Ingegneria Informatica}
+\courseorganizer{Facoltà di Ingengneria dell'Informazione, Informatica e Statistica}
+\AcademicYear{2022/2023}
+\advisor{Prof. Fabrizio Silvestri}
+\coadvisor{Prof. Simone Scardapane}
+\examdate{31 October 2023}
+\examiner{Prof. Aristidis Anagnostopoulos,\\Prof. Antonio Cianfrani,\\Prof. Fabrizio D’Amore,\\Prof. Luca Iocchi,\\Prof. Massimo Panella,\\Prof. Gabriele Proietti Mattia,\\Prof. Leonardo Querzoni,\\Prof. Simone Scardapane,\\Prof. Fabrizio Silvestri,\\Prof. Angelo Spognardi,\\Prof. Andrea Vitaletti,\\Prof. Massimo Mecella}
+\authoremail{dalessandro.1753102@studenti.uniroma1.it}
+\copyyear{2023}
+%\thesistype{Master thesis}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\dedication{Dedicato a\\Fulmine di Pegasus}
+
+%%%% ZAVVE: to increase page headline space
+%\setlength{\headheight}{25pt}.
+%\setlength{\headsep}{12pt}.
+
+\begin{abstract}
+Given the increasing popularity of Graph Neural Networks (GNNs) in real-world applications such as computational biology, natural language processing (NLP), and computer security, etc...; and the \textit{black-box} nature of such models, several methods have been developed for explaining their predictions. One recent approach to address this problem is counterfactual reasoning, where the goal of an explainer algorithm is to induce a change in the GNN prediction by minimal perturbation of the input structure. 
+
+%Existing methods for interpreting predictions from GNNs have primarily focused on generating subgraphs that are especially relevant for a particular prediction. However, such methods are not counterfactual (CF) in nature: given a prediction, we want to understand how the prediction can be changed in order to achieve an alternative outcome. In this work, we propose a method for generating CF explanations for GNNs: the minimal perturbation to the input (graph) data such that the prediction changes. Using only edge deletions, we find that our method, CF-GNNExplainer, can generate CF explanations for the majority of instances across three widely used datasets for GNN explanations, while removing less than 3 edges on average, with at least 94\% accuracy. This indicates that CF-GNNExplainer primarily removes edges that are crucial for the original predictions, resulting in minimal CF explanations.
+
+%Graph neural networks (GNNs) find applications in various domains such as computational biology, natural language processing, and computer security. Owing to their popularity, there is an increasing need to explain GNN predictions since GNNs are black-box machine learning models. One way to address this is counterfactual reasoning where the objective is to change the GNN prediction by minimal changes in the input graph. Existing methods for counterfactual explanation of GNNs are limited to instance-specific local reasoning. This approach has two major limitations of not being able to offer global recourse policies and overloading human cognitive ability with too much information. In this work, we study the global explainability of GNNs through global counterfactual reasoning. Specifically, we want to find a small set of representative counterfactual graphs that explains all input graphs. Towards this goal, we propose GCFExplainer, a novel algorithm powered by vertexreinforced random walks on an edit map of graphs with a greedy summary. Extensive experiments on real graph datasets show that the global explanation from GCFExplainer provides important high-level insights of the model behavior and achieves a 46.9% gain in recourse coverage and a 9.5% reduction in recourse cost
+\end{abstract}
+
+\tableofcontents
+\mainmatter
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.1 : Introduction 
+\chapter{Introduction}
+\label{chap:1-intro} 
+In recent years, Graph Neural Networks (GNNs) have emerged as a powerful tool for analyzing complex relational data represented in the form of graphs. Graphs are pervasive in various domains, including social networks, biological systems, transportation networks, and recommendation systems. The ability of GNNs to model and understand these graph structures has led to significant advancements in tasks such as node classification, link prediction, and community detection.
+
+Node classification, a fundamental task in graph analysis, involves predicting labels or categories for nodes in a graph based on their structural and attribute information. Despite the remarkable success of GNNs in node classification, interpreting their decisions remains a challenge. Understanding why a GNN predicts a specific label for a node is crucial for building trust, improving model robustness, and gaining insights into the underlying data.
+
+One promising approach to address the interpretability challenge in GNNs is the integration of counterfactual explanations in eXplainable Artificial Intelligence (XAI\footnotemark). Counterfactual explanations provide meaningful insights into model predictions by identifying what changes in the input features would lead to a different prediction. In the context of node classification, counterfactual explanations can elucidate the necessary alterations to the node's attributes or connections that would result in a different predicted label.
+
+\footnotetext{The acronym was made popular by the USA Defense Advanced Research Projects Agency when launching to the research community the challenge of designing self-explanatory AI systems (\url{https://www.darpa.mil/program/explainable-artificial-intelligence}).}
+
+
+This thesis focuses on the incorporation of counterfactual explanations to enhance interpretability in GNNs for node classification. We explore how these explanations can shed light on the decision-making process of GNNs and provide actionable insights for stakeholders. The objective is to bridge the gap between predictive accuracy and model interpretability, facilitating the deployment of GNNs in real-world applications where transparency and trustworthiness are paramount.
+
+In this introductory chapter, we present an overview of the research problem, define the research objectives, outline the scope and contributions of this thesis, and provide a brief outline of the subsequent chapters. Additionally, we discuss the significance of counterfactual explanations in the context of GNNs and node classification, setting the stage for the subsequent chapters that delve deeper into this research domain.
+
+\section{Thesis outline}
+The subsequent chapters of this thesis are organized as follows:
+\begin{itemize}
+    \item \textbf{Chapter 2: Background}, provides an in-depth review of the related literature, covering topics related to deep learning and Graph Neural Networks (GNNs), exaplainable artificial intelligence and counterfactual explanations.
+    \item \textbf{Chapter 3: Parametrized Counterfactual Explanations for Node Classification in Graph Neural Networks} outlines the proposed methodologies for generating counterfactual explanations for GNNs, including algorithmic details and rationales.
+    \item \textbf{Chapter 4: Experimental and evaluation} presents the experimental setup, datasets, evaluation metrics, and results obtained from assessing the effectiveness of the proposed methodologies.
+    \item \textbf{Chapter 5: Conclusions and future work} summarizes the contributions of the thesis, discusses limitations, and outlines potential directions for future research in this domain.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.2 : Introduction
+\chapter{Background}
+\label{chap:2-background}
+Background in generale, intro al background
+
+\section{Graph Neural Networks (GNNs)}
+\label{sec:bg.gnn}
+Graph Neural Networks (GNNs, \cite{gnnModel2009}) represent a revolutionary paradigm in the field of machine learning, particularly suited for analyzing and extracting insights from complex structured data, such as graphs. Traditional neural networks excel at processing signals like images, speech, videos or sequences in which there is an underlying Euclidean structure, but they struggle with non-Euclidean data, like graphs. Such kinds of data implies that there are no such familiar properties as global parameterization, common system of coordinates, vector space structure, or shift-invariance. Consequently, basic operations like convolution that are taken for granted in the Euclidean case are even not well defined on non-Euclidean domains \mycite{Bronstein_2017}. 
+
+Graph Neural Networks, on the other hand, have emerged as a powerful tool for handling these intricate data structures by incorporating graph-related properties. Recent developments have increased their capabilities and expressive power. Practical applications have become popular in a really wide spectrum of different areas such as drug discovery \mycite{doi:10.1021/acs.jmedchem.9b00959}, physics simulations \mycite{sanchezgonzalez2020learning}, fake news detection \mycite{monti2019fake}, recommendation systems \mycite{eksombatchai2017pixie} and many others \mycite{hamilton2020graph}.
+
+In essence, GNNs are a class of deep learning models designed to operate on graphs, capturing both the node-level and the edge-level information within a graph. They are engineered to learn meaningful representations of nodes and edges by leveraging the graph's topology and associated features. These representations can be exploited in performing various tasks, such as node classification, link prediction, community detection, and graph generation. More generally GNNs have shown remarkable performance in domains where relationships and interactions between entities are crucial for understanding system dynamics and making informed predictions.
+
+This introduction will delve deeper into the foundations, architectures, and applications of Graph Neural Networks, providing a comprehensive understanding of this cutting-edge approach to processing complex relational data. First it will go through some basics of graph theory and it will analyze how these concepts can be used to model real world scenarios, and how neural networks  can exploit the information encoded in such models. Last it will added a brief presentation of different types of GNNs and their peculiarities.
+
+\subsection{From graphs to Graph Neural Networks}
+\label{sec:bg.gnn.graph-base}
+
+\begin{figure}
+    \centering
+    \footnotesize a)\includegraphics[width=0.62\textwidth]{imgs/background/euler-bridges-01.png}
+    \footnotesize b)\includegraphics[width=0.32\textwidth]{imgs/background/euler-bridges-03.png}
+    \caption{\textit{A schematic representation of the seven bridges of Königsberg problem (fig.a), for which Euler (1707–1783) proposed a negative resolution in his famous 1736 paper, laying the foundation for modern graph theory. The question was if it is possible to traverse all the bridges only once and come back to the point where the trip was started. The answer was negative – it is not possible to get across all bridges exactly once. Mathematically the problem comes down to looking for a Eulerian cycle in a multigraph (multiple edges connecting two vertices) with four nodes and seven edges (fig.b).}}
+    \label{fig:bg.gnn.konigsbridge}
+\end{figure}
+The theory of graphs (also graph theory) can be traced back at least to the illustrious swiss mathematician Leonhard Euler, who in a 1736 paper \mycite{gazette_1987} solved a puzzle about an optimal tour of the town of Königsberg (\cref{fig:bg.gnn.konigsbridge}). Some more developments were made in the $19th$ century, the very term \say{graph} was introduced in this period by Sylvester in a paper published in 1878 in Nature \mycite{Sylvester1878ChemistryAA}, where he draws an analogy between \say{quantic invariants} and \say{co-variants} of algebra and molecular diagrams. The field straight-up exploded during the $20th$ century, the first textbook on graph theory was published in 1936 by Dénes Kőnig, followed by many others \mycite{tutte2001graph}; currently graphs are one of the principal objects of study in discrete mathematics. Graphs, in the realm of mathematics and computer science, are powerful mathematical abstractions used to model relationships between entities. In its basic type, a simple graph G can be defined as the couple:
+\begin{equation}
+    \label{eq:bg.gnn.graph-def}
+    G = (\mathcal{V},\mathcal{E})
+\end{equation}
+where $\mathcal{V} = \{v_1,v_2,...,v_N\}$ is the set of \textit{vertices} or \textit{nodes}, the entities ($N = |\mathcal{V}|$), and $\mathcal{E} = \{(v_i,v_j) | v_i,v_j \in \mathcal{V}; i \ne j\}$ is the set of \textit{edges} ($M = |\mathcal{E}|$), also called links, modeling the relationship between two entities. A basic distinction is made between \textit{undirected} graphs, where edges link two vertices symmetrically, i.e. there is no difference between the edges $(v_i,v_j)$ and $(v_j,v_i)$; and \textit{directed} graphs, where edges link two vertices asymmetrically, thus $(v_i,v_j)$ and $(v_j,v_i)$ would be two separated edges \mycite{cormen2022introduction}. Moreover two other categorization are generally made: considering the types of its components and their behavior  over time. 
+A graph can be \textit{homogeneous}, when nodes and edges of the graph have all the same type; or \textit{heterogeneous} when nodes and edges are associated with different types. More specifically, in a heterogeneous graph $(\mathcal{V}, \mathcal{E}, \phi, \psi)$, each node $v_i$ is associated with a type $\phi(vi)$ and each edge $e_j$ with a type $\psi(ej)$. 
+When input features or the topology of the graph vary with time, i.e. the existence of nodes and edges may change at different points in time, the graph is regarded as \textit{dynamic}, otherwise is considered \textit{static}. The time information should be carefully considered in dynamic graphs \mycite{zhou2021graph,wang2021mthetgnn}. Note that these categories are orthogonal, meaning that these properties can be combined in the same graph, e.g. one can deal with a dynamic directed heterogeneous graph.
+%%% cyclic/acyclic graph
+
+%%% immaginie di applicazione grafi in real world
+One of the typical application of graphs is modeling the relationships inside social networks \mycite{Wu_Lian_Xu_Wu_Chen_2020}, tools to study patterns in collective behaviour of people, institutions and organizations, where the set of social actors can be represented with the nodes of the graph, and their relative interactions are represented by the edges (e.g. the standard example for a social graph would be a “friendship graph”; here, $\mathcal{V}$ is again a set of people and $\mathcal{E}$ is the set of $(u, v) \in \mathcal{V}$ such that $u$ and $v$ are friends). This perspective on social network provides a set of methods for analyzing the structure of whole social entities as well as a variety of theories explaining the dynamics and patterns observed in these structures \mycite{wasserman_faust_1994}. Even though realities such as social networks can be easily seen as graphs and modeled accordingly this data structures are an extremely powerful and general representation of data, many other domains can actually be modeled as graphs, like images and text. Although counterintuitive, one can learn more about the symmetries and structure of images and text by viewing them as graphs. 
+Traditionally, we visualize images as rectangular grids with image channels, often representing them as arrays. However, an alternative way could be seeing images as graphs possessing a regular structure, where each pixel is a node connected to each neighboring pixels through an edge (\cref{fig:bg.graph_smile}). Specifically, each non-border pixel will maintain precisely 8 neighbors, and the information stored at every node could be a 3-dimensional vector signifying the RGB value of the corresponding pixel. Also text can be easily converted into a graph format by assigning numerical indices to individual characters, words, or tokens, thus creating a sequence of these indices to represent the text. This process yields a straightforward directed graph, where each word or token is a node connected to the succeeding node through an edge. Of course, this is not usually how text and images are encoded: these graph representations are redundant since all images and all text will have very regular structures. In practice, images have a banded structure in their adjacency matrix because all nodes (pixels) are connected in a grid; and the adjacency matrix for text is just a diagonal line, because each word only connects to the prior word, and to the next one, but those trivial examples are supposed to serve as an intuition of how flexible graphs are and how wide can thus be the range of their applications \mycite{distilPub-sanchez-lengeling2021a}.
+
+%%% more detailed examples
+\begin{figure}
+    \centering
+    \footnotesize a)\includegraphics[width=0.3\textwidth]{imgs/background/smile-graph-01.png}
+    \footnotesize b)\includegraphics[width=0.3\textwidth]{imgs/background/smile-graph-02.png}
+    \footnotesize c)\includegraphics[width=0.3\textwidth]{imgs/background/smile-graph-03.png}
+    \caption{\textit{A way of visualizing the connectivity of a graph is through its adjacency matrix. Picture a) shows a simple $5\times5$ image of a smiley face and each of the 25 pixels is indexed as the elements of a $5\times5$ matrix. In picture b) we can see the one of the possible adjacency matrices representing the graph of our smiley face image. This matrix has dimension $n_{nodes}\times n_{nodes}$ ($25\times25$), given that each pixel is a node, connected to all its neighboring pixels through an edge (fig.a,b,c highlights pixel 2-2). Rightmost picture (fig.c), shows the actual graph encoding the smiley image. It is important noticing that each of these three representations below are different views of the very same piece of data.}}
+    \label{fig:bg.graph_smile}
+\end{figure}
+
+
+%%% graph representation, adjacency list/mat ecc...
+\subsubsection{Graph representation}
+\label{sec:bg.gnn.graph-repr}
+Before going into the details of machine learning applied to graphs, we propose here an introduction on how to represent graphs, their components and the relative features. This problem is crucial to encode real world information into graph models and to be able to exploit the complete potentiality of such abstractions in real world applications. Machine learning models typically take rectangular or grid-like arrays as input, more generally we talk about tensors. In mathematics, a tensor is an algebraic object that describes a multilinear relationship between sets of algebraic objects related to a vector space. Tensors may map between different objects such as vectors, scalars, and even other tensors \mycite{Vasilescu2009AM}. In machine learning, tensors have a broader definition and usually refers also to multidimensional arrays, often called informally \say{data tensors}. The rationale behind this representation is that data stored in such a format can be readily fed into any artificial intelligence model based on neural networks, thereby opening up the possibility of analyzing them through a diverse range of algorithms and models. So, it’s not immediately intuitive how to represent graph structured data in a format that is compatible with deep learning.
+
+Graphs can have up to four types of elements that can be potentially useful to perform machine learning tasks: nodes, edges and connectivity. A solution to represent the first two is relatively straightforward. The most common choice to represent nodes is to assign to each node $v$ an index $i$ (e.g. an integer) as an identifier, and a $d$-dimensional vector to encode the node features, so that, in general, we will have a node feature matrix $X$ of dimension ${N \times d}$ grouping all node data. For what concerns edges we can simply follow the definition (\cref{sec:bg.gnn.graph-base}) identifying each edge $e$ by the couple of nodes it connects in the graph (e.g. if edge $e$ connect nodes $i$ and $j$, we have $e = (v_i,v_j)$) and follow the same idea, if necessary, to encode edge features (in this case the edge feature matrix will have dimension $M \times d$, being $M$ the number of edges) \mycite{cormen2022introduction}. However, representing a graph’s connectivity is more complicated. Several data structures have been proposed to tackle this problem, among them three have resulted to be the most efficient and thus the most used in practice: adjacency matrix, incidence matrix and adjacency list.
+
+%\begin{figure}
+%    \label{fig:bg.graph_repr}
+%    \centering
+%    \includegraphics[width=\textwidth]{imgs/background/graph-repr.png}   
+%    \caption{\textit{Notice that the figure uses scalar values per node/edge/global features, but most practical representations can have vectors/tensors to encode features per graph attribute. Instead of a node feature tensor of size $N = |\mathcal{V}|$ we will be dealing with node tensors of size $[N,d]$ (where $d$ is the dimension of the node features). Same reasoning holds for the other graph attributes.}}
+%\end{figure}
+
+The \textit{adjacency matrix} is a two-dimensional tensor ($N \times N$, being $N$ the number of nodes), in which the rows represent source vertices and columns represent destination vertices. Data on edges and vertices must be stored externally. Only the cost for one edge can be stored between each pair of vertices. We note that any two vertices connected by an edges are called adjacent, thus the term \textit{adjacency}. The \textit{incidence matrix} is a two-dimensional tensor ($N \times M$, being $M$ the number of edges), in which the rows represent the vertices and columns represent the edges, so that the entries indicate the incidence relation between the vertex at a row and edge at a column (an edge $e$ is said to be incident to a node $v$, if $e$ is connected to $v$). \textit{Adjacency lists} can be of two types. In one case nodes can be stored as records or objects, and every vertex stores the list of its adjacent vertices. This data structure allows the storage of additional data on the vertices, and even additional data on edges can be stored if they are also stored as objects, in which case each vertex stores its incident edges and each edge stores its incident vertices. The second case is the most common format of \textit{adjacency list}, where all edges are stored together in one single list, which loses the explicit information of the vertices adjacent to a particular node, gaining on efficiency on space usage \mycite{cormen2022introduction}.  
+
+Perhaps, since it can be easily tensorisable the most obvious choice would be to use an adjacency matrix to represent a graph for machine learning purposes. Yet, this particular representation comes with certain limitations. As illustrated by the example dataset table, the quantity of nodes within a real world graph can reach millions, with a highly fluctuating number of edges per node. Consequently, this frequently results in adjacency matrices with significant sparsity, rendering them highly inefficient in terms of space usage. Another big issue is that there can be many adjacency matrices encoding the same connectivity relations (i.e. the same graph), and there could be no guarantee that these different matrices would produce the same result in a deep neural network, that is to say, they are not permutation invariant. The permutation invariance property is a fundamental inductive bias of graph-structured data, resulting in the fact that for a graph with $N$ nodes, there are up to $N!$ different adjacency matrices that are equivalent representations of the same graph. Learning permutation invariant operations is an indipendent area of recent research, we refer the reader to \mycite{mena2018learning,murphy2019janossy} for further details.
+
+There are now dozens (if not hundreds) textbooks available on the subject (\cite{griffin2023applied,cormen2022introduction,diestel2017graph,bondy2011graph,berge1976graphs}; only to cite few relevant ones); we refer the reader to the mentioned books to delve further into the details of all aspects of graph theory given that such a discussion deviates from the main purpose of this background introduction, which is to show the importance of graphs in mathematics, computational sciences and various fields, and why recently a great interest in applying deep learning to these concepts arose. 
+
+%%% ML sui grafi
+\subsection{Deep Learning on graphs}
+\label{sec:bg.gnn.DL-on-graphs}
+Deep learning is part of a broader family of machine learning (ML) methods, mainly based on extracting patterns from raw data using Artificial Neural Networks (ANNs) and representation learning. The adjective \say{deep} in deep learning refers to learning complicated concepts by building them from simpler ones in a hierarchical or multi-layer manner \mycite{LeCun2015DeepL}. Artificial neural networks are popular realizations of such deep multi-layer hierarchies. In the past few years, the growing computational power of modern GPU-based computers and the availability of large training datasets have allowed successfully training neural networks with many layers and degrees of freedom \mycite{Bronstein_2017}.
+
+\subsubsection{history}
+\label{sec:bg.gnn.DL-history}
+The history of deep learning can be traced back several decades, with its roots in ANNs and machine learning. In 1943, drawing inspiration from the structure of a biological neuron, Warren McCulloch (a neuroscientist) and Walter Pitts (a logician) proposed a mathematical model of an artificial neuron, providing a foundational concept for the birth of artificial neural networks \mycite{mcculloch-pitts-1943}.   
+
+Basically, a neuron in our brain takes an input signal (through the \textit{dendrites}), processes it in its nucleus (\textit{soma}), passes the output through a cable like structure to other connected neurons (\textit{axon} to synapse to another neuron’s dendrites). Although this oversimplification may not align with the biological intricacies of neurons, it offers a high-level representation of how a neuron in our brain functions: receiving input, processing it, and producing an output. This first computational model can be broken down in two parts (\cref{fig:bg.first-neurons}a): the first part, $g$ takes one or more inputs, performs an aggregation and based on the obtained value the second part, $f$ produces an output, i.e. makes a decision. It is following the idea that the interconnection of many simple units, carrying out a simple task, can create the astonishing complexity of human brain that the first artificial neuron was born.
+
+\begin{figure}
+    \footnotesize a)\includegraphics[width=0.45\textwidth]{imgs/background/mcculloch-pitts-02.png} 
+    \footnotesize b)\includegraphics[width=0.45\textwidth]{imgs/background/rosenblatt-02.png} 
+    \caption{\textit{On the left (fig.a) a schema of the first artificial neuron introduced by McCulloch and Pitts in 1943. On the right (fig.b) the schema of the perceptron model, introduced by Rosenblatt in 1957. The crucial differences introduced by Rosenblatt are that a weight ($w_i$) is attached to each input and an input ($x_0$) of value $1$ and weight $-\theta$ is added (this is called bias). Instead of having only the inputs and the weight and compare them to a threshold, the perceptron also learn the threshold as a weight for a standard input of value $1$. This produces sort of a weighted sum of inputs, to which we apply an activation function, resulting in the final output.}}
+    \label{fig:bg.first-neurons}
+\end{figure}
+Later on, in 1957, Frank Rosenblatt developed the perceptron, a single-layer neural network capable of binary classification \mycite{rosenblatt-1958-perceptron}.  It was designed to overcome most issues of the McCulloch-Pitts neuron: it can process non-boolean inputs and it can assign different weights to each input automatically; the threshold $\Theta$ is computed automatically (\cref{fig:bg.first-neurons}b). It gained attention for its potential in pattern recognition tasks. The version of Perceptron we use nowadays as standard artificial neuron was introduced in 1969 by Minsky and Papert. Their book criticized the limitations of perceptrons and brought a major improvement to the previous model adding an activation function after the in put aggregation step. The activation function might take several forms and should restrict the weighted sum into a smaller set of possible values that allows a better classification of the output \cite{minsky-papert-1969-perceptrons}. It’s a smoother version than the thresholding applied before. The first comprehensive learning algorithm for supervised, deep, feedforward, multilayer perceptrons was introduced in 1967 by Alexey Ivakhnenko and Lapa \mycite{Ivakhnenko1967CyberneticsAF}.  In a subsequent 1971 paper, they described a deep network with eight layers trained by the group method of data handling. 
+
+In 1989, the book \say{Parallel Distributed Processing} by Rumelhart, Hinton, and Williams popularized the backpropagation algorithm reviving the interest in the possibility of an efficient training for deep neural networks, and posed the basis for all modern neural network based ML algorithms \mycite{rumelhart-hinton-1989}. One of the first big result that draw attention to deep networks was AlexNet \mycite{krizhevsky2012-nips}, a deep Convolutional Neural Network (CNN) developed by Alex Krizhevsky, that won the ImageNet competition, marking a significant breakthrough and initiating a surge of interest in deep learning. AlexNet competed in the ILSVRC \mycite{ILSVRC15} on September 30, 2012. The deep network achieved a top-5 error of $15.3\%$, more than $10.8$ percentage points lower than that of the runner up. 
+
+In recent years, since the growing availability of GPU processing, deep neural networks have been able to achieve outstanding results in many areas related to Machine Learning. In 2014 Ian Goodfellow introduced Generative Adversarial Networks (GANs), a powerful tool for deep generation of data \mycite{goodfellow2014-GANs}; in the same year DL also made strides in reinforcement learning (a sub-field of ML), with models like Deep Q Networks (DQN) \mycite{Mnih2015-HumanlevelCT}, showing more of the potentiality of deep networks with respect to shallow ones. Another important step forward was made with the introduction of the Transformer architecture, in the 2017 paper \say{Attention is All You Need} \mycite{vaswani2017-attention} revolutionized natural language processing (NLP), the interdisciplinary sub-field of computer science and linguistics primarily concerned with giving computers the ability to support and manipulate natural language and speech. This led to an important breakthrough in NLP, and in the whole AI spectrum, when the language model BERT (Bidirectional Encoder Representations from Transformers) came out. Being one of the first language model based on trasformers, BERT achieved state-of-the-art results in various NLP tasks thanks to the fact that its the pre-trained model can be fine-tuned with just one additional output layer to create state-of-the-art models for a wide range of applications, such as question answering and language inference, without substantial task-specific architecture modifications.  \mycite{devlin2018-bert}.
+
+
+\subsubsection{Geometric Deep Learning}
+\label{sec:bg.gnn.geo-deep-learning}
+For almost two thousand years the word geometry has been a synonym of Euclidean geometry, until this hegemony was disrupted, during the nineteenth century, when Lobachevsky, Bolyai, Gauss, and Riemann independently constructed instances of non-Euclidean geometries, signaling the end of Euclid's monopoly \mycite{coxeter1998-non-euclidean-geom}. As that century concluded, these inquiries had fragmented into distinct domains. Mathematicians and philosophers engaged in debates regarding the authenticity and interconnections of these geometries, alongside discussions on the essence of the \say{one true geometry}. A wide array of neural network architectures tailored for diverse data types exists, yet few overarching principles tie them together. As in the past, this lack of cohesion complicates comprehension regarding the interplay among different methodologies, consequently leading to redundant rediscovery and re-branding of identical concepts across distinct application domains. For anyone who is a novice trying to learn the field, absorbing the sheer volume of redundant ideas can be a true nightmare \cite{bronstein2021geometric}.
+
+Geometric Deep Learning (GDL) was born as a \say{geometrisation} attempt, with the mindset of bringing order into the chaos of deep learning, obtaining a systematisation of this field. THe key of this approach is to derive different inductive biases and network architectures implementing them from first principles of symmetry and invariance. GDL is thus an umbrella term for emerging techniques attempting to extend (structured) deep neural models to non-Euclidean spaces, such as graphs and manifolds. Deep learning models have excelled notably in handling signal-based data like speech, images, or video, where an inherent Euclidean structure is present. However, in recent years, there has been an increasing fascination with the endeavor to employ learning approaches for non-Euclidean geometric data, given that such kinds of data arise in numerous real-life applications like social networks and many others (see \cref{sec:bg.gnn.graph-base} for more examples).
+
+In this section on GDL we propose an overview of prevalent deep learning architectures, even though we acknowledge the continuous emergence of new neural network variants on a daily basis. Therefore, the objective is not to provide an exhaustive coverage of every potential architecture, but we aspire for the forthcoming sections to be sufficiently illustrative. The most common deep learning architectures are thus shown here by utilizing the perspective of invariances and symmetries, that can be a useful lens for an easy categorization of any future GDL developments. There are mainly three kind of architectures that cover the geometric data domains: Convolutional Neural Networks (CNNs), group-equivariant CNNs, and Graph Neural Networks (GNNs). 
+
+%According to a popular belief, the Erlangen Programme was delivered in Klein’s inaugural address in October 1872. Klein indeed gave such a talk (though on December 7 of the same year), but it was for a non-mathematical audience and concerned primarily his ideas of mathematical education. What is now called the ‘Erlangen Programme’ was actually a research prospectus brochure \textit{Vergleichende Betrachtungen über neuere geometrische Forschungen} (“A comparative review of recent researches in geometry”) he prepared as part of his professor appointment. See Tobies (2019).
+
+\paragraph{Convolutional Neural Networks}
+\label{sec:bg.gnn.cnn}
+CNNs are perhaps the earliest, and currently among the most successful, deep learning architectures in a variety of tasks, in particular, in computer vision. They are also known as shift invariant or space invariant artificial neural networks (SIANN, \cite{chaman2021-siann}), based on their shared-weights architecture and translation invariance characteristics. CNN have a broad range of applications such as in image and video recognition \mycite{valueva2020-cnn-application}, recommender systems \mycite{dieleman2013-cnn-recommendation}, medical image analysis \mycite{yu2021-cnn-medical}, and also natural language processing \mycite{collobert2008-cnn-nlp}, in the beginning of this field. A typical CNN used in computer vision applications consists of multiple convolutional layers, passing the input image through a set of filters followed by point-wise non-linearity $\xi$ (typically, half-rectifiers $\xi(z) = max(0, z)$ or ReLU \mycite{nairHinton2010-relu} are used, although practitioners have experimented with a diverse range of choices for the activation function), and additional layers, including pooling layers, fully connected layers, and normalization layers.
+\begin{figure}
+    \includegraphics[width=\textwidth]{imgs/background/convolution_op.png}
+    \caption{\textit{The process of convolution on an input image ($8 \times 8$), assuming each pixel has an integer $p$ as value ($p \in \{0,1\}$). In this $2$-dimensional case the filter (or kernel) is a 2D matrix ($3\times3$). In the convolution operation the kernel is strided on the input signal to compute each destination pixel of the output. The actual mathematical convolution is done by computing the dot-product between the kernel and a region of the same dimension of the input image, moving the filter all over the input to obtain each of the output components.}}
+    \label{fig:bg.convolution}
+\end{figure}
+
+The convolutional layer is the core building block of a CNN, it is defined by its parameters, primarily a collection of learnable filters (or kernels) that possess a relatively small receptive field but span the entire depth of the input volume. During the forward pass, each filter is \say{convolved} across the width and height of the input volume, computing the dot product between the filter entries and the input, producing a (when dealing with images, 2-dimensional) activation map of that filter. Consequently, the network learns filters that trigger upon detecting certain distinctive features at specific spatial positions within the input. Following this, the feature map obtain after the convolution operation can be used as input to another layer of the same type (but with a different kernel) or it can be fed to pooling, to reduce the dimensions of data by combining the outputs of neuron clusters at one layer into a single neuron in the next layer, and/or normalization layers. The combination of convolution, pooling and/or normalization is so common in CNN architectures, that the last two can be considered as a building component of a fully-functioning convolutional layer \mycite{LeCun2015DeepL}. After one or many convolutional steps, in a typical CNN, there are some fully connected layers arranged in a multi-layer perceptron (MLP) fashion, that aim to classify the encoded deep representation of the input data obtained with the convolution.
+
+
+
+\paragraph{Group equivariant CNN}
+\label{sec:bg.gnn.geCNN}
+\cite{taco2016-geCNN} showed that it is possible generalise the convolution operation from signals on a Euclidean space to signals on any homogeneous space $\Omega$ acted upon by a group $\mathrm{G}$, i.e. convolutional networks can be generalized to exploit larger groups of symmetries, including rotations and reflections. By analogy to the Euclidean convolution where a translated filter is matched with the signal, the idea of group convolution is to move the filter around the domain using the group action, e.g. by rotating and translating. By virtue of the transitivity of the group action, we can move the filter to any position on $\Omega$.
+
+Convolutional layers are highly efficient within a deep network due to the translation equivariance present in all its layers. This property implies that shifting an image and subsequently passing it through a series of layers is equivalent to initially processing the original image through the same layers and then shifting the resulting feature maps (while considering edge-effects). Essentially, each layer maintains the symmetry of translation, enabling its utilization not only in the initial layers but also in the higher layers of the network. The key concept behind Group-equivariant CNNs (G-CNN) is that convolutional networks can be generalized to exploit larger groups of symmetries, including rotations and reflections. This signifies that within the representation space, every vector possesses an associated pose that can be altered by the elements within a specific transformation group, denoted as G. This supplementary structure enhances our ability to model data with greater efficiency. In a G-CNN, a filter identifies co-occurrences of features exhibiting the desired relative pose and can recognize such a feature configuration in any global pose using an operation known as the G-convolution. For further details on this type of deep networks we suggest the following material, the already cited \mycite{taco2016-geCNN} and \mycite{bronstein2021geometric}.
+
+
+
+
+
+\paragraph{Representation Learning}
+\label{sec:bg.gnn.repr-learning}
+Representation Learning, which is the task of learning representations for complex structured data, is quite challenging with non-euclidean ones. In the last decade, many successful models have been developed for certain kinds of structured data, including data defined on a discretized Euclidean domain. For instance, sequential data, such as text or videos, can be modelled via recurrent neural networks \mycite{TEAlab2018334}, which can capture sequential information, yielding efficient representations as measured on machine translation and speech recognition tasks. Another example are Convolutional Neural Networks (CNNs)\mycite{Lecun1998cnn} have been successfully applied to tackle problems such as image classification (\cite{venkatesan2017convolutional}), semantic segmentation (\cite{jégou2017layers}) or machine translation (\cite{gehring2017convolutional}), where the underlying data representation has a grid-like structure. These architectures efficiently reuse their local filters, with learnable parameters, by applying them to all the input positions \mycite{LeCun2015DeepL}. However these major successes have been restricted to particular types of data that have a simple relational structure (e.g. sequential data, or data following regular patterns), many interesting tasks involve data that can not be represented in a grid-like structure and that instead lies in an irregular domain. This is the case of a large number of systems across various areas including natural science (physical systems (\cite{pmlr-v80-sanchez-gonzalez18a}), social science (social networks as in the example in \cref{sec:bg.gnn.graph-base}), protein-protein interaction networks (\cite{nips2017_PPI}), knowledge graphs (\cite{ijcai2017p250}) and many other research areas (\cite{nips2017_combOpt}), to name a few. Such data can usually be represented in the form of graphs \mycite{veličković2018gat}.
+
+%Machine learning with graphs blends the line between this distinction because of two key differences in approaching the problem.
+
+\subsection{GNNs}
+\label{sec:bg.gnn.gnns}
+Graph Neural Networks (GNNs) have been introduced in \mycite{Gori2005graphDomain,gnnModel2009} as a generalization of recursive neural networks that can directly deal with the more general class of graphs and their impressive performance has propelled these deep learning models to the forefront of widely utilized methods in graph analysis today. The fundamental principle behind GNNs is to produce representations of graph (and/or its components) that can be used in downstream tasks such as graph or node classification. GNNs are among the most general class of deep learning architectures currently in existence, and it is, most other deep learning architectures can be understood as a special case of the GNN with additional geometric structure.
+
+The first motivation of GNNs is rooted in the long-standing history of neural networks for graphs. In the nineties, Recursive Neural Networks are first utilized on directed acyclic graphs (\cite{Sperduti1997,Frasconi1998}). Afterwards, Recurrent Neural Networks and Feedforward Neural Networks are introduced into this literature respectively in (\cite{gnnModel2009}) and (\cite{Micheli2009}) to tackle cycles. Although being successful, the universal idea behind these methods is building state transition systems on graphs and iterate until convergence, which constrained the extendability and representation ability. Recent advancement of deep neural networks, especially convolutional neural networks (CNNs) result in the rediscovery of GNNs. 
+
+This first step of GNN design, usually called Graph Representation Learning (GRL) aim at learning low-dimensional continuous vector representations for graph-structured data, also called embeddings. Broadly speaking, GRL can be divided into two classes of learning problems, unsupervised and supervised (or semi-supervised) GRL. The first family aims at learning low-dimensional Euclidean representations that preserve the structure of an input graph. The second family also learns low-dimensional Euclidean representations but for a specific downstream prediction task such as node or graph classification. Different from the unsupervised setting where inputs are usually graph structures, in supervised settings inputs are usually composed of different signals defined on graphs, commonly known as node or edge features.
+
+GNNs consist of an iterative process, which propagates the node states until equilibrium; followed by a neural network, which produces an output for each node based on its state. This idea was adopted and improved by Li et al. (2016), which propose to use gated recurrent units (Cho et al., 2014) in the propagation step.
+
+Having introduced the basic concepts around graphs, to better better comprehend their success we present an overview of the principal tasks that can be performed through graph representation. As a unique non-Euclidean data structure for machine learning, graph analysis focuses on tasks such as graph classification, node classification, link prediction, and clustering. Despite this variety, there are three general types:
+\begin{itemize}
+    \item In a graph-level task, our goal is to predict the property of an entire graph.
+    \item For a node-level task, we predict some property for each node in a graph. 
+    \item For an edge-level task, we want to predict the property or presence of edges in a graph.
+\end{itemize}
+
+For example, for a molecule represented as a graph, we might want to predict what the molecule smells like, or whether it will bind to a receptor implicated in a disease. This is analogous to image classification problems with MNIST and CIFAR,  where we want to associate a label to an entire image. With text, a similar problem is sentiment analysis where we want to identify the mood  r emotion of an entire sentence at once.
+
+For the three levels of prediction problems described above (graph-level, node-level, and edge-level), we will show that all of the following problems can be solved with a single model class, the GNN. But first, let’s take a tour through the three classes of graph prediction problems in more detail, and provide concrete examples of each.
+
+
+\subsubsection{Pooling}
+\label{sec:bg.gnn.graph-pooling}
+We have constructed a basic Graph Neural Network (GNN), but how do we conduct predictions for the tasks outlined earlier? We'll focus on binary classification, although this framework can be seamlessly expanded to handle multi-class or regression scenarios. When the objective is binary prediction for nodes and the graph already includes node information, the process is uncomplicated: for each node embedding, utilize a linear classifier \mycite{daigavane2021-conv-on-graphs}. 
+
+However, it is not always so simple. For instance, you might have information in the graph stored in edges, but no information in nodes, but still need to make predictions on nodes. We need a way to collect information from edges and give them to nodes for prediction. We can do this by pooling. Pooling proceeds in two steps: First for each item to be pooled, gather each of their embeddings and concatenate them into a matrix; second the gathered embeddings are then aggregated, usually via a sum operation.
+
+If we only have node-level features, and need to predict a binary global property, we need to gather all available node information together and aggregate them. This is similar to Global Average Pooling layers in CNNs. The same can be done for edges.
+
+%%%% message passing
+\subsubsection{Message Passing}
+\label{sec:bg.gnn.message-passing}
+We could make more sophisticated predictions by using pooling within the GNN layer, in order to make our learned embeddings aware of graph connectivity. We can do this using message passing, where neighboring nodes or edges exchange information and influence each other’s updated embeddings \mycite{gilmer2017-message-passing}.
+
+
+\subsubsection{GNNs architectures}
+\label{sec:bg.gnn.gnn-archs}
+The design and study of GNN layers is one of the most active areas of deep learning at the time of writing, making it a landscape that is challenging to navigate. Fortunately, we find that the vast majority of the literature may be derived from only three “flavours” of GNN layers \mycite{bronstein2021geometric}, which we will present here.
+
+In all three flavours, permutation invariance is ensured by aggregating features from $X_{N_u}$ (potentially transformed, by means of some function $\psi$) with some permutation-invariant function $\oplus$, and then updating the features of node $u$, by means of some function function $\phi$. Typically, $\phi$ and $\psi$ are the learnable, features; with e.g. whereas $\oplus$ is realised as a nonparametric operation such as recurrent neural networks (\cite{murphy2019janossy}). These flavours govern the extent to which $\phi$ transforms the neighbourhood features, allowing for varying degrees of complexity when modelling interactions across the graph.
+
+\paragraph{Convolutional flavour}
+\label{sec:bg.gnn.gcn}
+In the convolutional flavour (\cite{kipf2016-semisupervised,defferrard2017-convolutional,wu2019-simplifying}), the features of the neighbourhood nodes are directly aggregated with fixed weights
+\begin{equation}
+    h_u = \phi \left( X_u, \bigoplus_{v \in N_u} C_{uv} \psi(X_v) \right)
+\end{equation}
+Here, $C_{uv}$ specifies the importance of node $v$ to node $u$’s representation. It is a constant that often directly depends on the entries in $A$ representing the structure of the graph. Note that when the aggregator operator $\oplus$ is chose to be the summation, it can be considered as linear diffusion of position-dependent linear filtering, a generalization of convolution. Even though most of the GNNs used in practice are based on convolution (and thus graph convolutional networks, GCNs), this definition covers most of such approaches, in the sense of commuting with the graph structure, but not all of them.
+
+\paragraph{Attentional falvour}
+\label{sec:bg.gnn.gat}
+The attentional approach to GNNs is one of the most recent and most interensting. Attention mechanisms have become really popular, almost a \textit{de facto} standard, in many sequence-based tasks (Bahdanau et al., 2015; Gehring et al., 2016). The key advantage that attention mechanisms offer is handling inputs with varying sizes, focusing on the most relevant parts of the input to facilitate informed decision-making.
+The attentional \say{flavour} is characterized by implict interactions (\cite{veličković2018gat,monti2016-geometric-mixture,zhang2018-gaan}),
+\begin{equation}
+    h_u = \phi \left( X_u, \bigoplus_{v \in N_u} a(X_u,X_v) \psi(X_v) \right)
+\end{equation}
+
+Here, a is a learnable self-attention mechanism that computes the importance coefficients $\alpha_{uv} = a(X_u, X_v)$ implicitly. They are often softmax-normalised across all neighbors. When $\oplus$ is the summation, the aggregation is still a combination of the neighborhood features, but now the weights are feature-dependent.
+
+\paragraph{Message-passing flavour}
+\label{sec:bg.gnn.mp-arch}
+Finally, another really common approach to GNNs, the message-passing \say{flavour} (\cite{gilmer2017-message-passing,battaglia2018-relational}) amounts to computing arbitrary vectors (\say{messages}) between adjacent nodes across the edges connecting them, simulating an exchange of information between the graph components,
+\begin{equation}
+    h_u = \phi \left( X_u, \bigoplus_{v \in N_u} \psi(X_u,X_v) \right)
+\end{equation}
+
+Here, $\psi$ is a learnable message function, computing $v$’s vector sent to $u$, and the aggregation can be considered as a form of message passing on the graph. One important thing to note is a representational containment between these approaches: \textit{convolution} $\subseteq$ \textit{attention} $\subseteq$ \textit{message-passing}.  Indeed, attentional
+GNNs can represent convolutional GNNs by an attention mechanism implemented as a look-up table $a(X_u, X_v) = C_{uv}$, and both convolutional and attentional GNNs are special cases of message-passing where the messages are only the sender nodes features: $\psi(X_u, X_v) = C_{uv}\psi(X_v)$ for convolutional GNNs and $\psi(X_u, X_v) = a(X_u, X_v)\psi(X_v)$ for attentional GNNs.
+
+
+\newpage
+\section{eXplainable Artificial Intelligence (XAI)}
+\label{sec:bg.xai}
+Explainable Artificial Intelligence (XAI) stands at the forefront of the evolving field of artificial intelligence (AI) and seeks to bridge the gap between advanced AI models and human comprehension. As AI systems become increasingly sophisticated and pervasive in our lives, understanding their decision-making processes and outcomes is crucial for fostering trust, transparency, and usability. XAI aims to unravel the 'black box' nature of complex AI algorithms, providing insights into how these models arrive at specific conclusions or predictions.
+
+%%% white box - black box
+
+The realm of artificial intelligence (AI) is extensive, intricate, and in a perpetual state of evolution. With the progress in computational capabilities and the ever-expanding pool of data, AI algorithms are being extensively researched and developed for diverse applications, catering to a wide array of potential users and associated risks. Within the AI community, there is a concerted effort to prioritize explainability as a fundamental trait for building trustworthy AI systems. Collaborating with this community, NIST (National Institute of Standards and Technology) has identified additional technical attributes essential for fostering trust in AI \mycite{phillips2021-nist-xai}. In addition to explainability and interpretability, the two big branches of the explaining ML research area, various other characteristics are proposed within AI systems to enhance their trustworthiness. These include accuracy, privacy, reliability, robustness, safety, security (resilience), mitigation of harmful bias, transparency, fairness, and accountability. The interaction of explainability and these AI system attributes may occurs at different stages throughout the AI lifecycle, but this work is focused mainly on the explainability.
+
+NIST identified four main principle, that are significantly shaped by taking into account how the AI system interacts with the human recipient of the information. The specific demands of the situation, the task in progress, and the end-user all play a role in determining the suitable type of explanation for the circumstance. A more precise definitions for three fundamental terms in this definition, \textit{explanation}, \textit{output}, and \textit{process}, should be established before introducing and discussing the principles. An \textit{explanation} refers to the evidence, support, or reasoning associated with a system's output or process. The \textit{output} of a system is defined as either i) the result or ii) the action executed by a machine or system while performing a task. It's important to note that the system's output varies based on the specific task (e.g. for a loan application, the output is a decision: approved or denied; for a movie recommendation system, the output could be a list of recommended movies). The term \textit{process} encompasses the procedures, design, and overall workflow of the system (as referenced in \cite{leslie2021-xai-workbook}). This encompasses the system's documentation, details about the data employed during system development or stored data, and relevant knowledge pertaining to the system. Briefly, according to the NIST definition \mycite{phillips2021-nist-xai}, the four principles of explainable AI are:
+\begin{itemize}
+    \item \textbf{Explanation} A system provides or includes supporting evidence or rationale for its outputs and/or processes. In its essence, the principle of explanation is detached from whether the explanation is accurate, informative, or understandable, and it does not enforce any quality metric on these explanations. These factors are components of the meaningfulness and explanation accuracy.
+    
+    \item \textbf{Meanignful} A system offers explanations that are clear and comprehensible to the designated audience. There are commonalities across explanations which can make them more meaningful. For example, stating why the system did behave a certain way can be more understandable than describing why it did not behave a certain other \mycite{lim2009-expl-why-not}.
+    
+    \item \textbf{Accuracy (of the explanation)} An explanation accurately represents the cause behind generating the output and/or faithfully mirrors the system's procedure. Accuracy in explanation is a separate concept from decision accuracy. Decision accuracy pertains to whether the system's judgment is right or wrong. Irrespective of the system's decision accuracy, the related explanation may or may not precisely elucidate the system's rationale for its conclusion or action.
+    
+    \item \textbf{Knowledge limits} A system functions exclusively within the conditions for which it was designed and proceeds only when it attains a satisfactory level of confidence in its output. By recognizing and articulating the bounds of its knowledge, this approach ensures that a judgment is not given when it might be unfitting. This principle can enhance trust in a system by averting misleading, hazardous, or unjust outputs.
+\end{itemize}
+
+In this introduction, the differnces between the backbone concepts of interpretability and explainability are explored, and is shown a brief introduction on the most common XAI method for Machine Learning, namely LIME \mycite{ribeiro2016-lime} and SHAP \mycite{lundberg2017-shap}. Understanding XAI not only empowers AI practitioners to design more transparent and accountable models but also enables users, stakeholders, and decision-makers to make informed judgments and establish a harmonious coexistence with AI technologies.
+
+\subsection{Explainability vs Interpretability}
+\label{sec:bg.xai.inter-vs-xai}
+The rise of interpretable and explainable ML methods stems from the necessity to create machine learning systems that are understandable to the human mind, more critically to the likely non-expert users that will end up using those systems on a daily. It also addresses the challenge of comprehending and justifying predictions made by complex models like deep neural networks or gradient boosting machines \mycite{mason1999-nips-grad-desc,friedman2001-greedy-desc}. Early research on interpretable machine learning traces back to the 1990s \mycite{rudin2019-stop-epxlaining-black-box}, often without explicit reference to terms like \say{interpretability} or \say{explainability}. 
+
+Additionally, many traditional statistical models are inherently interpretable.  %%% decision trees??
+
+These concepts are often use interchangeably. In certain studies, the terms \say{interpretable} and \say{explainable} are used interchangeably \mycite{molnar2022}, while in others, subtle distinctions are acknowledged. Within this research, a clear differentiation between these terms is recognized, aligning with prior work \mycite{rudin2019-stop-epxlaining-black-box}. Generally ML model can be defined as \say{interpretable} if it can, independently, offer humanly understandable interpretations of its own predictions. It's important to note that such a model, to some extent, should not be considered entirely a black box. For instance, a decision tree model is considered \say{interpretable}. Conversely, an \say{explainable} model suggests that the inner functioning is obscure (i.e. a black box), but there exists potential for understanding its predictions through \textit{post-hoc} explanation techniques.
+
+It is to be noted that in the work presented in this text, explainability and interpretability are considered as two different things, as initially proposed by \cite{rudin2019-stop-epxlaining-black-box}. \cite{lipton2017-mythos} try to summarize the difference in the research questions the two groups of techniques try to answer: interpretability, they claim, raises the question “How does the model work?”; whereas explanation methods try to answer “What else can the model tell me?” \mycite{marcinkevičs2023-inter-vs-XAI}.
+
+\paragraph{Interpretability}
+\label{sec:bg.xai.interpretable}
+Generally, the ML community lacks consensus regarding the precise definitions of interpretability and the specific task of interpretation \mycite{doshivelez2017-rigorous}. For example, Doshi-Velez and Kim define interpretability of ML systems as “the ability to explain or to present in understandable terms to a human” \mycite{lipton2017-mythos}; although this definition clearly lacks mathematical rigour. Nevertheless, the notion of interpretability often depends on the domain of application and the target \textit{explainee} (i.e. the model to be explained), i.e. the recipient of interpretations and explanations, therefore, an all-purpose definition might be infeasible or unnecessary. Other terms that are synonymous to interpretability and also appear in the ML literature are “intelligibility” \mycite{vilone2021-xai-notions,caruana2015-xai-heatlhcare} and “understandability” \mycite{lipton2017-mythos}. 
+%%% better intrpretable def.
+
+\paragraph{Explainability}
+\label{sec:bg.xai.explainable}
+Yet another term prevalent in the literature is “explainability”, giving rise to the direction of explainable artificial intelligence (XAI) \mycite{turek2021-darpa}. This concept is closely tied with interpretability; and many authors do not differentiate between the two \mycite{carvalho2019-interpr}. \cite{doshivelez2017-rigorous} provide a definition of explanation that originates from psychology: “explanations are... the currency in which we exchange beliefs”. \cite{rudin2019-stop-epxlaining-black-box} draws a clear line between interpretable and explainable ML: interpretable ML focuses on designing models that are inherently interpretable; whereas explainable ML tries to provide \textit{post-hoc} explanations for existing black box models, i.e. models that are inherently incomprehensible to humanbeings or that are proprietary, i.e. those AI models owned by company which are not accessible to the public, and thus behave as black boxes even in the case they are interpretable by design (e.g. a very well know example of propietary model is the transformer baesd Large Language Model (LLM) ChatGPT, ownen by OpenAI, \mycite{brown2020-gpt3}). 
+%%% explainable better def. 
+
+On the other hand, an \say{explainable} model suggests that the model itself remains a black box, and understanding its predictions is facilitated through \textit{post-hoc} explanation techniques. We emphasize this distinction, aspiring for a standardized use of terminology as this field advances.
+
+
+\subsection{LIME and SHAP}
+\label{sec:bg.xai.shap-lime}
+Several approaches have been proposed as XAI methods dealing with a variety of data and model types, aiming to locally and/or globally explain the models outputs, from which SHAP \mycite{lundberg2017-shap} and LIME \mycite{ribeiro2016-lime} form the most popular XAI methods. Both these techniques lies inside the explainability category, given that both approaches act \textit{a-posteriori} trying to produce a justification (the explanation) of the model output that can give useful insights on the model behavior and the \say{motivations} behind a specific prediction.
+
+\paragraph{Local Interpretable Model-agnostic Explanations (LIME)}
+\label{sec:bg.xai.lime}
+Local Interpretable Model-agnostic Explanations (LIME) serves as a model-agnostic technique for local explanations \mycite{ribeiro2016-lime}. It elucidates how each feature influences the outcome for a specific instance. In the case of classification models, it provides the probability of the instance belonging to each class. Moreover, it presents the contribution of each feature to each class through visualized plots. However, LIME transforms any model into a local linear model, revealing coefficient values that symbolize feature weights in the model. In simpler terms, if the user applies models that consider the non-linearity between features and the outcome, this aspect may not be fully captured in the explanation generated by LIME. This is because the non-linearity is lost in the linear model generated by LIME. In addition, LIME is a model-dependent method, meaning the used model will affect the outcome of LIME (i.e. the outcome of LIME is strictly related to the output of the model to be explained).
+
+\paragraph{SHapely Additive exPlanation (SHAP)}
+\label{sec:bg.xai.shap}
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{imgs/background/shap-example.png}
+    \caption{\textit{SHAP output to explain four models globally. Models were applied to 1500 subjects (80\%/20\% train/test split) to classify them as cases (myocardial infarction, MI) or controls (No MI).  DT: decision tree; LGBM: light gradient-boosting machine; LR: logistic regression; SVC: support vector machines classifier; ACC: accuracy; MI: myocardial infarction.}}
+    \label{fig:bg.xai.shapley}
+\end{figure}
+SHapely Additive exPlanation (SHAP) stands as a post-hoc, model-agnostic technique applicable to any machine learning model \cite{lundberg2017-shap}. Grounded in game theory, it assesses the contribution of each \say{player} to the overall \say{payout}. In the context of machine learning models, these \say{players} and the \say{payout} correspond to features and the model outcome, respectively. SHAP computes a score for each feature in the model, denoting its influence on the model's output. The calculation involves evaluating all possible combinations of features to cover scenarios where all features or a subset of features are in the model (\cref{fig:bg.xai.shapley}). As the number of features escalates, SHAP's computational complexity increases. To address this, an approximate SHAP method, Kernel SHAP, has been proposed. SHAP finds extensive applications across diverse domains to elucidate model outputs, whether on a local or global scale     (\cite{garcia2020-no2-shap,yesuel2022-heat-shap,ullah2023-grey-wolf}). Nonetheless, researchers and end-users should take note of certain aspects when employing SHAP. Primarily, SHAP is contingent on the specific model in use, i.e. model-dependent like LIME. This implies that the results obtained from SHAP can vary based on the model utilized, potentially resulting in differing explainability scores when employing different machine learning models.
+
+
+\subsection{Explainability in GNNs}
+\label{sec:bg.xai.gnn-xai}
+After an overview of the interpretability/explainability sub-field of Machine Learning, a more detailed look on explainability techniques on graph neural network is presented, endorsing the main topic on which this text is focused on. Such an in-depth analysis will be needed regardless, given that the two explainability frameworks introduced in the previous section (\cref{sec:bg.xai.shap-lime}) have not been designed for graph data or deep models for graph.  
+
+In recent times, the popularity of Graph Neural Networks (GNNs) has surged due to the prevalent representation of real-world data in graph formats. This includes data from various domains like social networks, chemical molecules, and financial data (see \cref{sec:bg.gnn.DL-on-graphs} for more examples). Several classification tasks on graph data tasks are widely studied, such as node classification \mycite{gao2019-graph-unets,henaff2015-deep-on-graph}, graph classification \mycite{xu2019-powerful,Zhang_Cui_Neumann_Chen_2018}, link predictions \mycite{zhang2018-link,cai2020-multi-scale}. Furthermore, numerous sophisticated operations for Graph Neural Networks (GNNs) have been introduced to enhance their performance. These encompass operations like graph convolution \cite{kipf2016-semisupervised}, graph attention \cite{veličković2018gat}, and graph pooling \cite{yuan2020-struct-pool}, that increase the overall complexity and illegibility.
+
+However, compared with more common domains in deep learning, like images and text, the explainability of graph models is relatively less explored, critically damaging the overall understanding of deep graph neural networks. Recently, following the growing popularity of GNNs, several approaches have been proposed to explain their predictions. To name the most successful \mycite{xie2022-taskagnostic}, XGNN \mycite{yuan2020-xgnn}, GNNExplainer \mycite{ying2019-gnnexplainer}, PGExplainer \mycite{luo2020-pgexplainer}, and SubgraphX \mycite{yuan2021-subgraphx}, etc. These approaches have emerged from diverse perspectives, offering varying levels of explanations. Moreover, there is a current deficiency of standardized datasets and metrics to evaluate the results of explanations \mycite{yuan2022-xai-gnn-survey}.
+
+To better understand these methods, the taxonomy of different explanation techniques for GNNs introduced in \mycite{yuan2022-xai-gnn-survey} can be followed. Based on what types of explanations are provided in output, the different methods can be classified into two main groups: instance-level methods and model-level methods. Overall, these two categories elucidate deep graph models from distinct perspectives. Instance-level methods furnish explanations specific to each example, whereas model-level methods offer overarching insights and a more general understanding. To validate and trust in most deep graph models, human oversight is still essential to review the explanations and give the correct interpretation of the explanation provided with those methods.
+
+\paragraph{Instance-level methods}
+\label{sec:bg.xai.instance-level}
+According to the criterion used to obtain the explanations, Instance-level techniques can be categorized into four different branches: gradients/features-based methods, perturbation-based methods, decomposition methods, and surrogate methods.  
+
+\begin{itemize}
+    \item \textbf{Gradient/feature based methods} Utilizing gradients or features for explaining deep models is a common and direct approach, extensively applied in image and text tasks. The fundamental concept involves using gradients or values from hidden feature maps as approximations of input importance. In gradients-based methods \mycite{simonyan2014-deep,smilkov2017-smoothgrad}, the gradients of the target prediction concerning input features are computed through back-propagation. Conversely, in features-based methods \mycite{zhou2015-learning,selvaraju2019-gradcam}, hidden features are mapped back to the input space using interpolation to gauge importance scores. Given their simplicity and versatility, these methods can be straightforwardly extended to the graph domain. In recent times, numerous techniques have been employed to elucidate graph neural networks, such as SA, Guided BP \mycite{baldassarre2019-explainability}, CAM and Grad-CAM \mycite{pope2019-CVPR}. The principal distinction among these methods lies in the gradient backpropagation process and the manner in which diverse hidden feature maps are amalgamated.
+    
+    \item \textbf{Perturbation-based methods} These techniques find extensive use in explaining deep image models. The fundamental idea is to analyze how the outputs vary in response to diverse input perturbations. Essentially, if crucial input information is preserved, the predictions should remain akin to the original predictions. Current methods \mycite{dabkowski2017-saliency,yuan2020-discrete-masks,chen2018-learning}, involve training a generator to produce a mask that selects significant input pixels to expound deep image models. However, applying such techniques directly to graph models is not feasible. Unlike images, graphs are comprised of nodes and edges, and altering their dimensions to maintain uniform node and edge numbers is not possible. Generally perturbation-based methods are employed to derive masks from the input graph, highlighting crucial input features. It's important to note that varying types of masks are generated based on the explanation tasks, including node masks, edge masks, and node feature masks. Subsequently, the generated masks are integrated with the input graph, resulting in a modified graph that encapsulates essential input information. Finally, this updated graph is inputted into the trained GNNs for evaluating the masks and refining the mask generation algorithms. Many perturbation-based methods have been proposed over the last years, including GNNExplainer \mycite{ying2019-gnnexplainer}, PGExplainer \mycite{luo2020-pgexplainer}, ZORRO \mycite{funke2021-hard}, GraphMask \mycite{schlichtkrull2022-interpreting}, Causal Screening \mycite{wang2021-causal}, and SubgraphX \mycite{yuan2021-subgraphx}.
+    
+    \item \textbf{Surrogate methods}
+    
+    \item \textbf{Decomposition methods}
+    
+\end{itemize}
+
+\paragraph{Model-level methods}
+\label{sec:bg.xai.model-level}
+
+
+\subsection{Contrastive and counterfactual reasoning}
+\label{sec:bg.xai.cf-reason}
+The need of generating more human-like explanations has attracted AI researchers’ attention to particular properties of explanation as well as its sub-types [11]. Thus, it appears particularly challenging to explain a given algorithm’s output in terms of reasonable yet non-occurring alternatives given a possibly infinite set of such options. Furthermore, this can be enhanced with the ability of suggesting relevant changes in the input so that the algorithm outputs a different decision. Given a rising interest towards these types of explanation (referred to as contrastive and counterfactual, respectively) within the XAI community, it is of crucial importance to review the existing theoretical accounts of contrastive and counterfactual explanation as well as state-of-the-art computational frameworks for automatic generation thereof. Thus, the aim of this study is to fulfill the next three objectives: (1) to scrutinize theoretical works on the contrastive and counterfactual accounts of explanation; (2) to summarize state-of-the-art methods in the field of automatic explanation generation thereof; and (3) to discuss a degree of synergy between the revised theories and their related up-to-date implementations \mycite{stepin2021-xai-cf-contrative-survey}.
+
+\subsubsection{Contrastive explanations}
+\label{sec:bg.xai.contrastive}
+Findings on explanation accumulated in humanities and social sciences show that it is intrinsically contrastive [11]. The property of contrastiveness presupposes that an explanation answers the given why-question regarding the cause of the event in question (‘‘Why did P happen?’’) in terms of hypothesized non-occurring alternatives (‘‘Why did P happen rather than Q?’’) [12]. Thus, supporters of the pragmatic approach to explanation argue that it is exactly the ability to distinguish the answer to an explanatory question from a set of contrastive hypothesized alternatives that provides the explainee with sufficiently comprehensive information on the reasoning behind the question [13]. This approach is also claimed to set a minimum criterion that an explanation must fulfill: it must favor the probability of the observed event P to all the hypothetical alternatives (Q1, Q2 , . . . , Qn) [14]. Contrastive explanation is among influential topics in cognitive science [15]–[17]. Thus, contrastive explanations are claimed to be inherent to human cognition [16]. Indeed, we are used to question those decisions that we once made, especially if such decisions or coinciding circumstances resulted in tragic events [18]. In addition, contrastive reasoning forms the basis of abductive inference [19], i.e., the process of inferring certain facts that render some observation plausible [20]. In other words, a given observation can be explained on the basis of the most likely among a pool of competing hypotheses [21] \mycite{stepin2021-xai-cf-contrative-survey}.
+
+
+\subsubsection{Counterfactual explanations}
+\label{sec:bg.xai.counterfactual}
+Given the property of contrastiveness, it is possible to imagine
+explanatory alternatives to how things would stand if a differ-
+ent decision had been made at some point. They can serve to
+explain potential consequences of such contrastive non-taken
+alternative decisions. In this case, the mind is assumed to
+construct and compare mental representations of an actually
+happened event and that of some event alternative to it [22].
+Cognitive scientists refer to such mental representations of
+alternatives to past events as counterfactuals (‘‘contrary-to-
+fact’’) [15]. The process of ‘‘thinking about past possibili-
+ties and past or present impossibilities’’ is therefore called
+counterfactual thinking [23]. Alternatively, the combination
+of imagining an alternative scenario in relation to the one that
+actually happened and the exploration of its consequences
+is referred to as counterfactual reasoning [24]. In addition,
+counterfactual reasoning is claimed to be a key mechanism
+for explaining adaptive behavior in a changing environment
+[25], [26] \mycite{stepin2021-xai-cf-contrative-survey}.
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.3 : My method
+\chapter[CFPGExplainer]{Parametrized Counterfactual Explanations for Node Classification in Graph Neural Networks}
+\label{chap:3-CFPG}
+
+\section{Related works}
+\label{sec:cfpg.bg}
+Despite the impressive success of GNNs on predictive tasks, GNNs are black-box machine learning models. It is non-trivial to explain or reason why a particular prediction is made by a GNN. Explainability of a prediction model is important to understand its shortcomings and identify areas for improvement. In addition, the ability to explain a model is critical towards making it trustworthy. Owing to this limitation of GNNs, there has been significant efforts in recent times towards explanation approaches. Existing work on explaining GNN predictions can be categorized mainly in two directions: 1) factual reasoning [20, 40, 46, 47], and 2) counterfactual reasoning [1, 2, 19, 36]. Generally speaking, the methods in the first category aim to find an important subgraph that correlates most with the underlying GNN prediction. In contrast, the methods with counterfactual reasoning attempt to identify the smallest amount of perturbation on the input graph that changes the GNN’s prediction, for example, removal/addition of edges or nodes. Compared to factual reasoning, counterfactual explainers have the additional advantage of providing the means for recourse [39].
+
+\subsection{GNNExplainer e derivati}
+\label{sec:cfpg.bg.gnnexplainer}
+However, compared with image and text domains, the explainability of graph models are less explored, which is critical for understanding deep graph neural networks. Recently, several approaches are proposed to explain the predictions of GNNs [44], such as XGNN [45], GNNExplainer [46], PGExplainer [47], and SubgraphX [48], etc. These methods are developed from different angles and provide different levels of explanations.
+
+\subsection{Global e local CF}
+\label{sec:cfpg.bg.global-local-expl}
+
+
+\section{Problem formal definition}
+\label{sec:cfpg.bg.form-def}
+
+\subsection{Discrete latent structures}
+\label{sec:cfpg.bg.discrete-latent}
+Lallero \mycite{niculae2023-discrete-latent}
+
+\section{Proposed Approach}
+\label{sec:cfpg.bg.my-archs}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.4 : Experiments
+\chapter{Experimental results}
+\label{chap:4-expRes}
+
+\section{Synthetic datasets}
+\label{sec:expRes.syns-dataset}
+In recent times, there has been an emergence of synthetic datasets tailored for evaluating explanation techniques (\cite{ying2019-gnnexplainer,luo2020-pgexplainer}). In such datasets, different graph motifs are included and can determine the node labels or graph labels. Furthermore, the relationships between data examples and their respective labels are meticulously defined by human experts. Even though the trained GNNs may not perfectly capture such relationships, the graph motifs can be employed as reasonable approximations of the ground truths of explanation results. Here we introduce several common synthetic datasets.
+
+\paragraph{BA-shapes}
+(syn1): the base graph is a Barabasi-Albert (BA) graph with house-shaped motifs, where each motif consists of 5 nodes (one for the top of the house, two in the middle, and two on the bottom). Here, there are four possible classes (not in motif, in motif: top, middle, bottom)  - indices of expl. labeled nodes: $[300,700)$ every 5;
+
+\paragraph{BA-community}
+(syn2): has eight classes and contains 2 BA-shapes graphs with randomly attached edges. The memberships of the BA-shapes graphs and the structural location determine the labels.  - indices of expl. labeled nodes: $[300,700) \cup [1000,1400)$ every 5; 
+
+\paragraph{Tree-Cycles}
+(syn3): consists of a binary tree base graph with 6-cycle motifs,  - indices of expl. labeled nodes: $[511,871)$ every 6;
+
+\paragraph{Tree-Grids}
+(syn4): also has a binary tree as its base graph, but with 3×3 grids as the motifs.  - indices of expl. labeled nodes: $[511,1231)$ every 3/9;
+
+\paragraph{MUTAG}
+A molecular dataset, contains several molecules represented as graphs where nodes represent atoms and edges chemical bonds. The molecules are labelled based on their mutagenic effect on a specific bacterium. Carbon rings with chemical groups NH2 or NO2 are present in mutagenic molecules. A good explainer should identify such patterns for the corresponding class.
+
+
+\section{Preprocessing}
+\label{sec:expRes.preprocessing}
+Property of the European Southern Observatory...
+
+\section{countefactual metrics}
+\label{sec:expRes.cf-metrics}
+The \textit{Multi-Object Optical and Near-infrared Spectrograph} is a future generation MOS instrument for the VLT. 
+
+\section{Results}
+\label{sec:expRes-res}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% CHAP.5 : Conclusions
+\chapter{Conclusions}
+\label{chap:5-conclusions} 
+The grasping power of the mirror..
+
+
+
+
+
+\backmatter
+\cleardoublepage % blank page after each chapter
+
+%%%%%%%%%%%%%%%%%%%%%%%%% bibliography
+\phantomsection % Give this command only if hyperref is loaded
+\addcontentsline{toc}{chapter}{\bibname}
+% Here put the code for the bibliography. You can use BibTeX or
+% the BibLaTeX package or the simple environment thebibliography.
+\printbibheading
+\printbibliography[type=article,heading=subbibliography,title={Articles}]
+\printbibliography[type=inbook,heading=subbibliography,title={Inproceedings}]
+\printbibliography[type=book,heading=subbibliography,title={Books}]
+\printbibliography[type=misc,heading=subbibliography,title={Miscellaneous}]
+
+\end{document}
