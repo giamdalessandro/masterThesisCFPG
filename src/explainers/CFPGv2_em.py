@@ -127,8 +127,8 @@ class GCNExplModule(torch.nn.Module):
         #self.out_decoder.append(out_dec)
         
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        sampled_mask = self.sparsemax(out_dec)
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        #sampled_mask = self.sparsemax(out_dec)
 
         return sampled_mask
 
@@ -217,8 +217,8 @@ class GATExplModule(torch.nn.Module):
         #    out_dec = torch.add(out_dec.squeeze(), att_w, alpha=self.add_att)
 
         #sampled_mask = _sample_graph(out_dec, temperature=temp, bias=bias, training=train)
-        #sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
-        sampled_mask = self.sparsemax(out_dec)
+        sampled_mask = F.gumbel_softmax(out_dec, tau=temp, hard=False, dim=0)
+        #sampled_mask = self.sparsemax(out_dec)
         
         return sampled_mask
 
