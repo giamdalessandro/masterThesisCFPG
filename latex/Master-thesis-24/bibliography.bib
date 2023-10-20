@@ -16,8 +16,10 @@
 @misc{cifair10,
     title = "CIFAR10 and CIFAR100 datasets",
     author = "Krizhevsky, Alex and et al.",
+    year = {2009},
     address = "Online",
-    publisher = "Association for Computational Linguistics"
+    publisher = "Association for Computational Linguistics",
+    url = {https://www.cs.toronto.edu/~kriz/cifar.html}
 }
 @article{Krizhevsky2009,
     author = {Krizhevsky, Alex and Nair, Vinod and Hinton, Geoffrey},
@@ -28,6 +30,8 @@
     url = "https://www.cs.toronto.edu/~kriz/cifar.html",
     journal = {University of Toronto}
 }
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% my biblo: Introduction & Background
@@ -1320,7 +1324,9 @@
     year = {2009},
     isbn = {1441412697},
     publisher = {CreateSpace},
-    address = {Scotts Valley, CA}
+    address = {Scotts Valley, CA},
+    url = {https://dl.acm.org/doi/book/10.5555/1593511},
+    addendum = {(ii): \url{https://www.python.org/}}
 }
 @article{lipton1990-LIPCE,
 	author = {Peter Lipton},
@@ -1662,7 +1668,8 @@
     year={2019},
     eprint={1903.02428},
     archivePrefix={arXiv},
-    primaryClass={cs.LG}
+    primaryClass={cs.LG},
+    url={https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html}
 }
 @article{rudin2019-stop-epxlaining-black-box,
     author = {Rudin, Cynthia},
@@ -1749,4 +1756,255 @@
     eprint={2301.07473},
     archivePrefix={arXiv},
     primaryClass={cs.LG}
+}
+@inproceedings{abrate2021-brain-networks,
+    author = {Abrate, Carlo and Bonchi, Francesco},
+    title = {Counterfactual Graphs for Explainable Classification of Brain Networks},
+    year = {2021},
+    isbn = {9781450383325},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/3447548.3467154},
+    doi = {10.1145/3447548.3467154},
+    booktitle = {Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery \& Data Mining},
+    pages = {2495–2504},
+    numpages = {10},
+    keywords = {explainability, brain networks, graph classification},
+    location = {Virtual Event, Singapore},
+    series = {KDD '21}
+}
+@inproceedings{tan2022-learn-eval-cf,
+    author = {Tan, Juntao and Geng, Shijie and Fu, Zuohui and Ge, Yingqiang and Xu, Shuyuan and Li, Yunqi and Zhang, Yongfeng},
+    title = {Learning and Evaluating Graph Neural Network Explanations Based on Counterfactual and Factual Reasoning},
+    year = {2022},
+    isbn = {9781450390965},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/3485447.3511948},
+    doi = {10.1145/3485447.3511948},
+    booktitle = {Proceedings of the ACM Web Conference 2022},
+    pages = {1018–1027},
+    numpages = {10},
+    keywords = {Machine Learning, Causal Inference, Graph Neural Networks, Machine Reasoning, Explainable AI, Counterfactual Explanation},
+    location = {Virtual Event, Lyon, France},
+    series = {WWW '22}
+}
+@article{bajaj2022-robustCF,
+    title={Robust Counterfactual Explanations on Graph Neural Networks}, 
+    author={Mohit Bajaj and Lingyang Chu and Zi Yu Xue and Jian Pei and Lanjun Wang and Peter Cho-Ho Lam and Yong Zhang},
+    year={2022},
+    eprint={2107.04086},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@inproceedings{chu2018-exact-consistent,
+    author = {Chu, Lingyang and Hu, Xia and Hu, Juhua and Wang, Lanjun and Pei, Jian},
+    title = {Exact and Consistent Interpretation for Piecewise Linear Neural Networks: A Closed Form Solution},
+    year = {2018},
+    isbn = {9781450355520},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/3219819.3220063},
+    doi = {10.1145/3219819.3220063},
+    booktitle = {Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining},
+    pages = {1244–1253},
+    numpages = {10},
+    keywords = {exact and consistent interpretation, deep neural network, closed form},
+    location = {London, United Kingdom},
+    series = {KDD '18}
+}
+@article{riedl2015-metabolicCM,
+    title={Metabolic connectivity mapping reveals effective connectivity in the resting human brain},
+    author={Valentin Riedl and Lukas Utz and Gabriel Castrillon and Timo Grimmer and Josef P. Rauschecker and Markus Ploner and Karl J. Friston and Alexander Drzezga and Christian Sorg},
+    journal={Proceedings of the National Academy of Sciences},
+    year={2015},
+    volume={113},
+    pages={428 - 433},
+    url={https://api.semanticscholar.org/CorpusID:11614278}
+}
+@inproceedings{lin2021-causal-expl,
+    title = {Generative Causal Explanations for Graph Neural Networks},
+    author = {Lin, Wanyu and Lan, Hao and Li, Baochun},
+    booktitle = {Proceedings of the 38th International Conference on Machine Learning},
+    pages = {6666--6679},
+    year =  {2021},
+    editor = {Meila, Marina and Zhang, Tong},
+    volume = {139},
+    series = {Proceedings of Machine Learning Research},
+    month =  {7},
+    publisher = {PMLR},
+    pdf = {http://proceedings.mlr.press/v139/lin21d/lin21d.pdf},
+    url = {https://proceedings.mlr.press/v139/lin21d.html},
+}
+@misc{cudaToolkit,
+    author={Vingelmann, Péter and Fitzek, Frank H.P. and NVIDIA},
+    title={CUDA, release: 11.7, driver version: 515.105.01},
+    year={2020},
+    url={https://developer.nvidia.com/cuda-toolkit},
+}
+@article{lucic2021-focus,
+    title={FOCUS: Flexible Optimizable Counterfactual Explanations for Tree Ensembles}, 
+    author={Ana Lucic and Harrie Oosterhuis and Hinda Haned and Maarten de Rijke},
+    year={2021},
+    eprint={1911.12199},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@article{wachter2018-GDPR,
+    title={Counterfactual Explanations without Opening the Black Box: Automated Decisions and the GDPR}, 
+    author={Sandra Wachter and Brent Mittelstadt and Chris Russell},
+    year={2018},
+    eprint={1711.00399},
+    archivePrefix={arXiv},
+    primaryClass={cs.AI}
+}
+@article{pemantle2004-vertexreinforced,
+    title={Vertex-Reinforced Random Walk}, 
+    author={Robin Pemantle},
+    year={2004},
+    eprint={math/0404041},
+    archivePrefix={arXiv},
+    primaryClass={math.PR}
+}
+@article{liu2019-cgvae,
+    title={Constrained Graph Variational Autoencoders for Molecule Design}, 
+    author={Qi Liu and Miltiadis Allamanis and Marc Brockschmidt and Alexander L. Gaunt},
+    year={2019},
+    eprint={1805.09076},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@article{du2022-mdvae,
+    title={Interpretable Molecular Graph Generation via Monotonic Constraints}, 
+    author={Yuanqi Du and Xiaojie Guo and Amarda Shehu and Liang Zhao},
+    year={2022},
+    eprint={2203.00412},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@article{zhu2022-survey-generation,
+    title={A Survey on Deep Graph Generation: Methods and Applications}, 
+    author={Yanqiao Zhu and Yuanqi Du and Yinkai Wang and Yichen Xu and Jieyu Zhang and Qiang Liu and Shu Wu},
+    year={2022},
+    eprint={2203.06714},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@article{bose2020-gaalvae,
+    title={Generalizable Adversarial Attacks with Latent Variable Perturbation Modelling}, 
+    author={Avishek Joey Bose and Andre Cianflone and William L. Hamilton},
+    year={2020},
+    eprint={1905.10864},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@inproceedings{zang2020-moflow,
+	doi = {10.1145/3394486.3403104},
+	url = {https://doi.org/10.1145%2F3394486.3403104},
+	year = 2020,
+	month = {08},
+	publisher = {{ACM}},
+	author = {Chengxi Zang and Fei Wang},
+	title = {{MoFlow}: An Invertible Flow Model for Generating Molecular Graphs}, 
+	booktitle = {Proceedings of the 26th {ACM} {SIGKDD} International Conference on Knowledge Discovery {\&}amp$\mathsemicolon$ Data Mining}
+}
+@article{jin2019-junction,
+    title={Junction Tree Variational Autoencoder for Molecular Graph Generation}, 
+    author={Wengong Jin and Regina Barzilay and Tommi Jaakkola},
+    year={2019},
+    eprint={1802.04364},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@article{albert2002-barabasi,
+	doi = {10.1103/revmodphys.74.47},
+	url = {https://doi.org/10.1103%2Frevmodphys.74.47},
+	year = 2002,
+	month = {01},
+	publisher = {American Physical Society ({APS})},
+	volume = {74},
+	number = {1},
+	pages = {47--97},
+	author = {R{\'{e}
+}ka Albert and Albert-L{\'{a}}szl{\'{o}} Barab{\'{a}}si},
+	title = {Statistical mechanics of complex networks}, 
+	journal = {Reviews of Modern Physics}
+}
+@article{li2017-ggnn,
+    title={Gated Graph Sequence Neural Networks}, 
+    author={Yujia Li and Daniel Tarlow and Marc Brockschmidt and Richard Zemel},
+    year={2017},
+    eprint={1511.05493},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@article{Kingma2013-variational-bayes,
+    title={Auto-Encoding Variational Bayes},
+    author={Diederik P. Kingma and Max Welling},
+    journal={CoRR},
+    year={2013},
+    volume={abs/1312.6114},
+    url={https://api.semanticscholar.org/CorpusID:216078090}
+}
+@article{sun2023-attack-defense,
+    author={Sun, Lichao and Dou, Yingtong and Yang, Carl and Zhang, Kai and Wang, Ji and Yu, Philip S. and He, Lifang and Li, Bo},
+    journal={IEEE Transactions on Knowledge and Data Engineering}, 
+    title={Adversarial Attack and Defense on Graph Data: A Survey}, 
+    year={2023},
+    volume={35},
+    number={8},
+    pages={7693-7711},
+    doi={10.1109/TKDE.2022.3201243}
+}
+@misc{szegedy2014-intriguing,
+    title={Intriguing properties of neural networks}, 
+    author={Christian Szegedy and Wojciech Zaremba and Ilya Sutskever and Joan Bruna and Dumitru Erhan and Ian Goodfellow and Rob Fergus},
+    year={2014},
+    eprint={1312.6199},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}
+}
+@misc{goodfellow2015-harnessing,
+    title={Explaining and Harnessing Adversarial Examples}, 
+    author={Ian J. Goodfellow and Jonathon Shlens and Christian Szegedy},
+    year={2015},
+    eprint={1412.6572},
+    archivePrefix={arXiv},
+    primaryClass={stat.ML}
+}
+@article{dai2018-adv-graph,
+    title={Adversarial Attack on Graph Structured Data}, 
+    author={Hanjun Dai and Hui Li and Tian Tian and Xin Huang and Lin Wang and Jun Zhu and Le Song},
+    year={2018},
+    eprint={1806.02371},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+@article{stokes2020-antibiotic,
+    title = {A Deep Learning Approach to Antibiotic Discovery},
+    journal = {Cell},
+    volume = {180},
+    number = {4},
+    pages = {688-702.e13},
+    year = {2020},
+    issn = {0092-8674},
+    doi = {https://doi.org/10.1016/j.cell.2020.01.021},
+    url = {https://www.sciencedirect.com/science/article/pii/S0092867420301021},
+    author = {Jonathan M. Stokes and Kevin Yang and Kyle Swanson and Wengong Jin and Andres Cubillos-Ruiz and Nina M. Donghia and Craig R. MacNair and Shawn French and Lindsey A. Carfrae and Zohar Bloom-Ackermann and Victoria M. Tran and Anush Chiappino-Pepe and Ahmed H. Badran and Ian W. Andrews and Emma J. Chory and George M. Church and Eric D. Brown and Tommi S. Jaakkola and Regina Barzilay and James J. Collins},
+    keywords = {antibiotics, antibiotic resistance, antibiotic tolerance, machine learning, drug discovery},
+}
+@article{xie2021-mars,
+    title={MARS: Markov Molecular Sampling for Multi-objective Drug Discovery}, 
+    author={Yutong Xie and Chence Shi and Hao Zhou and Yuwei Yang and Weinan Zhang and Yong Yu and Lei Li},
+    year={2021},
+    eprint={2103.10432},
+    archivePrefix={arXiv},
+    primaryClass={q-bio.BM}
+}
+@article{ying2018-web-graphCN,
+    title={Graph Convolutional Neural Networks for Web-Scale Recommender Systems},
+    author={Rex Ying and Ruining He and Kaifeng Chen and Pong Eksombatchai and William L. Hamilton and Jure Leskovec},
+    journal={Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining},
+    year={2018},
+    url={https://api.semanticscholar.org/CorpusID:46949657}
 }
