@@ -50,8 +50,8 @@ cuda_device_check(device, CUDA, VERBOSE)
 
 #### STEP 1: load a BAshapes dataset
 cfg = parse_config(dataset=DATASET, to_load=EXPLAINER)
-dataset, test_idxs = load_dataset(dataset=DATASET, verbose=VERBOSE)
-train_idxs = dataset.train_mask
+dataset, train_idxs, test_idxs = load_dataset(dataset=DATASET, verbose=VERBOSE)
+#train_idxs = dataset.train_mask
 # add some dataset info to config 
 cfg.update({
     "num_classes": dataset.num_classes,
@@ -100,9 +100,8 @@ inference_eval.reset()
 # prepare the explainer (i.e. train the Explanation Module)
 if TRAIN_NODES:
     train_idxs = torch.argwhere(torch.Tensor(train_idxs))
-else:                              
-    train_idxs = test_idxs   # use only nodes that have an explanation ground truth
-    #train_idxs = test_idxs   # TODO: basta fa uno split qui
+
+train_idxs = test_idxs   # use only nodes that have an explanation ground truth
 explainer.prepare(indices=train_idxs)  # actually train the explainer model
 
 
@@ -156,17 +155,20 @@ if EXPLAINER != "PGEex":      # PGE does not produce CF examples
     
     test_cf = explainer.test_cf_examples 
     train_cf = explainer.cf_examples if EXPLAINER not in ["1hop","perfEx"] else test_cf
-    max_cf = len(train_idxs)
+    #max_cf = len(train_idxs)
+    max_train_cf = len(train_idxs)
+    max_test_cf = len(test_idxs)
 
     test_fnd = len(test_cf.keys())
     train_fnd = len(train_cf.keys())
-    test_cf_perc = (test_fnd/max_cf)
-    train_cf_perc = (train_fnd/max_cf)
+    test_cf_perc = (test_fnd/max_test_cf)
+    train_cf_perc = (train_fnd/max_train_cf)
     
     if True: 
         print(Fore.MAGENTA + "[metrics]>","Average results on all explained predictions")
-        print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
-        print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
+        print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}", f"  [w/ CF: test: {test_fnd}/{max_test_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_train_cf} ({train_cf_perc*100:.2f}%)]")
+        #print(f"\t>> Fidelity (avg): {cf_metrics[0]:.4f}")
+        #print(f"\t\t-- w/ CF: test: {test_fnd}/{max_cf} ({test_cf_perc*100:.2f}%), train: {train_fnd}/{max_cf} ({train_cf_perc*100:.2f}%)")
         print(f"\t>> Sparsity (avg): {cf_metrics[1]:.4f}")
         print(f"\t>> Accuracy (avg): {cf_metrics[2]:.4f}")
         print(f"\t>> explSize (avg): {cf_metrics[3]:.2f}")

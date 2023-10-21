@@ -119,14 +119,28 @@ def load_dataset(
         The couple (`torch_geometric.data.Dataset`,list). 
     """
     if verbose: print(Fore.GREEN + f"[dataset]> loading dataset...")
+    #if "syn" in dataset: 
+    #    # Load node-classification datasets
+    #    if dataset == "syn1" or dataset == "syn2":
+    #        test_indices = range(400, 700, 5)
+    #    elif dataset == "syn3":
+    #        test_indices = range(511,871,6)
+    #    elif dataset in ["syn4","cfg_syn4"]:
+    #        test_indices = range(511,800,1)
     if "syn" in dataset: 
         # Load node-classification datasets
         if dataset == "syn1" or dataset == "syn2":
-            test_indices = range(400, 700, 5)
+            test_indices = range(400, 700, 5)  # PGE syn1
+            train_indices = range(300,600,5) 
+            #test_indices = range(600,700,5)
         elif dataset == "syn3":
-            test_indices = range(511,871,6)
+            test_indices = range(511,871,6)  # PGE
+            train_indices = range(511,751,6)
+            #test_indices = range(751,871,6)
         elif dataset in ["syn4","cfg_syn4"]:
-            test_indices = range(511,800,1)
+            test_indices = range(511,800,1)  # PGE
+            train_indices = range(511,741,1)
+            #test_indices = range(741,800,1)
 
         filename = dataset + ".pkl"
         if verbose: print(Fore.GREEN + "[dataset]> node dataset from file",f"'{filename}'")
@@ -137,7 +151,7 @@ def load_dataset(
         if verbose: print("\t>> #classes:      ", pyg_dataset.num_classes)
         if verbose: print("\t>> #node_features:", pyg_dataset.num_node_features)
 
-        return pyg_dataset, test_indices
+        return pyg_dataset, train_indices, test_indices
         
     else: 
         # TODO Load graph-classification datasets

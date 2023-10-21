@@ -449,7 +449,7 @@ class CFPGv2(BaseExplainer):
 
         ## to get opposite of cf-mask, i.e. explanation
         #cf_mask = (1 - mask)
-        cf_mask = (mask <= THRES).float()
+        cf_mask = (mask <= self.thres).float()
 
         ## top-k thresholds
         #_, sorted_index = torch.sort(mask.squeeze(), descending=True)
