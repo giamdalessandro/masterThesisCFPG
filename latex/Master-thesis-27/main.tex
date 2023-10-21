@@ -7,7 +7,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{csquotes}
 \usepackage{dirtytalk}
-\usepackage{amssymb}
+\usepackage{amssymb,amsmath}
 \usepackage{bbold}
 
 \usepackage{setspace}
@@ -486,7 +486,6 @@ Moreover, \mycite{ying2019-gnnexplainer} introduced another important concept fo
     \label{eq:cfpg.bg.mutual-info-gnn}
 \end{equation}
 where $Y_o$ is the prediction of the GNN model with $A_o$ (the original unperturbed graph) as the input ($Y_o = f(A_o,X)$). For node $v$, $MI$ quantifies the change in the probability of prediction $\hat{y} = f(\hat{A}_v,\hat{X}_v)$ when $v$’s computation graph is limited to explanation subgraph $\hat{A}_v$ and its node features are limited to $\hat{X}_v$. It is worth noticing that $MI$ can serve, more generally, as a viable metric to evaluate the quality of internal representations within deep learning models; the information plane, in particular, offers valuable insights into whether the model effectively utilizes the accessible information present in the dataset \mycite{landsverk2022-mutual-info}.
-%%% TODO: define Y_o
 
 
 \subsection{PGExplainer: Parameterized Explainer for Graph Neural Networks}
@@ -589,73 +588,191 @@ To briefly summarize, the following are the advatages of CFPGExplainer, the prop
 \label{sec:cfpg.my.form-def}
 Following the notation in \cref{sec:cfpg.bg.notation}, we introduce in this section a more formal definition for the counterfactual explanation problem that the proposed CFPGExplainer aims to resolve.
 
-In its most general form, a CF example $\hat{x}$ for an instance $x$ according to a trained classifier $f'$ is found by perturbing the features of $x$ such that $f'(\hat{x}) \ne f'(x)$ (\cite{wachter2018-GDPR}). For graph data, as seen in \cref{sec:bg.xai.gnn-xai}, it may not be enough to simply perturb node features, especially since they might not be always available. This is why we focus our attention in generating CF examples by perturbing the graph structure instead, considering also that the unique network structure of GNNs is the greatest peculiarity of these models. 
-
-%%% A^c_v = A_v : computational subgraph
-%%% \hat{A}_v : perturbed adjacency matrix
-%%% pi : perturnbation (mask)
-
+In its most general form, a CF example $\hat{x}$ for an instance $x$ according to a trained classifier $f'$ is found by perturbing the features of $x$ such that $f'(\hat{x}) \ne f'(x)$ (\cite{wachter2018-GDPR}). 
+For graph data, as seen in \cref{sec:bg.xai.gnn-xai}, it may not be enough to simply perturb node features, especially since they might not be always available. 
+This is why we focus our attention in generating CF examples by perturbing the graph structure instead, considering also that the unique network structure of GNNs is the greatest peculiarity of these models. Therefore, in our setting, a counterfactual example $\hat{v}$ for the node prediction task performed by a GNN model $f_{\theta}(A,X)$ on a node $v$ is represented by the perturbed computational subgraph of $v$, $\hat{A}_v$. 
+$\hat{A}_v$ is obtained by perturbing, i.e. removing some edges, from $A_v$ such that $f_{\theta}(\hat{A}_v,X_v) \ne f_{\theta}(A_v,X_v)$. 
+The CFPGExplainer model computes the perturbation mask $P$, that when applied to $A_v$ produces $\hat{A}_v = P \otimes A_v$ (where $\otimes$ indicates the operation of removing the edges individuated by perturbation $P$). 
+For the sake of simplicity, later in this section we denote $f_{\theta}(\hat{G}_v) = f(\hat{A}_v,X_v;\theta)$ and $f_{\theta}(G_v) = f(A_v,X_v;\theta)$, being $\hat{G}_v = (\hat{A}_v,X_v)$ and $G_v = (A_v,X_v)$ respectively. Following \mycite{lucic2022-cfgnnexplainer} we generate the counterfactual examples by minimizing a loss function of the form: 
 \begin{equation}
-    \mathcal{L} = \mathcal{L}_{pred}(G_v,\hat{G}_v|f) + \beta \mathcal{L}_{size}(A_v,\hat{A}_v|d) + \gamma \mathcal{L}_{ent}(\rho) 
+    \mathcal{L} = \xi \cdot \mathcal{L}_{pred}(G_v,\hat{G}_v|f) + \beta \cdot \mathcal{L}_{size}(A_v,\hat{A}_v) + \gamma \cdot \mathcal{L}_{ent}(P) 
     \label{eq:cfpg.bg.cfpg-loss}
 \end{equation}
 
-\begin{align}
-    \mathcal{L}_{pred}(G_v,\hat{G}_v|f) &= -\mathbb{1}[f(G_v) \ne f(\hat{G}_v)] \cdot \mathcal{L}_{NLL}(f(G_v),f(\hat{G}_v))) \\
-    \mathcal{L}_{size}(A_v,\hat{A}_v|d) &= dist(A_v,\hat{A}_v) \\
-    \mathcal{L}_{ent}(\rho) &= -[\rho \cdot log(\rho) + (1 - \rho)\cdot log(1 - \rho)].
-\end{align}
-\label{eq:cfpg.bg.cfpg-all-losses}
+where $\mathcal{L}_{pred}$ is a mis-classification loss that encourages the final perturbation to produce a counterfactual example ($f(G_v) \ne f(\hat{G}_v)$). $\mathcal{L}_{size}$ is a term to enforces the the perturbation to be minimal, penalizing the loss when the explanation size grows. $\mathcal{L}_{ent}$ serves to reduce the entropy in the values of the perturbation mask. Finally $\xi$, $\beta$ and $\gamma$ are regularization coefficient to control the importance of each term in $\mathcal{L}$.
 
+More in detail we do not want $f(G_v)$ to match $f(\hat{G}_v)$ to enforce the counterfactual property, thus we put a negative sign in front of $\mathcal{L}_{pred}$ and include an indicator function to ensure the loss is active as long as $f(G_v) \ne f(\hat{G}_v)$:
+\begin{equation}
+    \mathcal{L}_{pred}(G_v,\hat{G}_v|f) = -\mathbb{1}[f(G_v) \ne f(\hat{G}_v)] \cdot \mathcal{L}_{NLL}(f(G_v),f(\hat{G}_v)))
+\end{equation}
 
-\paragraph{Discrete latent structures}
+$\mathcal{L}_{size}$ is the number of edges removed by the perturbation, essentially the element-wise difference between $A_v$ and $\hat{A}_v$: 
+\begin{equation}
+    \mathcal{L}_{size}(A_v,\hat{A}_v) = dist(A_v,\hat{A}_v) = A_v \ominus \hat{A}_v 
+\end{equation}
+
+The last term $\mathcal{L}_{ent}$ is a binary entropy loss \mycite{Goodfellow-et-al-2016} computed over all the elements of $P$, since each $\rho \in P$ represents the probability of each edge to be part of the perturbation (note that $N_P = |P|$):
+\begin{equation}
+    \mathcal{L}_{ent}(P) = - \frac{1}{N_P} \sum_{\rho \in P} \rho \cdot log(\rho) + (1 - \rho)\cdot log(1 - \rho)]
+\end{equation}
+
+%Having introduce this consideration we show the complete formulation of the learning objective terms: 
+%\begin{align}
+%    \mathcal{L}_{pred}(G_v,\hat{G}_v|f) &= -\mathbb{1}[f(G_v) \ne f(\hat{G}_v)] \cdot \mathcal{L}_{NLL}(f(G_v),f(\hat{G}_v))) \\
+%    \mathcal{L}_{size}(A_v,\hat{A}_v) &= dist(A_v,\hat{A}_v) \\
+%    \mathcal{L}_{ent}(P) &= - \frac{1}{N_{P}} \sum_{\rho \in P} \rho \cdot log(\rho) + (1 - \rho)\cdot log(1 - \rho)]
+%\end{align}
+%\label{eq:cfpg.bg.cfpg-all-losses}
+
+\bigskip
+\paragraph{Reparametrization trick}
 \label{sec:cfpg.my.discrete-latent}
-Lallero \mycite{niculae2023-discrete} Gumbel e Sparsemax
+Nonetheless, directly optimizing the aforementioned objective function becomes infeasible due to the presence of $2^m$ (we remind that $m = |E|$) potential candidates for $\hat{A}_v$.
+Thus, we need to consider a relaxation by assuming that the explanatory graph is a Gilbert random graph \mycite{gilbert1959-random-graphs}, where selections of edges from the original input graph $A_o$ are conditionally independent to each other.
+
+Because $\hat{A}_v$ is discrete in nature, we relax edge weights from binary variables to continuous variables in the range $(0, 1)$ and adopt the reparameterization trick to efficiently optimize the objective function with gradient-based methods \mycite{jang2017-gumbel}. Categorical variables are a natural choice for representing discrete structure in the
+world, for this reason, following \mycite{luo2020-pgexplainer} we adopt the Gumbel-Softmax, a continuous distribution on the simplex that can approximate categorical samples, and whose parameter gradients can be easily computed via the reparameterization trick, and thus integrated into neural networks and trained using standard backpropagation \mycite{niculae2023-discrete}. The problem of discrete latent structures classification in neural networks can be tackled with various techniques, and in this work some test have been performed using sparsemax \mycite{martins2016-sparsemax}. Sparsemax is a sparse alternative to softmax that corresponds to regularizing the argmax with the Gini entropy \mycite{ross2007-intro-prob}. 
+Unlike the softmax function, sparsemax does not necessarily eliminate sparse points, and it can even yield a vertex, especially when the disparity between the highest and second-highest scores is sufficiently substantial. This behavior mirrors the margin property found in max-margin losses when applied in a latent context \mycite{blondel2020-fenchel-young,niculae2023-discrete}.
 
 
+%\bigskip
 \subsection{Explainer architecture}
 \label{sec:cfpg.my.model}
+We now introduce our method CFPGxplainer, as stated in the beginning of this chapter (\cref{chap:3-CFPG}), its workflow and architecture, and summarize its details in \cref{fig:cfpg.my.cfpg-model}. Note that in the following description we are assuming that both the explainer model and the GNN model heve been already trained on the tasks of generating the perturbation mask and node classification raspectively. 
+Given a node $v$ in the test set, we first obtain its original prediction $y_o$ from GNN model $f$, as $y_o = f_{\theta}(A_v,X_v)$, next we run CFPGExplainer to compute the perturbation mask $P$ and obtain the perturbed computation subgraph of $v$, $\hat{A}_v = P \otimes A_v$. 
+Having $\hat{A}_v$ we execute again the GNN to be explained to see if the perturbation is sufficient to induce a change in the final prediction, using the pertrurbed adjacency we compute $\hat{y} = f_{\theta}(\hat{A}_v,X_v)$. At this point, if $\hat{y} \ne y_o$, we have produced a valid counterfactual example for $v$, $\hat{v} = \hat{A}_v$. The following picture illustrates the general process, just described, to generate counterfactual examples. 
+\bigskip
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{imgs/cfpg/cfpg-general-02.png}
+    \caption{\textit{The CFPGExplainer method general pipeline. The raw input data $A_o,X_o$, node feature and adjacency matrix respectively, are initially fed both to the explainer and to the GNN model.}}
+    \label{fig:cfpg.my.cfpg-model}
+\end{figure}
 
 
+
+\paragraph{Explainer inner working}
+\label{sec:cfpg.my.cfpg-inner}
+The explainer module (\cref{fig:cfpg.my.cfpg-inner}) processes the input data executing three main steps: an encoding phase, a decoding phase and a sampling phase. First the input data fed through a three-layer GCN model to get an encoded representation that takes into account the structure of the graph, inspired by the many works in graph generation literature that exploit this strategy \mycite{zhu2022-survey-generation}, especially those works focused on deep generative models based on Variational AutoEncoders (VAEs). The key intuition in this step is that this \say{parallel} GCN model is trained following the counterfactual learning objective (\cref{eq:cfpg.bg.cfpg-loss}). We chose to implement three layer of graph convolution so that the \say{parallel} model can be aware of the same computational subgraph $A^c_v$) the primary GNN model is aware, as in \mycite{ying2019-gnnexplainer}, that is to say the 3-hop neighborhood in this precise instantiation.
+
+The second phase consists of crafting edge representations (a sort of inner embeddings) for those edges that constitute the computational subgraph of a node, the ones involved by the explanation analysis, and subsequently feeding them into two fully connected layers that are supposed to learn to assign to each edge the probability of being part of the explanation. Following \mycite{luo2020-pgexplainer} edge embeddings are built concatenating the embeddings of the nodes connected by each edge, and the embedding of the node whose prediction we are explaining, together. Thus, when explaining the prediction of $v$, to craft the embedding of edge $e = (u,w), e \in A^c_v$, we concatenate the embeddings of $v,u,w$, namely $x_v,x_u,x_w \in X$, and obtain $e' = (x_v \cup x_u \cup x_w)$.
+%%% TODO: metti immagine corretta dell'architettura
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{imgs/cfpg/cfpg-schema-fake.png}
+    \caption{\textit{A close-up look to CFPGExplainer inner workings. The picture shows two options for the final sample phase to resemble the two strategies we have tested in this research. Note that the actual model implements one sampling module at a time.}}
+    \label{fig:cfpg.my.cfpg-inner}
+\end{figure}
+
+Lastly, in the third sampling phase, we sample a random graph, the perturbation $P$, from edge distributions acquired in the second phase, that is then combined to $A^c_v$ to produce its perturbed version $\hat{A}_v$ (i.e. the CF example) that can thus be fed again to the trained GNN model to get the masked prediction. To conclude this final step, we employ categorical reparametrization with gumbel-softmax (\cref{sec:cfpg.my.discrete-latent}, \cite{jang2017-gumbel}). 
+It is noteworthy that in order to seamlessly conclude a single training step the primary GNN model must be previously trained and the original prediction for each node in the training and testing portion of the dataset should be computed in advance, as the model solely requires only the final prediction value.   
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%% CHAP.4 : Experiments
 \chapter{Experimental setup}
 \label{chap:4-expRes}
-We used python \mycite{vanRossum2009-python} and pytorch-geometric \mycite{fey2019-PyG}, and CUDA libraries \mycite{cudaToolkit}.
+In this chapter we illustrate the experimental settings in which our proposed explainer model has been tested. First we dive in a small introduction of the synthetic dataset developed for specifically for explanation tasks (\cref{sec:expRes.syns-dataset}), and real-world data that are suitable for this purpose (\cref{sec:expRes.real-dataset}). In \cref{sec:expRes.cf-metrics} we provide an overview of the metrics that should be adopted in a counterfactual XAI context, and finally in \cref{sec:expRes.res} we present the results of our experiments with CFPGExplainer.
 
+\paragraph{Software and hardware setup}
+\label{sec:expRes.setup}
+The piece of software written to test empirically CFPGExplainer has been developed in python, version 3.10 \mycite{vanRossum2009-python} relying on the Pytorch\footnote{\url{https://pytorch.org/}} machine learning framework \mycite{pytorch2019-NEURIPS}, on the PYtorch-Geometric\footnote{\url{https://pytorch-geometric.readthedocs.io/en/latest/index.html}} libraries specifically designed for geometric deep learning (PyG, \cite{fey2019-PyG}); and on NVIDIA CUDA libraries (version 11.7) for GPU processing \mycite{cudaToolkit}. All experiments have been executed on a laptop machine running a linux operating system (Ubuntu\footnote{\url{https://www.ubuntu-it.org/}} 22.04) with 16GB of RAM and 2GB of VRAM.  
+
+%%% TODO: see XAI taxo survey for datasets
 \section{Synthetic datasets}
 \label{sec:expRes.syns-dataset}
-In recent times, there has been an emergence of synthetic datasets tailored for evaluating explanation techniques (\cite{ying2019-gnnexplainer,luo2020-pgexplainer}). In such datasets, different graph motifs are included and can determine the node labels or graph labels. Furthermore, the relationships between data examples and their respective labels are meticulously defined by human experts. Even though the trained GNNs may not perfectly capture such relationships, the graph motifs can be employed as reasonable approximations of the ground truths of explanation results. Here we introduce several common synthetic datasets.
+In recent times, there has been an emergence of synthetic datasets tailored for evaluating explanation techniques (\cite{ying2019-gnnexplainer,luo2020-pgexplainer}). In such datasets, different graph motifs are included and can determine the node labels or graph labels. Furthermore, the relationships between data examples and their respective labels are meticulously defined by human experts. Even though the trained GNNs may not perfectly capture such relationships, the graph motifs can be employed as reasonable approximations of the ground truths of explanation results. Here we introduce the most widely used synthetic datasets in GNN explanation tasks.
 
 \paragraph{BA-shapes}
-(syn1): the base graph is a Barabasi-Albert (BA) graph with house-shaped motifs, where each motif consists of 5 nodes (one for the top of the house, two in the middle, and two on the bottom). Here, there are four possible classes (not in motif, in motif: top, middle, bottom)  - indices of expl. labeled nodes: $[300,700)$ every 5;
+\label{sec:expRes.ba-shapes}
+(syn1): It is a node classification dataset with 4 different node labels. It contains a base graph (300 nodes) and a house-like five-node motif (one for the top of the house, two in the middle, and two on the bottom). 
+Note that the base graph is obtained by the Barabási-Albert (BA) model, which can generate random scale-free networks with a preferential attachment mechanism \mycite{albert2002-barabasi}. 
+The motif is attached to the base graph while random edges are added. Each node is labeled based on whether it belongs to the base graph or different spatial locations of the motif: there are four possible classes (not in-motif, in-motif top, in-motif middle, in-motif bottom) 
+- indices of expl. labeled nodes: $[300,700)$ every 5;
 
 \paragraph{BA-community}
-(syn2): has eight classes and contains 2 BA-shapes graphs with randomly attached edges. The memberships of the BA-shapes graphs and the structural location determine the labels.  - indices of expl. labeled nodes: $[300,700) \cup [1000,1400)$ every 5; 
+\label{sec:expRes.ba-comms}
+(syn2): a node classification dataset with 8 different labels. Each graph is obtained by combining two BA-shapes graphs with randomly added edges. Node labels are determined by the memberships of BA-shapes graphs and their structural locations. The memberships of the BA-shapes graphs and the structural location determine the labels.  
+- indices of expl. labeled nodes: $[300,700) \cup [1000,1400)$ every 5; 
 
 \paragraph{Tree-Cycles}
-(syn3): consists of a binary tree base graph with 6-cycle motifs,  - indices of expl. labeled nodes: $[511,871)$ every 6;
+\label{sec:expRes.tree-cycles}
+(syn3): It is a node classification dataset with 2 different labels. Each graph it consists of a base balanced tree graph with the depth equal to 8 and a six-node cycle motif. These two components are randomly connected. The label for the nodes in based graphs is 0 otherwise 1.
+- indices of expl. labeled nodes: $[511,871)$ every 6;
 
 \paragraph{Tree-Grids}
-(syn4): also has a binary tree as its base graph, but with 3×3 grids as the motifs.  - indices of expl. labeled nodes: $[511,1231)$ every 3/9;
+\label{sec:expRes.tree-grids}
+(syn4):  It is a node classification dataset with 2 different labels. It is the same as the Tree-Cycle dataset, except that the Tree-Grids dataset employs nine-node ($3\times 3$) grid motifs instead of cycle motifs.
+- indices of expl. labeled nodes: $[511,1231)$ every 3/9;
 
-\paragraph{MUTAG}
-A molecular dataset, contains several molecules represented as graphs where nodes represent atoms and edges chemical bonds. The molecules are labelled based on their mutagenic effect on a specific bacterium. Carbon rings with chemical groups NH2 or NO2 are present in mutagenic molecules. A good explainer should identify such patterns for the corresponding class.
+\paragraph{BA-2Motifs}
+\label{sec:expRes.ba-2motifs}
+It is a graph classification dataset with 2 different graph labels. There are 800 graphs and each of them is obtained by attaching different motifs, such as the house-like motif and the five-node (BA-shapes, \cref{sec:expRes.ba-shapes}) cycle motif (Tree-Cycle, \cref{sec:expRes.tree-cycles}), to the base BA graph. Different graphs are labeled based on the type of motif.
+
+\subsection{Real-world datasets}
+\label{sec:expRes.real-dataset}
+%\subsection{Molecule datasets}
+%\label{sec:expRes.molecule-dataset}
+
+\paragraph{Molecule datasets}
+\label{sec:expRes.mutag}
+Molecular datasets are also widely used in explanation tasks, such as MUTAG \mycite{debnath1991-mutag}, BBBP \mycite{martins2012-BBBP}, and Tox21 \mycite{wu2018-moleculenet}. Each graph within these datasets is a representation of a molecule, with nodes symbolizing atoms and edges denoting the chemical bonds. The labeling of molecular graphs is typically derived from the chemical functionalities or properties inherent to the molecules. Utilizing these datasets for explanation tasks demands domain-specific knowledge, such as an understanding of which chemical groups serve as discriminative factors for their functionalities.
+
+MUTAG molecular dataset is the most common dataset for XAI tasks. It contains several molecules represented as graphs where nodes represent atoms and edges chemical bonds. The molecules are labelled based on their mutagenic effect on a specific bacterium \mycite{debnath1991-mutag}. Carbon rings with chemical groups $NH_2$ or $NO_2$ are present in mutagenic molecules, and are known to lead to mutagenic effects.
+The task performed here is binary graph classification (mutagenic,non-mutagenic) and good explainer should identify such patterns for the corresponding class. Obviously MUTAG, as well as all the molecular dataset cited here, is not a synthetic dataset, but is reported here due to many work in XAI for GNNs (\cite{ying2019-gnnexplainer,luo2020-pgexplainer,spinelli2022-mate-maml}) using it as one of the few real-world dataset containing explanation ground truth values.
 
 
-\section{Preprocessing}
-\label{sec:expRes.preprocessing}
-Property of the European Southern Observatory...
+\paragraph{Text datasets}
+\label{sec:expRes.text-data}
+Text data proves to be a suitable choice for graph explanation tasks because it comprises words and phrases with readily understandable semantic meanings. Consequently, the results of explanations can be easily assessed by humans. Thus, we have constructed three sentiment graph datasets based on text sentiment analysis data, encompassing the SST2, SST5 \mycite{socher2013-SST2-5}, and Twitter \mycite{dong2014-twitter} datasets.
 
-\section{countefactual metrics}
+Initially, for each text sequence, we transform it into a graph in which each node represents a word, and the edges signify relationships between different words. To accomplish this, we leverage the Biaffine parser \mycite{gardner2018-allennlp} for extracting word dependencies. In Figure 5, we provide an example of one of the sentiment graphs we've generated. It's worth noting that these generated graphs are directed, although we omit edge labels, as most Graph Neural Networks (GNNs) are incapable of capturing edge label information. Subsequently, we employ BERT \mycite{devlin2018-bert} to acquire word embeddings, and these embeddings serve as the initial representations for the graph nodes. Specifically, we utilize a pre-trained twelve-layer base BERT model to extract a 768-dimensional feature vector for each word.
+%\section{Preprocessing}
+%\label{sec:expRes.preprocessing}
+%Property of the European Southern Observatory...
+
+\bigskip
+\section{Countefactual metrics}
 \label{sec:expRes.cf-metrics}
-The \textit{Multi-Object Optical and Near-infrared Spectrograph} is a future generation MOS instrument for the VLT. 
+Although visualization results can offer valuable insights into the human perspective on the reasonableness of explanations, these assessments are not entirely reliable due to the absence of established ground truths. Moreover, comparing various explanation methods necessitates human examination of results for each input example, which is a time-consuming process. Furthermore, human evaluations tend to be highly subjective and may lack fairness.
+Hence, the significance of evaluation metrics in the study of explanation methods becomes evident. Effective metrics should appraise the results from the model's standpoint, gauging factors like the faithfulness of explanations to the model \mycite{jacovi2020-faithfully,wiegreffe2019-attention-notnot}. This section will introduce several recently developed evaluation metrics tailored for explanation tasks, as introduce in \mycite{arrieta2020-taxo-xai}.
 
+
+\paragraph{Fidelity} 
+\label{sec:expRes.fidelity}
+In tasks involving factual explanations, it is imperative that the explanations faithfully represent the model's perspective. They ought to pinpoint the input features that hold significance for the model, rather than being tailored to human preferences or understanding.
+In literature, Fidelity is defined as the proportion of nodes where the original predictions match the prediction for the explanations (\cite{molnar2022,ribeiro2016-lime}). Since we are dealing with the counterfactual task of generating counterfactual (CF) examples, our objective is to ensure that the original prediction does not align with the prediction made for the explanation. Therefore, we aim for a low fidelity value in this context. As shown by \mycite{amara2022-graphFramEx}, this definition of fidelity can be extended by considering in addition the explanation focus, making some adjustments: when it comes to the phenomenon focus, fidelity is assessed in relation to the ground-truth node label. On the other hand, for the model focus, it is evaluated with regard to the GNN model's output.
+
+
+\paragraph{Explanation Size}
+\label{sec:expRes.expl-size}
+In this setting the size of the explanation is the number of removed edges. This metric corresponds to the $\mathcal{L}_{size}$ term in \cref{eq:cfpg.bg.cfpg-loss}, which represents the disparity between the original $A_v$ and the counterfactual $\hat{A}_v$. In our quest for concise explanations, our aim is to minimize this metric, seeking a smaller value. It's important to note that we cannot apply this metric to evaluate GNNExplainer like models (\cite{luo2020-pgexplainer,yuan2020-xgnn,vu2020-pgm-explainer,bajaj2022-robustCF}), since they need the user to indicate the explanation size in advance, making this perspective useless.
+
+
+\paragraph{Sparsity}
+\label{sec:expRes.sparsity}
+Effective explanations should also exhibit sparsity, signifying their ability to encompass the most critical input features while disregarding irrelevant ones. The Sparsity metric quantifies this characteristic by gauging the proportion of features identified as important by explanation methods \mycite{pope2019-CVPR}.
+More specifically, sparsity measures the proportion of edges in $A^c_v$ that are removed (Yuan et al., 2020b). A value of $0$ indicates all edges in $A^c_v$ were removed. Given our preference for succinct explanations, we aim for a value approaching $1$ for this metric. Note that, also in this case, we cannot evaluate this metric for GNNExplainer like models as for explanation size (\cref{sec:expRes.expl-size}), for the same problem in their approach to generating explanation.
+
+
+\paragraph{Accuracy}
+\label{sec:expRes.accuracy}
+Additionally, the Accuracy metric has been introduced for synthetic datasets \mycite{ying2019-gnnexplainer,sanchez2020-attributeGNNs}. In the case of synthetic datasets, even if it remains uncertain whether GNNs make predictions as expected, the principles underlying the construction of these datasets, including graph motifs, can serve as reasonably close approximations of ground truths. Consequently, for any given input graph, we can assess its explanations in relation to these ground truths. For instance, when examining significant edges, we can evaluate the concordance rate between the important edges in explanations and those present in the ground truths.
+
+In the context of this study, accuracy is defined as the average proportion of explanations that are deemed \say{correct}. In line with the methodology established by \mycite{ying2019-gnnexplainer,luo2020-pgexplainer}, accuracy is computed exclusively for nodes that were originally predicted to be part of the motifs. This restriction is imposed because accuracy can only be reliably calculated for instances where we have knowledge of the ground truth explanations.
+As we strive for concise explanations, we classify an explanation as \say{correct} if it exclusively encompasses edges that are contained within the motifs, meaning it only removes edges that are situated within the motifs.
+
+
+\newpage
 \section{Results}
-\label{sec:expRes-res}
+\label{sec:expRes.res}
+In this section we present the results of the experiments executed in this study. First, the focus of our model, CFPGExplainer (\cref{chap:3-CFPG}), is to explain node classification task in GNNs, thus all the following results have been obtained considering the synthetic datasets (\cref{sec:expRes.syns-dataset}) for node classification. Following \mycite{luo2020-pgexplainer} and\mycite{spinelli2022-mate-maml}), for the sake of simplicity, we have adopted some aliases in developing the code and crafting the results tables; later in this text we say: \texttt{syn1} as BA-shapes, \texttt{syn2} as BA-community, \texttt{syn3} as Tree-Cycles and \texttt{syn4} as Tree-Grids.
 
+%%% tabella con i risultati del training della GNN su tutti i dataset 
+
+%%% tabella con gli hyper-parametri per le configurazioni ottimali
+
+%%% tabella con i risultati degli explainer su tutti i dataset
 
 
 
