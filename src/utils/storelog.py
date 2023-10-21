@@ -158,7 +158,7 @@ def store_expl_log(explainer: str, dataset: str, logs: dict, prefix: str="", sav
         "reg_size"  : [e_c['reg_size']],
         "AUC"       : [round(logs['AUC'],4)],
         "cf_train"  : [round(logs['cf_train'],4)],
-        "fnd_train" : [f"{logs['fnd_train']}/{logs['cf_tot']}"],
+        "fnd_train" : [f"{logs['fnd_train']}/{logs['cf_train_tot']}"],
         "cf_test"   : [round(logs['cf_test'],4)],
         "fnd_test"  : [f"{logs['fnd_test']}/{logs['cf_tot']}"],
         "fidelity"  : [round(logs["fidelity"],4)],

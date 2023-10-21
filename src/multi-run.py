@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 DATASETS = ["syn1","syn2","syn3","syn4"] #
 CONVS = ["GAT","GCN"] #,"pGCN"
-EXPLAINER = "CFPG" # "CFPG", "CFPGv2", "PGEex"
+EXPLAINER = "CFPGv2" # "CFPG", "CFPGv2", "PGEex"
 EPOCHS = 50
 
 # returns a list of 8 random small integers between 0 and 255
@@ -22,10 +22,10 @@ def get8RandomBytesFromOS():
 SEEDS = get8RandomBytesFromOS()[:4]
 
 params = {
-    "syn1" : "--opt Adam",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
-    "syn2" : "--opt Adam",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
-    "syn3" : "--opt Adam",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
-    "syn4" : "--opt Adam",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn1" : "--opt SGD",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn2" : "--opt SGD",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn3" : "--opt SGD",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
+    "syn4" : "--opt SGD",# --reg-cf 1.0 --reg-ent 1.0 --reg-size 0.1",
 }
 
 
@@ -40,7 +40,7 @@ for c in CONVS:
     for s in SEEDS:
         for d in (d_bar := tqdm(DATASETS, desc=f"[seed {s:03}]> datasets... ", colour="green", disable=False)):
             script_args = f" -E {EXPLAINER} -D {d} -e {EPOCHS} --conv {c} {params[d]} --seed {s} -es 10 --heads 3 --add-att 0.5 "
-            suffix_args = f"--prefix rParams-Gumbel0-thres01-3{c}3heads-Estop10-addAtt05 --log"
+            suffix_args = f"--prefix rParams-Gumbel0-thres01-3{c}3heads-Estop10-optSGD --log"
             args = script_args + suffix_args
             cmd = script_cmd + args
             #command = [cmd, args]

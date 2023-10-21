@@ -73,7 +73,7 @@ def get_cf_metrics(edge_labels: str, explanations: list, counterfactuals: dict, 
                 motif_gt = torch.LongTensor(edge_labels[str(n_idx)]).T
 
                 if n_removed == 0.0: n_removed = 0.1
-                in_expl = dense[motif_gt[0],motif_gt[1]].sum().item()
+                in_expl = dense[motif_gt[0],motif_gt[1]].sum().item() + dense[motif_gt[1],motif_gt[0]].sum().item()
                 node_acc.append(round(in_expl/n_removed,4))
 
         # compute sparsity, accuracy, explanation size
